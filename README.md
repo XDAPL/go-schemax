@@ -1,6 +1,6 @@
 # go-schemax
 
-[![GoDoc](https://pkg.go.dev/github.com/JesseCoretta/go-schemax?status.svg)](https://godoc.org/github.com/JesseCoretta/go-schemax)
+[![GoDoc](https://godoc.org/github.com/JesseCoretta/go-schemax?status.svg)](https://godoc.org/github.com/JesseCoretta/go-schemax)
 
 Abstract X.501 directory schema constructs and methods.
 
