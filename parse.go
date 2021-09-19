@@ -319,10 +319,6 @@ func parse(def string) (id []string, rest string, ok bool) {
 		}
 	}
 
-	//if alias {
-	// TODO
-	//oid = at.resolveOID(oid)
-	//}
 	ok = (len(id) > 0 && len(rest) > 0)
 
 	return

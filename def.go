@@ -152,15 +152,16 @@ func (def *definition) setStructuralObjectClass(
 		return
 	}
 
-	oc := ocm.Get(value, def.alm) // TODO deref alias / name
+	oc := ocm.Get(value, def.alm)
 	if oc.IsZero() {
 		return raise(invalidObjectClass,
 			"setStructuralObjectClass: no such %T was found in %T for value '%s' (type: %T)",
 			oc, value)
-	} else if !oc.Kind.is(Structural) {
-		//return raise(invalidObjectClass,
-		//      "setStructuralObjectClass: %T (%s) is not STRUCTURAL kind",
-		//	oc, oc.OID.string())
+	}
+	if !oc.Kind.is(Structural) {
+		return raise(invalidObjectClass,
+			"setStructuralObjectClass: %T (%s) is not STRUCTURAL kind",
+			oc, oc.OID.string())
 	}
 	def.values[idx].Set(valueOf(StructuralObjectClass{oc}))
 
@@ -228,7 +229,7 @@ func (def *definition) setAttrTypeSyntax(
 func (def *definition) setNameForm(nfm NameFormsManifest, x interface{},
 	value string, idx int) (err error) {
 
-	nf := nfm.Get(value, def.alm) // TODO deref alias / name
+	nf := nfm.Get(value, def.alm)
 	if nf.IsZero() {
 		return raise(unknownElement,
 			"setNameForm: no such %T was found in %T for value '%s' (type: %T)",
