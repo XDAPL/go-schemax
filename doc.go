@@ -57,6 +57,6 @@ Also known as OID "macros", aliases allow a succinct expression of an OID prefix
 
 This package supports the registration and use of such aliases within the AliasesManifest map type.  Note that this is an all-or-nothing mechanism. Understand that if a non-nil AliasesManifest instance is detected, and unregistered aliases are encountered during a parsing run, normal operations will be impacted. As such, users are advised to anticipate any aliases needed in advance or to abolish their use altogether.
 
-OID aliasing supports both dot (.) and colon (:) runes for delimitation, thus 'nisSchema.1.1' and 'nisSchema:1.1; are acceptable.
+OID aliasing supports both dot (.) and colon (:) runes for delimitation, thus 'nisSchema.1.1' and 'nisSchema:1.1' are acceptable.
 */
 package schemax
