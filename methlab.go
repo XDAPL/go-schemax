@@ -1,6 +1,11 @@
 package schemax
 
 /*
+parseMeth is the first class function bearing a signature shared by all fundamental parser methods.
+*/
+type parseMeth func(string) ([]string, string, bool)
+
+/*
 methlab.go deals with labels that are assigned to methods and stored in lookup maps. For example, `USAGE` for Usage.
 
 What, exactly, were you expecting?
@@ -60,7 +65,7 @@ func (r NameForm) Label() string {
 /*
 Label returns the known label for the receiver, if one exists.
 */
-func (r Applies) Label() string {
+func (r ApplicableAttributeTypes) Label() string {
 	return `APPLIES`
 }
 
@@ -83,6 +88,62 @@ Label returns the known label for the receiver, if one exists.
 */
 func (r SuperiorAttributeType) Label() string {
 	return `SUP`
+}
+
+/*
+Label returns the known label for the receiver, if one exists.
+*/
+func (r AttributeTypes) Label() string {
+	return ``
+}
+
+/*
+Label returns the known label for the receiver, if one exists.
+*/
+func (r ObjectClasses) Label() string {
+	return ``
+}
+
+/*
+Label returns the known label for the receiver, if one exists.
+*/
+func (r LDAPSyntaxes) Label() string {
+	return ``
+}
+
+/*
+Label returns the known label for the receiver, if one exists.
+*/
+func (r MatchingRules) Label() string {
+	return ``
+}
+
+/*
+Label returns the known label for the receiver, if one exists.
+*/
+func (r MatchingRuleUses) Label() string {
+	return ``
+}
+
+/*
+Label returns the known label for the receiver, if one exists.
+*/
+func (r NameForms) Label() string {
+	return ``
+}
+
+/*
+Label returns the known label for the receiver, if one exists.
+*/
+func (r DITStructureRules) Label() string {
+	return ``
+}
+
+/*
+Label returns the known label for the receiver, if one exists.
+*/
+func (r DITContentRules) Label() string {
+	return ``
 }
 
 /*
@@ -186,7 +247,6 @@ func (r AttributeType) labelMap() map[int]string {
 		9:  `EXT`,                           // (EXT)
 		10: `BOOLS`,                         // [OBSOLETE,SINGLE-VALUE,NO-USER-MODIFICATION,COLLECTIVE]
 		11: `MUB`,                           // unsigned non-zero integer setting min. length
-		12: `SEQ`,                           // [SEQUENCE] (unsigned sequence number, *Subschema only)
 	}
 }
 
@@ -204,7 +264,6 @@ func (r ObjectClass) labelMap() map[int]string {
 		6: PermittedAttributeTypes{}.Label(), // MAY
 		7: `EXT`,                             // (EXT)
 		8: `BOOLS`,                           // [OBSOLETE]
-		9: `SEQ`,                             // [SEQUENCE]
 	}
 }
 
@@ -219,7 +278,6 @@ func (r MatchingRule) labelMap() map[int]string {
 		3: LDAPSyntax{}.Label(),    // SYNTAX
 		4: `EXT`,                   // (EXT)
 		5: `BOOLS`,                 // [OBSOLETE]
-		6: `SEQ`,                   // [SEQUENCE]
 	}
 }
 
@@ -232,7 +290,6 @@ func (r LDAPSyntax) labelMap() map[int]string {
 		1: Description(``).Label(), // DESC
 		2: `EXT`,                   // (EXT)
 		3: `BOOLS`,                 // [HUMAN-READABLE]
-		4: `SEQ`,                   // [SEQUENCE]
 	}
 }
 
@@ -241,13 +298,12 @@ labelMap returns a map[int]string structure associating field names with labels.
 */
 func (r MatchingRuleUse) labelMap() map[int]string {
 	return map[int]string{
-		0: `OID`,                   // (OID)
-		1: Name{}.Label(),          // NAME
-		2: Description(``).Label(), // DESC
-		3: Applies{}.Label(),       // APPLIES
-		4: `EXT`,                   // (EXT)
-		5: `BOOLS`,                 // [OBSOLETE]
-		6: `SEQ`,                   // [SEQUENCE]
+		0: `OID`,                              // (OID)
+		1: Name{}.Label(),                     // NAME
+		2: Description(``).Label(),            // DESC
+		3: ApplicableAttributeTypes{}.Label(), // APPLIES
+		4: `EXT`,                              // (EXT)
+		5: `BOOLS`,                            // [OBSOLETE]
 	}
 }
 
@@ -265,7 +321,6 @@ func (r DITContentRule) labelMap() map[int]string {
 		6: ProhibitedAttributeTypes{}.Label(), // NOT
 		7: `EXT`,                              // (EXT)
 		8: `BOOLS`,                            // [OBSOLETE]
-		9: `SEQ`,                              // [SEQUENCE]
 	}
 }
 
@@ -281,7 +336,6 @@ func (r DITStructureRule) labelMap() map[int]string {
 		4: SuperiorDITStructureRules{}.Label(), // SUP
 		5: `EXT`,                               // (EXT)
 		6: `BOOLS`,                             // [OBSOLETE]
-		7: `SEQ`,                               // [SEQUENCE]
 	}
 }
 
@@ -298,7 +352,6 @@ func (r NameForm) labelMap() map[int]string {
 		5: PermittedAttributeTypes{}.Label(), // MAY
 		6: `EXT`,                             // (EXT)
 		7: `BOOLS`,                           // [OBSOLETE]
-		8: `SEQ`,                             // [SEQUENCE]
 	}
 }
 
@@ -319,7 +372,6 @@ func (r AttributeType) methMap() (mm map[int]parseMeth) {
 		9:  parse_extensions, // (EXT)
 		10: parse_boolean,    // [SINGLE-VALUE, COLLECTIVE, NO-USER-MODIFICATION, OBSOLETE]
 		11: parse_mub,        // {SYNTAX "len"}
-		12: parse_boolean,    // [SEQUENCE]
 	}
 }
 
@@ -334,7 +386,6 @@ func (r ObjectClass) methMap() (mm map[int]parseMeth) {
 		6: parse_oids_ids,   // MAY
 		7: parse_extensions, // (EXT)
 		8: parse_boolean,    // [OBSOLETE]
-		9: parse_boolean,    // [SEQUENCE]
 	}
 }
 
@@ -344,7 +395,6 @@ func (r LDAPSyntax) methMap() (mm map[int]parseMeth) {
 		1: parse_qdstring,   // DESC
 		2: parse_extensions, // (EXT)
 		3: parse_boolean,    // [HUMAN-READABLE]
-		4: parse_boolean,    // [SEQUENCE]
 	}
 }
 
@@ -356,7 +406,6 @@ func (r MatchingRule) methMap() (mm map[int]parseMeth) {
 		3: parse_numericoid, // SYNTAX
 		4: parse_extensions, // (EXT)
 		5: parse_boolean,    // [OBSOLETE]
-		6: parse_boolean,    // [SEQUENCE]
 	}
 }
 
@@ -368,7 +417,6 @@ func (r MatchingRuleUse) methMap() (mm map[int]parseMeth) {
 		3: parse_oids_ids,   // APPLIES
 		4: parse_extensions, // (EXT)
 		5: parse_boolean,    // [OBSOLETE]
-		6: parse_boolean,    // [SEQUENCE]
 	}
 }
 
@@ -383,7 +431,6 @@ func (r DITContentRule) methMap() (mm map[int]parseMeth) {
 		6: parse_oids_ids,   // NOT
 		7: parse_extensions, // (EXT)
 		8: parse_boolean,    // [OBSOLETE]
-		9: parse_boolean,    // [SEQUENCE]
 	}
 }
 
@@ -396,7 +443,6 @@ func (r DITStructureRule) methMap() (mm map[int]parseMeth) {
 		4: parse_oids_ids,   // SUP
 		5: parse_extensions, // (EXT)
 		6: parse_boolean,    // [OBSOLETE]
-		7: parse_boolean,    // [SEQUENCE]
 	}
 }
 
@@ -410,6 +456,5 @@ func (r NameForm) methMap() (mm map[int]parseMeth) {
 		5: parse_oids_ids,   // MAY
 		6: parse_extensions, // (EXT)
 		7: parse_boolean,    // [OBSOLETE]
-		8: parse_boolean,    // [SEQUENCE]
 	}
 }

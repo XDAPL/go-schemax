@@ -19,7 +19,7 @@ import (
 // LDAP Syntaxes
 
 /*
-PopulateDefaultLDAPSyntaxesManifest returns a new auto-populated instance of LDAPSyntaxesManifest.
+PopulateDefaultLDAPSyntaxes returns a new auto-populated instance of LDAPSyntaxes.
 
 Within this structure are all of the following:
 
@@ -27,57 +27,57 @@ Within this structure are all of the following:
  - Syntax definitions from RFC4517 (imported from go-schemax/rfc4517)
  - Syntax definitions from RFC4523 (imported from go-schemax/rfc4523)
 */
-func PopulateDefaultLDAPSyntaxesManifest() (lsm LDAPSyntaxesManifest) {
-	lsm = NewLDAPSyntaxesManifest()
-	PopulateRFC2307Syntaxes(lsm)
-	PopulateRFC4517Syntaxes(lsm)
-	PopulateRFC4523Syntaxes(lsm)
+func PopulateDefaultLDAPSyntaxes() (lsc LDAPSyntaxCollection) {
+	lsc = NewLDAPSyntaxes()
+	PopulateRFC2307Syntaxes(lsc)
+	PopulateRFC4517Syntaxes(lsc)
+	PopulateRFC4523Syntaxes(lsc)
 
 	return
 }
 
 /*
-PopulateRFC4523Syntaxes only populates the provided LDAPSyntaxesManifest (lsm) with LDAPSyntax definitions defined in this RFC.
+PopulateRFC4523Syntaxes only populates the provided LDAPSyntaxes (lsc) with LDAPSyntax definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4523.
 */
-func PopulateRFC4523Syntaxes(lsm LDAPSyntaxesManifest) {
+func PopulateRFC4523Syntaxes(lsc LDAPSyntaxCollection) {
 	for _, ls := range rfc4523.AllLDAPSyntaxes {
 		var nls LDAPSyntax
-		if err := Marshal(string(ls), &nls, nil, nil, nil, nil, nil, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(ls), &nls, nil, nil, nil, nil, nil, nil, nil, nil); err != nil {
 			panic(err)
 		}
-		lsm.Set(&nls)
+		lsc.Set(&nls)
 	}
 }
 
 /*
-PopulateRFC2307Syntaxes only populates the provided LDAPSyntaxesManifest (lsm) with LDAPSyntax definitions defined in this RFC.
+PopulateRFC2307Syntaxes only populates the provided LDAPSyntaxes (lsc) with LDAPSyntax definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc2307.
 */
-func PopulateRFC2307Syntaxes(lsm LDAPSyntaxesManifest) {
+func PopulateRFC2307Syntaxes(lsc LDAPSyntaxCollection) {
 	for _, ls := range rfc2307.AllLDAPSyntaxes {
 		var nls LDAPSyntax
-		if err := Marshal(string(ls), &nls, nil, nil, nil, nil, nil, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(ls), &nls, nil, nil, nil, nil, nil, nil, nil, nil); err != nil {
 			panic(err)
 		}
-		lsm.Set(&nls)
+		lsc.Set(&nls)
 	}
 }
 
 /*
-PopulateRFC4517Syntaxes only populates the provided LDAPSyntaxesManifest (lsm) with LDAPSyntax definitions defined in this RFC.
+PopulateRFC4517Syntaxes only populates the provided LDAPSyntaxes (lsc) with LDAPSyntax definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4517.
 */
-func PopulateRFC4517Syntaxes(lsm LDAPSyntaxesManifest) {
+func PopulateRFC4517Syntaxes(lsc LDAPSyntaxCollection) {
 	for _, ls := range rfc4517.AllLDAPSyntaxes {
 		var nls LDAPSyntax
-		if err := Marshal(string(ls), &nls, nil, nil, nil, nil, nil, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(ls), &nls, nil, nil, nil, nil, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(ls)))
 		}
-		lsm.Set(&nls)
+		lsc.Set(&nls)
 	}
 }
 
@@ -85,68 +85,68 @@ func PopulateRFC4517Syntaxes(lsm LDAPSyntaxesManifest) {
 // Matching Rules
 
 /*
-PopulateDefaultMatchingRulesManifest returns a new auto-populated instance of MatchingRulesManifest. Within this structure are all of the following:
+PopulateDefaultMatchingRules returns a new auto-populated instance of MatchingRules. Within this structure are all of the following:
 
  - Matching rules from RFC4517 (imported from go-schemax/rfc4517)
  - Matching rules from RFC4523 (imported from go-schemax/rfc4523)
 */
-func PopulateDefaultMatchingRulesManifest() (mrm MatchingRulesManifest) {
-	mrm = NewMatchingRulesManifest()
-	PopulateRFC2307MatchingRules(DefaultLDAPSyntaxesManifest, mrm)
-	PopulateRFC4517MatchingRules(DefaultLDAPSyntaxesManifest, mrm)
-	PopulateRFC4523MatchingRules(DefaultLDAPSyntaxesManifest, mrm)
+func PopulateDefaultMatchingRules() (mrc MatchingRuleCollection) {
+	mrc = NewMatchingRules()
+	PopulateRFC2307MatchingRules(DefaultLDAPSyntaxes, mrc)
+	PopulateRFC4517MatchingRules(DefaultLDAPSyntaxes, mrc)
+	PopulateRFC4523MatchingRules(DefaultLDAPSyntaxes, mrc)
 
 	return
 }
 
 /*
-PopulateRFC2307MatchingRules only populates the provided MatchingRulesManifest (mrm) with MatchingRule definitions defined in this RFC (which is currently one (1) definition).
+PopulateRFC2307MatchingRules only populates the provided MatchingRules (mrc) with MatchingRule definitions defined in this RFC (which is currently one (1) definition).
 
 Definitions are imported from go-schemax/rfc2307.
 
-A valid instance of LDAPSyntaxesManifest that contains all referenced LDAPSyntax instances must be provided as the lsm argument.
+A valid instance of LDAPSyntaxes that contains all referenced LDAPSyntax instances must be provided as the lsc argument.
 */
-func PopulateRFC2307MatchingRules(lsm LDAPSyntaxesManifest, mrm MatchingRulesManifest) {
+func PopulateRFC2307MatchingRules(lsc LDAPSyntaxCollection, mrc MatchingRuleCollection) {
 	for _, mr := range rfc2307.AllMatchingRules {
 		var nmr MatchingRule
-		if err := Marshal(string(mr), &nmr, nil, nil, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(mr), &nmr, nil, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(mr)))
 		}
-		mrm.Set(&nmr)
+		mrc.Set(&nmr)
 	}
 }
 
 /*
-PopulateRFC4517MatchingRules only populates the provided MatchingRulesManifest (mrm) with MatchingRule definitions defined in this RFC.
+PopulateRFC4517MatchingRules only populates the provided MatchingRules (mrc) with MatchingRule definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4517.
 
-A valid instance of LDAPSyntaxesManifest that contains all referenced LDAPSyntax instances must be provided as the lsm argument.
+A valid instance of LDAPSyntaxes that contains all referenced LDAPSyntax instances must be provided as the lsc argument.
 */
-func PopulateRFC4517MatchingRules(lsm LDAPSyntaxesManifest, mrm MatchingRulesManifest) {
+func PopulateRFC4517MatchingRules(lsc LDAPSyntaxCollection, mrc MatchingRuleCollection) {
 	for _, mr := range rfc4517.AllMatchingRules {
 		var nmr MatchingRule
-		if err := Marshal(string(mr), &nmr, nil, nil, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(mr), &nmr, nil, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(mr)))
 		}
-		mrm.Set(&nmr)
+		mrc.Set(&nmr)
 	}
 }
 
 /*
-PopulateRFC4523MatchingRules only populates the provided MatchingRulesManifest (mrm) with MatchingRule definitions defined in this RFC.
+PopulateRFC4523MatchingRules only populates the provided MatchingRules (mrc) with MatchingRule definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4523.
 
-A valid instance of LDAPSyntaxesManifest that contains all referenced LDAPSyntax instances must be provided as the lsm argument.
+A valid instance of LDAPSyntaxes that contains all referenced LDAPSyntax instances must be provided as the lsc argument.
 */
-func PopulateRFC4523MatchingRules(lsm LDAPSyntaxesManifest, mrm MatchingRulesManifest) {
+func PopulateRFC4523MatchingRules(lsc LDAPSyntaxCollection, mrc MatchingRuleCollection) {
 	for _, mr := range rfc4523.AllMatchingRules {
 		var nmr MatchingRule
-		if err := Marshal(string(mr), &nmr, nil, nil, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(mr), &nmr, nil, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(mr)))
 		}
-		mrm.Set(&nmr)
+		mrc.Set(&nmr)
 	}
 }
 
@@ -154,7 +154,7 @@ func PopulateRFC4523MatchingRules(lsm LDAPSyntaxesManifest, mrm MatchingRulesMan
 // Object Classes
 
 /*
-PopulateDefaultObjectClassesManifest returns a new auto-populated instance of ObjectClassesManifest.
+PopulateDefaultObjectClasses returns a new auto-populated instance of ObjectClasses.
 
 Within this structure are all of the following:
 
@@ -165,198 +165,198 @@ Within this structure are all of the following:
  - Object classes from RFC4523 (imported from go-schemax/rfc4523)
  - Object classes from RFC4524 (imported from go-schemax/rfc4524)
 */
-func PopulateDefaultObjectClassesManifest() (ocm ObjectClassesManifest) {
-	ocm = NewObjectClassesManifest()
+func PopulateDefaultObjectClasses() ObjectClassCollection {
+	occ := NewObjectClasses()
 
-	PopulateRFC4512ObjectClasses(ocm,
-		DefaultAttributeTypesManifest,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC4512ObjectClasses(occ,
+		DefaultAttributeTypes,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC4519ObjectClasses(ocm,
-		DefaultAttributeTypesManifest,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC4519ObjectClasses(occ,
+		DefaultAttributeTypes,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC4524ObjectClasses(ocm,
-		DefaultAttributeTypesManifest,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC4524ObjectClasses(occ,
+		DefaultAttributeTypes,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC2798ObjectClasses(ocm,
-		DefaultAttributeTypesManifest,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC2798ObjectClasses(occ,
+		DefaultAttributeTypes,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC2307ObjectClasses(ocm,
-		DefaultAttributeTypesManifest,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC2307ObjectClasses(occ,
+		DefaultAttributeTypes,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC4523ObjectClasses(ocm,
-		DefaultAttributeTypesManifest,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC4523ObjectClasses(occ,
+		DefaultAttributeTypes,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC2079ObjectClasses(ocm,
-		DefaultAttributeTypesManifest,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC2079ObjectClasses(occ,
+		DefaultAttributeTypes,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	return
+	return occ
 }
 
 /*
-PopulateRFC4524ObjectClasses only populates the provided ObjectClassesManifest (ocm) with ObjectClass definitions defined in this RFC.
+PopulateRFC4524ObjectClasses only populates the provided ObjectClasses (occ) with ObjectClass definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4524.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions), MatchingRulesManifest (containing all referenced MatchingRules definitions), and AttributeTypesManifest (containing all registered AttributeType definitions) must be provided as the atm, lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions), MatchingRules (containing all referenced MatchingRules definitions), and AttributeTypes (containing all registered AttributeType definitions) must be provided as the atc, lsc and mrc arguments respectively.
 */
 func PopulateRFC4524ObjectClasses(
-	ocm ObjectClassesManifest,
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	occ ObjectClassCollection,
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, oc := range rfc4524.AllObjectClasses {
 		var noc ObjectClass
-		if err := Marshal(string(oc), &noc, nil, atm, ocm, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(oc), &noc, atc, occ, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(oc)))
 		}
-		ocm.Set(&noc)
+		occ.Set(&noc)
 	}
 }
 
 /*
-PopulateRFC2079ObjectClasses only populates the provided ObjectClassesManifest (ocm) with ObjectClass definitions defined in this RFC.
+PopulateRFC2079ObjectClasses only populates the provided ObjectClasses (occ) with ObjectClass definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc2079.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions), MatchingRulesManifest (containing all referenced MatchingRules definitions), and AttributeTypesManifest (containing all registered AttributeType definitions) must be provided as the atm, lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions), MatchingRules (containing all referenced MatchingRules definitions), and AttributeTypes (containing all registered AttributeType definitions) must be provided as the atc, lsc and mrc arguments respectively.
 */
 func PopulateRFC2079ObjectClasses(
-	ocm ObjectClassesManifest,
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	occ ObjectClassCollection,
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, oc := range rfc2079.AllObjectClasses {
 		var noc ObjectClass
-		if err := Marshal(string(oc), &noc, nil, atm, ocm, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(oc), &noc, atc, occ, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(oc)))
 		}
-		ocm.Set(&noc)
+		occ.Set(&noc)
 	}
 }
 
 /*
-PopulateRFC2798ObjectClasses only populates the provided ObjectClassesManifest (ocm) with ObjectClass definitions defined in this RFC.
+PopulateRFC2798ObjectClasses only populates the provided ObjectClasses (occ) with ObjectClass definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc2798.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions), MatchingRulesManifest (containing all referenced MatchingRules definitions), and AttributeTypesManifest (containing all registered AttributeType definitions) must be provided as the atm, lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions), MatchingRules (containing all referenced MatchingRules definitions), and AttributeTypes (containing all registered AttributeType definitions) must be provided as the atc, lsc and mrc arguments respectively.
 */
 func PopulateRFC2798ObjectClasses(
-	ocm ObjectClassesManifest,
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	occ ObjectClassCollection,
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, oc := range rfc2798.AllObjectClasses {
 		var noc ObjectClass
-		if err := Marshal(string(oc), &noc, nil, atm, ocm, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(oc), &noc, atc, occ, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(oc)))
 		}
-		ocm.Set(&noc)
+		occ.Set(&noc)
 	}
 }
 
 /*
-PopulateRFC2307ObjectClasses only populates the provided ObjectClassesManifest (ocm) with ObjectClass definitions defined in this RFC.
+PopulateRFC2307ObjectClasses only populates the provided ObjectClasses (occ) with ObjectClass definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc2307.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions), MatchingRulesManifest (containing all referenced MatchingRules definitions), and AttributeTypesManifest (containing all registered AttributeType definitions) must be provided as the atm, lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions), MatchingRules (containing all referenced MatchingRules definitions), and AttributeTypes (containing all registered AttributeType definitions) must be provided as the atc, lsc and mrc arguments respectively.
 */
 func PopulateRFC2307ObjectClasses(
-	ocm ObjectClassesManifest,
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	occ ObjectClassCollection,
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, oc := range rfc2307.AllObjectClasses {
 		var noc ObjectClass
-		if err := Marshal(string(oc), &noc, nil, atm, ocm, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(oc), &noc, atc, occ, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(oc)))
 		}
-		ocm.Set(&noc)
+		occ.Set(&noc)
 	}
 }
 
 /*
-PopulateRFC4512ObjectClasses only populates the provided ObjectClassesManifest (ocm) with ObjectClass definitions defined in this RFC.
+PopulateRFC4512ObjectClasses only populates the provided ObjectClasses (occ) with ObjectClass definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4512.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions), MatchingRulesManifest (containing all referenced MatchingRules definitions), and AttributeTypesManifest (containing all registered AttributeType definitions) must be provided as the atm, lsm, and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions), MatchingRules (containing all referenced MatchingRules definitions), and AttributeTypes (containing all registered AttributeType definitions) must be provided as the atc, lsc, and mrc arguments respectively.
 */
 func PopulateRFC4512ObjectClasses(
-	ocm ObjectClassesManifest,
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	occ ObjectClassCollection,
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, oc := range rfc4512.AllObjectClasses {
 		var noc ObjectClass
-		if err := Marshal(string(oc), &noc, nil, atm, ocm, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(oc), &noc, atc, occ, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(oc)))
 		}
-		ocm.Set(&noc)
+		occ.Set(&noc)
 	}
 }
 
 /*
-PopulateRFC4519ObjectClasses only populates the provided ObjectClassesManifest (ocm) with ObjectClass definitions defined in this RFC.
+PopulateRFC4519ObjectClasses only populates the provided ObjectClasses (occ) with ObjectClass definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4519.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions), MatchingRulesManifest (containing all referenced MatchingRules definitions), and AttributeTypesManifest (containing all registered AttributeType definitions) must be provided as the atm, lsm, and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions), MatchingRules (containing all referenced MatchingRules definitions), and AttributeTypes (containing all registered AttributeType definitions) must be provided as the atc, lsc, and mrc arguments respectively.
 */
 func PopulateRFC4519ObjectClasses(
-	ocm ObjectClassesManifest,
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	occ ObjectClassCollection,
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, oc := range rfc4519.AllObjectClasses {
 		var noc ObjectClass
-		if err := Marshal(string(oc), &noc, nil, atm, ocm, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(oc), &noc, atc, occ, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(oc)))
 		}
-		ocm.Set(&noc)
+		occ.Set(&noc)
 	}
 }
 
 /*
-PopulateRFC4523ObjectClasses only populates the provided ObjectClassesManifest (ocm) with ObjectClass definitions defined in this RFC.
+PopulateRFC4523ObjectClasses only populates the provided ObjectClasses (occ) with ObjectClass definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4523.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions), MatchingRulesManifest (containing all referenced MatchingRules definitions), and AttributeTypesManifest (containing all registered AttributeType definitions) must be provided as the atm, lsm, and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions), MatchingRules (containing all referenced MatchingRules definitions), and AttributeTypes (containing all registered AttributeType definitions) must be provided as the atc, lsc, and mrc arguments respectively.
 */
 func PopulateRFC4523ObjectClasses(
-	ocm ObjectClassesManifest,
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	occ ObjectClassCollection,
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, oc := range rfc4523.AllObjectClasses {
 		var noc ObjectClass
-		if err := Marshal(string(oc), &noc, nil, atm, ocm, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(oc), &noc, atc, occ, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(oc)))
 		}
-		ocm.Set(&noc)
+		occ.Set(&noc)
 	}
 }
 
@@ -364,7 +364,7 @@ func PopulateRFC4523ObjectClasses(
 // Attribute Types
 
 /*
-PopulateDefaultAttributeTypesManifest returns a new auto-populated instance of AttributeTypesManifest. Within this structure are all of the following:
+PopulateDefaultAttributeTypes returns a new auto-populated instance of AttributeTypes. Within this structure are all of the following:
 
  - Attribute types from RFC2079 (imported from go-schemax/rfc2079)
  - Attribute types from RFC2307 (imported from go-schemax/rfc2307)
@@ -374,193 +374,193 @@ PopulateDefaultAttributeTypesManifest returns a new auto-populated instance of A
  - Attribute types from RFC4523 (imported from go-schemax/rfc4523)
  - Attribute types from RFC4524 (imported from go-schemax/rfc4524)
 */
-func PopulateDefaultAttributeTypesManifest() (atm AttributeTypesManifest) {
-	atm = NewAttributeTypesManifest()
+func PopulateDefaultAttributeTypes() (atc AttributeTypeCollection) {
+	atc = NewAttributeTypes()
 
-	PopulateRFC4512AttributeTypes(atm,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC4512AttributeTypes(atc,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC4519AttributeTypes(atm,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC4519AttributeTypes(atc,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC4524AttributeTypes(atm,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC4524AttributeTypes(atc,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC2798AttributeTypes(atm,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC2798AttributeTypes(atc,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC2307AttributeTypes(atm,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC2307AttributeTypes(atc,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC4523AttributeTypes(atm,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC4523AttributeTypes(atc,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
-	PopulateRFC2079AttributeTypes(atm,
-		DefaultLDAPSyntaxesManifest,
-		DefaultMatchingRulesManifest)
+	PopulateRFC2079AttributeTypes(atc,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
 
 	return
 }
 
 /*
-PopulateRFC4524AttributeTypes only populates the provided AttributeTypesManifest (atm) with AttributeType definitions defined in this RFC.
+PopulateRFC4524AttributeTypes only populates the provided AttributeTypes (atc) with AttributeType definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4524.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions) and MatchingRulesManifest (containing all referenced MatchingRules definitions), must be provided as the lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
 */
 func PopulateRFC4524AttributeTypes(
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, at := range rfc4524.AllAttributeTypes {
 		var nat AttributeType
-		if err := Marshal(string(at), &nat, nil, atm, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(at)))
 		}
-		atm.Set(&nat)
+		atc.Set(&nat)
 	}
 }
 
 /*
-PopulateRFC2079AttributeTypes only populates the provided AttributeTypesManifest (atm) with AttributeType definitions defined in this RFC.
+PopulateRFC2079AttributeTypes only populates the provided AttributeTypes (atc) with AttributeType definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc2079.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions) and MatchingRulesManifest (containing all referenced MatchingRules definitions), must be provided as the lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
 */
 func PopulateRFC2079AttributeTypes(
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, at := range rfc2079.AllAttributeTypes {
 		var nat AttributeType
-		if err := Marshal(string(at), &nat, nil, atm, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(at)))
 		}
-		atm.Set(&nat)
+		atc.Set(&nat)
 	}
 }
 
 /*
-PopulateRFC2307AttributeTypes only populates the provided AttributeTypesManifest (atm) with AttributeType definitions defined in this RFC.
+PopulateRFC2307AttributeTypes only populates the provided AttributeTypes (atc) with AttributeType definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc2307.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions) and MatchingRulesManifest (containing all referenced MatchingRules definitions), must be provided as the lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
 */
 func PopulateRFC2307AttributeTypes(
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, at := range rfc2307.AllAttributeTypes {
 		var nat AttributeType
-		if err := Marshal(string(at), &nat, nil, atm, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(at)))
 		}
-		atm.Set(&nat)
+		atc.Set(&nat)
 	}
 }
 
 /*
-PopulateRFC2798AttributeTypes only populates the provided AttributeTypesManifest (atm) with AttributeType definitions defined in this RFC.
+PopulateRFC2798AttributeTypes only populates the provided AttributeTypes (atc) with AttributeType definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc2798.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions) and MatchingRulesManifest (containing all referenced MatchingRules definitions), must be provided as the lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
 */
 func PopulateRFC2798AttributeTypes(
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, at := range rfc2798.AllAttributeTypes {
 		var nat AttributeType
-		if err := Marshal(string(at), &nat, nil, atm, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(at)))
 		}
-		atm.Set(&nat)
+		atc.Set(&nat)
 	}
 }
 
 /*
-PopulateRFC4512AttributeTypes only populates the provided AttributeTypesManifest (atm) with AttributeType definitions defined in this RFC.
+PopulateRFC4512AttributeTypes only populates the provided AttributeTypes (atc) with AttributeType definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4512.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions) and MatchingRulesManifest (containing all referenced MatchingRules definitions), must be provided as the lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
 */
 func PopulateRFC4512AttributeTypes(
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, at := range rfc4512.AllAttributeTypes {
 		var nat AttributeType
-		if err := Marshal(string(at), &nat, nil, atm, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(at)))
 		}
-		atm.Set(&nat)
+		atc.Set(&nat)
 	}
 }
 
 /*
-PopulateRFC4519AttributeTypes only populates the provided AttributeTypesManifest (atm) with AttributeType definitions defined in this RFC.
+PopulateRFC4519AttributeTypes only populates the provided AttributeTypes (atc) with AttributeType definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4519.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions) and MatchingRulesManifest (containing all referenced MatchingRules definitions), must be provided as the lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
 */
 func PopulateRFC4519AttributeTypes(
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, at := range rfc4519.AllAttributeTypes {
 		var nat AttributeType
-		if err := Marshal(string(at), &nat, nil, atm, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(at)))
 		}
-		atm.Set(&nat)
+		atc.Set(&nat)
 	}
 }
 
 /*
-PopulateRFC4523AttributeTypes only populates the provided AttributeTypesManifest (atm) with AttributeType definitions defined in this RFC.
+PopulateRFC4523AttributeTypes only populates the provided AttributeTypes (atc) with AttributeType definitions defined in this RFC.
 
 Definitions are imported from go-schemax/rfc4523.
 
-Valid instances of LDAPSyntaxesManifest (containing all referenced LDAPSyntax definitions) and MatchingRulesManifest (containing all referenced MatchingRules definitions), must be provided as the lsm and mrm arguments respectively.
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
 */
 func PopulateRFC4523AttributeTypes(
-	atm AttributeTypesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest) {
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
 	for _, at := range rfc4523.AllAttributeTypes {
 		var nat AttributeType
-		if err := Marshal(string(at), &nat, nil, atm, nil, lsm, mrm, nil, nil, nil, nil); err != nil {
+		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(at)))
 		}
-		atm.Set(&nat)
+		atc.Set(&nat)
 	}
 }
 
 func init() {
 
 	// default manifests
-	DefaultLDAPSyntaxesManifest = PopulateDefaultLDAPSyntaxesManifest()
-	DefaultMatchingRulesManifest = PopulateDefaultMatchingRulesManifest()
-	DefaultAttributeTypesManifest = PopulateDefaultAttributeTypesManifest()
-	DefaultObjectClassesManifest = PopulateDefaultObjectClassesManifest()
+	DefaultLDAPSyntaxes = PopulateDefaultLDAPSyntaxes()
+	DefaultMatchingRules = PopulateDefaultMatchingRules()
+	DefaultAttributeTypes = PopulateDefaultAttributeTypes()
+	DefaultObjectClasses = PopulateDefaultObjectClasses()
 
 }
