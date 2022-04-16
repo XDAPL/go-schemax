@@ -1,5 +1,17 @@
 package schemax
 
+/*
+stripTags simply converts (for example) "userCertificate;binary" to "userCertificate" so that lookups and comparisons are performed properly. This package does not really care about tags, but the presence of such values should not have a negative impact.
+*/
+func stripTags(x string) (name string) {
+	idx := indexRune(x, ';')
+	if idx == -1 {
+		return x
+	}
+
+	return x[:idx]
+}
+
 var parsers map[string]parseMeth
 
 /*
@@ -35,8 +47,8 @@ func lfindex(term string, def definition) (idx int) {
 			}
 		} else if def.labels[idx] == `BOOLS` {
 			switch term {
-			case Obsolete.string(), SingleValue.string(),
-				NoUserModification.string(), Collective.string():
+			case Obsolete.String(), SingleValue.String(),
+				NoUserModification.String(), Collective.String():
 				return idx
 			}
 		} else {
@@ -49,41 +61,6 @@ func lfindex(term string, def definition) (idx int) {
 	}
 
 	return -1
-}
-
-func definitionType(def definition) (n string) {
-	n = `unknown`
-	t := def.typ.Name()
-	switch t {
-	case `ObjectClass`:
-		n = `oc`
-	case `StructuralObjectClass`:
-		n = `soc`
-	case `AttributeType`:
-		n = `at`
-	case `SuperiorAttributeType`:
-		n = `sat`
-	case `LDAPSyntax`:
-		n = `ls`
-	case `Equality`:
-		n = `eq`
-	case `Substring`:
-		n = `ss`
-	case `Ordering`:
-		n = `ord`
-	case `MatchingRule`:
-		n = `mr`
-	case `MatchingRuleUse`:
-		n = `mru`
-	case `DITContentRule`:
-		n = `dcr`
-	case `DITStructureRule`:
-		n = `dsr`
-	case `NameForm`:
-		n = `nf`
-	}
-
-	return
 }
 
 func parse_qdstring(def string) (name []string, rest string, ok bool) {
@@ -260,8 +237,8 @@ func parse_definition_label(def string) (label []string, rest string, ok bool) {
 	case Auxiliary.String(), Structural.String(), Abstract.String():
 		label = []string{`KIND`}
 		rest = def
-	case Obsolete.string(), NoUserModification.string(),
-		Collective.string(), SingleValue.string():
+	case Obsolete.String(), NoUserModification.String(),
+		Collective.String(), SingleValue.String():
 		label = []string{testlabel}
 		rest = def[idx+1:]
 	default:
@@ -422,246 +399,6 @@ func parse_numericoid(def string) (oid []string, rest string, ok bool) {
 }
 
 /*
-Unmarshal takes an instance of one (1) of the following types and (if valid) and returns the textual form of the definition:
-
- - *ObjectClass
- - *AttributeType
- - *LDAPSyntax
- - *MatchingRule
- - *MatchingRuleUse
- - *DITContentRule
- - *DITStructureRule
- - *NameForm
-
-Should any validation errors occur, a non-nil instance of error is returned.
-*/
-func Unmarshal(x interface{}) (def string, err error) {
-	switch tv := x.(type) {
-	case *ObjectClass:
-		def, err = tv.unmarshal(true)
-	case *AttributeType:
-		def, err = tv.unmarshal(true)
-	case *LDAPSyntax:
-		def, err = tv.unmarshal(true)
-	case *MatchingRule:
-		def, err = tv.unmarshal(true)
-	case *MatchingRuleUse:
-		def, err = tv.unmarshal(true)
-	case *DITContentRule:
-		def, err = tv.unmarshal(true)
-	case *DITStructureRule:
-		def, err = tv.unmarshal(true)
-	case *NameForm:
-		def, err = tv.unmarshal(true)
-	default:
-		err = raise(invalidUnmarshal,
-			"unknown or unsupported type %T", tv)
-	}
-
-	if err != nil {
-		err = raise(invalidUnmarshal, err.Error())
-	} else if len(def) == 0 {
-		err = raise(invalidUnmarshal,
-			"zero-length definition returned from Unmarshal (of %T)", x)
-	}
-
-	return
-}
-
-/*
-Marshal takes the provided schema definition (def) and attempts to marshal it into x.  x MUST be one of the following types:
-
- - *AttributeType
- - *ObjectClass
- - *LDAPSyntax
- - *MatchingRule
- - *MatchingRuleUse
- - *DITContentRule
- - *DITStructureRule
- - *NameForm
-
-Should any validation errors occur, a non-nil instance of error is returned.
-
-Note that it is far more convenient to use the Subschema.Marshal wrapper, as it only requires a single argument (the raw definition).
-*/
-func Marshal(raw string, x interface{},
-	alm AliasesManifest,
-	atm AttributeTypesManifest,
-	ocm ObjectClassesManifest,
-	lsm LDAPSyntaxesManifest,
-	mrm MatchingRulesManifest,
-	mrum MatchingRuleUsesManifest,
-	dcrm DITContentRulesManifest,
-	dsrm DITStructureRulesManifest,
-	nfm NameFormsManifest) (err error) {
-	// I am so sorry.
-
-	if len(raw) == 0 {
-		return raise(emptyDefinition, "no length")
-	}
-
-	// Remove all outer WHSP, collapse all successive inner
-	// WHSP to single space, and purge all linebreaks.
-	raw = sanitize(raw)
-
-	def, ok := newDefinition(x, alm)
-	if !ok {
-		return raise(invalidMarshal, "newDefinition: assembly failure")
-	}
-
-	// here we parse the OID, which is a constant
-	// for all schema types, as our first order ...
-
-	id, rest, ok := parse(raw)
-	if !ok {
-		return raise(invalidMarshal, invalidOID.Error())
-	}
-
-	if _, asserted := x.(*DITStructureRule); asserted {
-		def.values[0].Set(valueOf(NewRuleID(id[0])))
-	} else {
-		isnumoid := isNumericalOID(id[0])
-		if alm.IsZero() {
-			if !isnumoid {
-				return raise(invalidMarshal, "unresolvable alias '%s' (nil manifest)", id[0])
-			}
-			def.values[0].Set(valueOf(OID(id[0])))
-		} else {
-			oid, ok := alm.Resolve(id[0])
-			if !ok {
-				return raise(invalidMarshal, "unresolvable alias '%s'", id[0])
-			}
-			def.values[0].Set(valueOf(oid))
-		}
-	}
-
-	// Now we'll parse all KEY WHSP VALUE [VALUE...] instances
-	for {
-		if len(rest) <= 1 || err != nil {
-			break
-		}
-
-		// parseDefLabel receives one chunk of information
-		// (which should be a single, raw schema definition).
-		// We then attempt to extract a "label" from this,
-		// and then parse the remainder ("rest") based on
-		// the appropriate known actions for said type of
-		// value (e.g.: `NAME` vs. `SYNTAX`).
-		var label []string
-		if label, rest, ok = parse_definition_label(rest); !ok {
-			return raise(invalidLabel,
-				"failed parse for label was: '%s', raw def: '%s'",
-				label, rest)
-		} else {
-			idx := def.lfindex(label[0])
-			if idx == -1 {
-				return raise(invalidLabel,
-					"failed index localization (lfindex) for label: '%s', raw def: '%s'",
-					label[0], rest)
-			}
-
-			var value []string
-			if value, rest, ok = def.meths[idx](rest); !ok {
-				return raise(invalidValue,
-					"failed value localization for label: '%s' (deflabel:%s), raw def: '%s'",
-					label[0], def.labels[idx], rest)
-			}
-
-			switch def.labels[idx] {
-			case `KIND`:
-				err = def.setKind(value[0], idx)
-			case `EXT`:
-				err = def.setExtensions(label[0], value, idx)
-			case `NAME`:
-				err = def.setName(idx, value...)
-			case `DESC`:
-				err = def.setDesc(idx, value[0])
-			case `BOOLS`:
-				err = def.setBoolean(label[0], x)
-			case `USAGE`:
-				err = def.setUsage(value[0], idx)
-			case `FORM`:
-				err = def.setNameForm(nfm, x, value[0], idx)
-			case `MAY`:
-				err = def.setPermittedAttributeTypes(atm, x, value, idx)
-			case `NOT`:
-				err = def.setProhibitedAttributeTypes(atm, x, value, idx)
-			case `MUST`:
-				err = def.setRequiredAttributeTypes(atm, x, value, idx)
-			case `APPLIES`:
-				err = def.setApplies(atm, x, value, idx)
-			case `AUX`:
-				err = def.setAuxiliaryObjectClasses(ocm, x, value, idx)
-			case `OC`:
-				err = def.setStructuralObjectClass(ocm, x, value[0], idx)
-			case `SUP`:
-				switch def.definitionType() {
-				case `oc`:
-					err = def.setSuperiorObjectClasses(ocm, x, value, idx)
-				case `sat`, `at`:
-					err = def.setSuperiorAttributeType(atm, x, value[0], idx)
-				case `dsr`:
-					err = def.setSuperiorDITStructureRules(dsrm, x, value, idx)
-				}
-			case `SYNTAX`:
-				err = def.setSyntax(lsm, x, value[0], idx)
-			case `EQUALITY`, `SUBSTR`, `SUBSTRINGS`, `ORDERING`:
-				err = def.setEqSubOrd(mrm, x, value[0], idx)
-			default:
-				return raise(invalidLabel,
-					"Field '%s'(def.label:'%s') unhandled; would have set '%s', raw def: '%s')",
-					label[0], def.labels[idx], value, rest)
-			}
-		}
-		label = []string{} // reset our label
-	}
-
-	if err != nil {
-		return
-	}
-
-	// Our instance has been populated with the
-	// marshaled bytes. Now we conduct validation
-	// checks to ensure said bytes were sane.
-	switch tv := x.(type) {
-	case *LDAPSyntax:
-		// we'll take an extra step to identify
-		// any syntax that is considered to be
-		// human readable either through a value
-		// of 'FALSE' for the X-NOT-HUMAN-READABLE
-		// well-known extension, or absence of said
-		// extension altogether.
-		if tv.Extensions.Exists(`X-NOT-HUMAN-READABLE`) {
-			if strInSlice(`FALSE`, tv.Extensions[`X-NOT-HUMAN-READABLE`]) {
-				tv.bools.set(HumanReadable)
-			}
-		} else {
-			tv.bools.set(HumanReadable)
-		}
-		err = tv.validate()
-	case *AttributeType:
-		err = tv.validate()
-	case *ObjectClass:
-		err = tv.validate()
-	case *NameForm:
-		err = tv.validate()
-	case *MatchingRule:
-		err = tv.validate()
-	case *MatchingRuleUse:
-		err = tv.validate()
-	case *DITContentRule:
-		err = tv.validate()
-	case *DITStructureRule:
-		err = tv.validate()
-	default:
-		err = raise(unexpectedType,
-			"No validator for %T", tv)
-	}
-
-	return
-}
-
-/*
 sanitize takes the user-provided string-based schema definition and will remove extraneous content not needed for parsing.
 
 Such content includes repeated WHSP chars (e.g.: tabs/spaces), which are collapsed down to single spaces as needed for delimitation, and the outright removal of any newlines.
@@ -686,6 +423,82 @@ func sanitize(def string) (processed string) {
 		}
 	}
 	processed = trimSpace(processed)
+
+	return
+}
+
+func isNumericalOID(x interface{}) (is bool) {
+	var val string
+	switch tv := x.(type) {
+	case string:
+		val = stripTags(tv)
+	case OID:
+		val = tv.String()
+	default:
+		return
+	}
+
+	oid := split(val, `.`)
+	if len(oid) < 2 {
+		return false
+	}
+
+	switch oid[0] {
+	case `0`, `1`, `2`:
+		// OK!
+	default:
+		return
+	}
+
+	var dot bool
+	for arc := 1; arc < len(oid); arc++ {
+		for c := range oid[arc] {
+			ch := rune(oid[arc][c])
+			switch {
+			case isDigit(string(ch)):
+				dot = false
+				continue
+			case ch == '.' && !dot &&
+				arc != 0 && arc != len(oid)-1:
+				dot = true
+			default:
+				return
+			}
+		}
+	}
+	is = true
+
+	return
+}
+
+func strInSlice(str string, slice []string) bool {
+	if len(str) == 0 || len(slice) == 0 {
+		return false
+	}
+
+	for el := range slice {
+		if slice[el] == str {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isDigit(val string) (is bool) {
+	if len(val) == 0 {
+		return
+	}
+	for c := range val {
+		ch := rune(val[c])
+		switch {
+		case '0' <= ch && ch <= '9':
+			continue
+		default:
+			return
+		}
+	}
+	is = true
 
 	return
 }

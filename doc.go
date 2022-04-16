@@ -13,9 +13,11 @@ Intended Audience
 
 This package is primarily intended for any architect, developer or analyst looking to do one or more of the following:
 
-  - Parse (Marshal) textual LDAP schema definitions into objects
-  - Unmarshal objects into textual LDAP schema definitions
-  - Work with data models and structures that may represent or contain some facet of a schema
+• Parse (Marshal) textual LDAP schema definitions into objects
+
+• Unmarshal objects into textual LDAP schema definitions
+
+• Work with data models and structures that may represent or contain some facet of a schema
 
 Parsing
 
@@ -25,19 +27,25 @@ For successful parsing, each definition must be limited to a single line when an
 
 Population Order
 
-When POPULATING various Manifest types (e.g.: maps containing an identifier-to-instance key/value pair), the following "order of operations" MUST be honored:
+When POPULATING various collection types (e.g.: slices of definitions), the following "order of operations" MUST be honored:
 
-  1. Aliases
-  2. LDAPSyntaxes
-  3. MatchingRules
-  4. AttributeTypes
-  5. MatchingRuleUses
-  6. ObjectClasses
-  7. DITContentRules
-  8. NameForms
-  9. DITStructureRules
+1. LDAPSyntaxes
 
-Individually, Manifests containing the above elements should also be populated in order of referential superiority.  For example, all independent instances should be populated before those that depend upon them, such as in the cases of sub-types, sub-classes and sub-rules.
+2. MatchingRules
+
+3. AttributeTypes
+
+4. MatchingRuleUses
+
+5. ObjectClasses
+
+6. DITContentRules
+
+7. NameForms
+
+8. DITStructureRules
+
+Individually, collections containing the above elements should also be populated in order of referential superiority.  For example, all independent instances should be populated before those that depend upon them, such as in the cases of sub-types, sub-classes and sub-rules.
 
 An obvious real-world example of this is for the 'name' attribute (per RFC4519), which is a super-type of several other key attribute types.  In such a case, those definitions that depend (or are based) upon the 'name' attribute WILL NOT MARSHAL until 'name' has been marshaled itself.
 
@@ -51,11 +59,11 @@ The user is advised that some LDAP implementations have certain attribute types 
 
 This varies between implementations and, as such, inconsistencies may arise for someone using this product across various directory products. One size absolutely does not fit all.  In such a case, an attempt to marshal a schema file may fail due to unsatisfied super-type or super-class(es) dependencies.  To mitigate this, the user must somehow provide the lacking definitions, either by themselves or using one of the subdirectory packages.
 
-OID Aliases
+OID Macros
 
-Also known as OID "macros", aliases allow a succinct expression of an OID prefix by way of a text identifier.  As a real-world example, RFC2307 uses the alias "nisSchema" to describe the OID prefix of "1.3.6.1.1.1".
+Also known as OID "aliases", macros allow a succinct expression of an OID prefix by way of a text identifier.  As a real-world example, RFC2307 uses the alias "nisSchema" to describe the OID prefix of "1.3.6.1.1.1".
 
-This package supports the registration and use of such aliases within the AliasesManifest map type.  Note that this is an all-or-nothing mechanism. Understand that if a non-nil AliasesManifest instance is detected, and unregistered aliases are encountered during a parsing run, normal operations will be impacted. As such, users are advised to anticipate any aliases needed in advance or to abolish their use altogether.
+This package supports the registration and use of such aliases within the Macros map type.  Note that this is an all-or-nothing mechanism. Understand that if a non-nil Macros instance is detected, and unregistered aliases are encountered during a parsing run, normal operations will be impacted. As such, users are advised to anticipate any aliases needed in advance or to abolish their use altogether.
 
 OID aliasing supports both dot (.) and colon (:) runes for delimitation, thus 'nisSchema.1.1' and 'nisSchema:1.1' are acceptable.
 */

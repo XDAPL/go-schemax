@@ -1,62 +1,52 @@
 package schemax
 
-/*
-MaxLength returns the integer value, if one was specified, that defines the maximum acceptable value size supported by this *AttributeType per its associated *LDAPSyntax.  If not applicable, a -1 is returned.
-*/
-func (r AttributeType) MaxLength() int {
-	return int(r.mub)
-}
+import (
+	"errors"
+	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
 
 /*
-SetMaxLength sets the minimum upper bounds, or maximum length, of the receiver instance. The argument must be a positive, non-zero integer.
-
-This will only apply to *AttributeTypes that use a human-readable syntax.
+common import wrappers
 */
-func (r *AttributeType) SetMaxLength(max int) {
-	r.setMUB(max)
-}
+var (
+        itoa         func(int) string                          = strconv.Itoa
+        atoi         func(string) (int, error)                 = strconv.Atoi
+        toLower      func(string) string                       = strings.ToLower
+        join         func([]string, string) string             = strings.Join
+        split        func(string, string) []string             = strings.Split
+        contains     func(string, string) bool                 = strings.Contains
+        replaceAll   func(string, string, string) string       = strings.ReplaceAll
+        equalFold    func(string, string) bool                 = strings.EqualFold
+        indexRune    func(string, rune) int                    = strings.IndexRune
+        index        func(string, string) int                  = strings.Index
+        trimSpace    func(string) string                       = strings.TrimSpace
+	trim         func(string, string) string               = strings.Trim
+        runeIsUpper  func(rune) bool                           = unicode.IsUpper
+        runeIsLetter func(rune) bool                           = unicode.IsLetter
+        runeIsDigit  func(rune) bool                           = unicode.IsDigit
+        isUTF8       func([]byte) bool                         = utf8.Valid
+        valueOf      func(interface{}) reflect.Value           = reflect.ValueOf
+        printf       func(string, ...interface{}) (int, error) = fmt.Printf
+        sprintf      func(string, ...interface{}) string       = fmt.Sprintf
+        newErr       func(string) error                        = errors.New
+)
 
-/*
-setBoolean is a private method used by reflect to set the minimum upper bounds.
-*/
-func (r *AttributeType) setMUB(mub interface{}) {
-	if r.IsZero() {
-		return
-	}
+// sanity limits
+var (
+        descMaxLen     = 4096 // bytes
+        nameListMaxLen = 10   // per def
+        nameMaxLen     = 128  // single name length
+)
 
-	if r.Syntax.IsZero() {
-		return
-	}
-
-	if !r.Syntax.IsHumanReadable() {
-		return
-	}
-
-	switch tv := mub.(type) {
-	case string:
-		n, err := atoi(tv)
-		if err != nil || n < 0 {
-			return
-		}
-		r.mub = uint(n)
-	case int:
-		if tv > 0 {
-			r.mub = uint(tv)
-		}
-	case uint:
-		r.mub = tv
-	}
-
-}
-
-/*
-stripTags simply converts (for example) "userCertificate;binary" to "userCertificate" so that lookups and comparisons are performed properly. This package does not really care about tags, but the presence of such values should not have a negative impact.
-*/
-func stripTags(x string) (name string) {
-	idx := indexRune(x, ';')
-	if idx == -1 {
-		return x
-	}
-
-	return x[:idx]
-}
+// Default Definition Collections
+var (
+        DefaultAttributeTypes AttributeTypeCollection
+        DefaultObjectClasses  ObjectClassCollection
+        DefaultLDAPSyntaxes   LDAPSyntaxCollection
+        DefaultMatchingRules  MatchingRuleCollection
+)

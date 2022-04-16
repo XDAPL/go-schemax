@@ -7,10 +7,10 @@ import (
 
 func testSubschema() (x *Subschema) {
 	x = NewSubschema()
-	x.LSM = PopulateDefaultLDAPSyntaxesManifest()
-	x.MRM = PopulateDefaultMatchingRulesManifest()
-	x.ATM = NewAttributeTypesManifest()
-	x.OCM = NewObjectClassesManifest()
+	x.LSC = PopulateDefaultLDAPSyntaxes()
+	x.MRC = PopulateDefaultMatchingRules()
+	x.ATC = NewAttributeTypes()
+	x.OCC = NewObjectClasses()
 
 	return
 }
@@ -34,13 +34,3 @@ func TestAttributeMarshal001(t *testing.T) {
 	}
 }
 
-/*
-TestEquals001 tests equality checks between separate types.
-*/
-func TestEquals001(t *testing.T) {
-	schema := testSubschema()
-
-	if schema.MRM.Equals(schema.LSM) {
-		t.Errorf("TestEqualsManifest001 failed: obviously different content wrongly reported to be equal")
-	}
-}
