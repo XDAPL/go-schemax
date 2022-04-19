@@ -11,28 +11,28 @@ DITContentRuleCollection describes all DITContentRules-based types.
 type DITContentRuleCollection interface {
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-        Contains(interface{}) (int, bool)
+	Contains(interface{}) (int, bool)
 
 	// Get returns the *DITContentRule instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-        Get(interface{}) *DITContentRule
+	Get(interface{}) *DITContentRule
 
 	// Index returns the *DITContentRule instance stored at the nth
 	// index within the receiver, or nil.
-        Index(int) *DITContentRule
+	Index(int) *DITContentRule
 
 	// Equal performs a deep-equal between the receiver and the
 	// interface DITContentRuleCollection provided.
-        Equal(DITContentRuleCollection) bool
+	Equal(DITContentRuleCollection) bool
 
 	// Set returns an error instance based on an attempt to add
 	// the provided *DITContentRule instance to the receiver.
-        Set(*DITContentRule) error
+	Set(*DITContentRule) error
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
-        String() string
+	String() string
 
 	// Label returns the field name associated with the interface
 	// types, or a zero string if no label is appropriate.
@@ -40,11 +40,11 @@ type DITContentRuleCollection interface {
 
 	// IsZero returns a boolean value indicative of whether the
 	// receiver is considered zero, or undefined.
-        IsZero() bool
+	IsZero() bool
 
 	// Len returns an integer value indicative of the current
 	// number of elements stored within the receiver.
-        Len() int
+	Len() int
 }
 
 /*
@@ -61,7 +61,10 @@ type DITContentRule struct {
 	May         AttributeTypeCollection
 	Not         AttributeTypeCollection
 	Extensions  Extensions
-	bools       Boolean
+	flags       definitionFlags
+	ufn         DefinitionUnmarshalFunc
+	spec        string
+	info        []byte
 }
 
 /*
@@ -77,7 +80,7 @@ type DITContentRules struct {
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r DITContentRules) Equal(x DITContentRuleCollection) bool {
-        return r.slice.equal(x.(*DITContentRules).slice)
+	return r.slice.equal(x.(*DITContentRules).slice)
 }
 
 /*
@@ -85,6 +88,27 @@ SetMacros assigns the *Macros instance to the receiver, allowing subsequent OID 
 */
 func (r *DITContentRules) SetMacros(macros *Macros) {
 	r.macros = macros
+}
+
+/*
+SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
+*/
+func (r *DITContentRule) SetInfo(info []byte) {
+	r.info = info
+}
+
+/*
+Info returns the assigned informational byte slice instance stored within the receiver.
+*/
+func (r *DITContentRule) Info() []byte {
+	return r.info
+}
+
+/*
+SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+*/
+func (r *DITContentRule) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+	r.ufn = fn
 }
 
 /*
@@ -144,8 +168,15 @@ func (r DITContentRules) String() string { return `` }
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
 */
 func (r DITContentRule) String() (def string) {
-	def, _ = Unmarshal(r)
+	def, _ = r.unmarshal()
 	return
+}
+
+/*
+SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: ditcontentrule). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
+*/
+func (r *DITContentRule) SetSpecifier(spec string) {
+	r.spec = spec
 }
 
 /*
@@ -179,7 +210,7 @@ func (r *DITContentRules) Set(x *DITContentRule) error {
 /*
 Belongs returns a boolean value indicative of whether the provided AUXILIARY *ObjectClass belongs to the receiver instance of *DITContentRule.
 */
-func (r DITContentRule) Belongs(aux *ObjectClass) (belongs bool) {
+func (r *DITContentRule) Belongs(aux *ObjectClass) (belongs bool) {
 	if aux.IsZero() || !aux.Kind.is(Auxiliary) {
 		return
 	}
@@ -192,7 +223,7 @@ func (r DITContentRule) Belongs(aux *ObjectClass) (belongs bool) {
 /*
 Requires returns a boolean value indicative of whether the provided value is required per the receiver.
 */
-func (r DITContentRule) Requires(x interface{}) (required bool) {
+func (r *DITContentRule) Requires(x interface{}) (required bool) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		_, required = r.Must.Contains(tv)
@@ -204,7 +235,7 @@ func (r DITContentRule) Requires(x interface{}) (required bool) {
 /*
 Permits returns a boolean value indicative of whether the provided value is allowed from use per the receiver.
 */
-func (r DITContentRule) Permits(x interface{}) (permitted bool) {
+func (r *DITContentRule) Permits(x interface{}) (permitted bool) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		_, permitted = r.May.Contains(tv)
@@ -216,7 +247,7 @@ func (r DITContentRule) Permits(x interface{}) (permitted bool) {
 /*
 Prohibits returns a boolean value indicative of whether the provided value is prohibited from use per the receiver.
 */
-func (r DITContentRule) Prohibits(x interface{}) (prohibited bool) {
+func (r *DITContentRule) Prohibits(x interface{}) (prohibited bool) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		_, prohibited = r.Not.Contains(tv)
@@ -303,15 +334,92 @@ func (r *DITContentRule) validate() (err error) {
 	return
 }
 
-func (r *DITContentRule) unmarshal(namesok bool) (def string, err error) {
-	if err = r.validate(); err != nil {
+func (r *DITContentRule) unmarshal() (string, error) {
+	if err := r.validate(); err != nil {
 		err = raise(invalidUnmarshal, err.Error())
-		return
+		return ``, err
 	}
 
-	WHSP := ` `
+	if r.ufn != nil {
+		return r.ufn()
+	}
+	return r.unmarshalBasic()
+}
 
-	def += `(` + WHSP + r.OID.String() // will never be zero length
+/*
+DITContentRuleUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+
+The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
+*/
+func (r *DITContentRule) DITContentRuleUnmarshalFunc() (def string, err error) {
+	var (
+		WHSP string = ` `
+		idnt string = "\n\t"
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
+
+	if !r.Name.IsZero() {
+		def += idnt + r.Name.Label()
+		def += WHSP + r.Name.String()
+	}
+
+	if !r.Description.IsZero() {
+		def += idnt + r.Description.Label()
+		def += WHSP + r.Description.String()
+	}
+
+	if r.Obsolete() {
+		def += idnt + Obsolete.String()
+	}
+
+	if !r.Aux.IsZero() {
+		def += idnt + r.Aux.Label()
+		def += WHSP + r.Aux.String()
+	}
+
+	if !r.Must.IsZero() {
+		def += idnt + r.Must.Label()
+		def += WHSP + r.Must.String()
+	}
+
+	if !r.May.IsZero() {
+		def += idnt + r.May.Label()
+		def += WHSP + r.May.String()
+	}
+
+	if !r.Not.IsZero() {
+		def += idnt + r.Not.Label()
+		def += WHSP + r.Not.String()
+	}
+
+	if !r.Extensions.IsZero() {
+		def += idnt + r.Extensions.String()
+	}
+
+	def += WHSP + tail
+
+	return
+}
+
+func (r *DITContentRule) unmarshalBasic() (def string, err error) {
+	var (
+		WHSP string = ` `
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
 
 	if !r.Name.IsZero() {
 		def += WHSP + r.Name.Label()
@@ -323,8 +431,8 @@ func (r *DITContentRule) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.bools.enabled(Obsolete) {
-		def += WHSP + r.bools.Obsolete()
+	if r.Obsolete() {
+		def += WHSP + Obsolete.String()
 	}
 
 	if !r.Aux.IsZero() {
@@ -351,7 +459,7 @@ func (r *DITContentRule) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Extensions.String()
 	}
 
-	def += WHSP + `)`
+	def += WHSP + tail
 
 	return
 }

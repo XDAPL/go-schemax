@@ -8,6 +8,7 @@ import (
 	"github.com/JesseCoretta/go-schemax/rfc2079"
 	"github.com/JesseCoretta/go-schemax/rfc2307"
 	"github.com/JesseCoretta/go-schemax/rfc2798"
+	"github.com/JesseCoretta/go-schemax/rfc3672"
 	"github.com/JesseCoretta/go-schemax/rfc4512"
 	"github.com/JesseCoretta/go-schemax/rfc4517"
 	"github.com/JesseCoretta/go-schemax/rfc4519"
@@ -23,9 +24,11 @@ PopulateDefaultLDAPSyntaxes returns a new auto-populated instance of LDAPSyntaxe
 
 Within this structure are all of the following:
 
- - Syntax definitions from RFC2307 (imported from go-schemax/rfc2307)
- - Syntax definitions from RFC4517 (imported from go-schemax/rfc4517)
- - Syntax definitions from RFC4523 (imported from go-schemax/rfc4523)
+• Syntax definitions from RFC2307 (imported from go-schemax/rfc2307)
+
+• Syntax definitions from RFC4517 (imported from go-schemax/rfc4517)
+
+• Syntax definitions from RFC4523 (imported from go-schemax/rfc4523)
 */
 func PopulateDefaultLDAPSyntaxes() (lsc LDAPSyntaxCollection) {
 	lsc = NewLDAPSyntaxes()
@@ -87,8 +90,9 @@ func PopulateRFC4517Syntaxes(lsc LDAPSyntaxCollection) {
 /*
 PopulateDefaultMatchingRules returns a new auto-populated instance of MatchingRules. Within this structure are all of the following:
 
- - Matching rules from RFC4517 (imported from go-schemax/rfc4517)
- - Matching rules from RFC4523 (imported from go-schemax/rfc4523)
+• Matching rules from RFC4517 (imported from go-schemax/rfc4517)
+
+• Matching rules from RFC4523 (imported from go-schemax/rfc4523)
 */
 func PopulateDefaultMatchingRules() (mrc MatchingRuleCollection) {
 	mrc = NewMatchingRules()
@@ -158,12 +162,19 @@ PopulateDefaultObjectClasses returns a new auto-populated instance of ObjectClas
 
 Within this structure are all of the following:
 
- - Object classes from RFC2079 (imported from go-schemax/rfc2079)
- - Object classes from RFC2307 (imported from go-schemax/rfc2307)
- - Object classes from RFC4512 (imported from go-schemax/rfc4512)
- - Object classes from RFC4519 (imported from go-schemax/rfc4519)
- - Object classes from RFC4523 (imported from go-schemax/rfc4523)
- - Object classes from RFC4524 (imported from go-schemax/rfc4524)
+• Object classes from RFC2079 (imported from go-schemax/rfc2079)
+
+• Object classes from RFC2307 (imported from go-schemax/rfc2307)
+
+• Object classes from RFC4512 (imported from go-schemax/rfc4512)
+
+• Object classes from RFC4519 (imported from go-schemax/rfc4519)
+
+• Object classes from RFC4523 (imported from go-schemax/rfc4523)
+
+• Object classes from RFC4524 (imported from go-schemax/rfc4524)
+
+• Object classes from RFC3672 (imported from go-schemax/rfc3672)
 */
 func PopulateDefaultObjectClasses() ObjectClassCollection {
 	occ := NewObjectClasses()
@@ -199,6 +210,11 @@ func PopulateDefaultObjectClasses() ObjectClassCollection {
 		DefaultMatchingRules)
 
 	PopulateRFC2079ObjectClasses(occ,
+		DefaultAttributeTypes,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
+
+	PopulateRFC3672ObjectClasses(occ,
 		DefaultAttributeTypes,
 		DefaultLDAPSyntaxes,
 		DefaultMatchingRules)
@@ -242,6 +258,28 @@ func PopulateRFC2079ObjectClasses(
 	mrc MatchingRuleCollection) {
 
 	for _, oc := range rfc2079.AllObjectClasses {
+		var noc ObjectClass
+		if err := Marshal(string(oc), &noc, atc, occ, lsc, mrc, nil, nil, nil, nil); err != nil {
+			panic(sprintf("%s: %s", err.Error(), string(oc)))
+		}
+		occ.Set(&noc)
+	}
+}
+
+/*
+PopulateRFC3672ObjectClasses only populates the provided ObjectClasses (occ) with ObjectClass definitions defined in this RFC.
+
+Definitions are imported from go-schemax/rfc3672.
+
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions), MatchingRules (containing all referenced MatchingRules definitions), and AttributeTypes (containing all registered AttributeType definitions) must be provided as the atc, lsc and mrc arguments respectively.
+*/
+func PopulateRFC3672ObjectClasses(
+	occ ObjectClassCollection,
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
+
+	for _, oc := range rfc3672.AllObjectClasses {
 		var noc ObjectClass
 		if err := Marshal(string(oc), &noc, atc, occ, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(oc)))
@@ -366,13 +404,21 @@ func PopulateRFC4523ObjectClasses(
 /*
 PopulateDefaultAttributeTypes returns a new auto-populated instance of AttributeTypes. Within this structure are all of the following:
 
- - Attribute types from RFC2079 (imported from go-schemax/rfc2079)
- - Attribute types from RFC2307 (imported from go-schemax/rfc2307)
- - Attribute types from RFC2798 (imported from go-schemax/rfc2798)
- - Attribute types from RFC4512 (imported from go-schemax/rfc4512)
- - Attribute types from RFC4519 (imported from go-schemax/rfc4519)
- - Attribute types from RFC4523 (imported from go-schemax/rfc4523)
- - Attribute types from RFC4524 (imported from go-schemax/rfc4524)
+• Attribute types from RFC2079 (imported from go-schemax/rfc2079)
+
+• Attribute types from RFC2307 (imported from go-schemax/rfc2307)
+
+• Attribute types from RFC2798 (imported from go-schemax/rfc2798)
+
+• Attribute types from RFC4512 (imported from go-schemax/rfc4512)
+
+• Attribute types from RFC4519 (imported from go-schemax/rfc4519)
+
+• Attribute types from RFC4523 (imported from go-schemax/rfc4523)
+
+• Attribute types from RFC4524 (imported from go-schemax/rfc4524)
+
+• Attribute types from RFC3672 (imported from go-schemax/rfc3672)
 */
 func PopulateDefaultAttributeTypes() (atc AttributeTypeCollection) {
 	atc = NewAttributeTypes()
@@ -402,6 +448,10 @@ func PopulateDefaultAttributeTypes() (atc AttributeTypeCollection) {
 		DefaultMatchingRules)
 
 	PopulateRFC2079AttributeTypes(atc,
+		DefaultLDAPSyntaxes,
+		DefaultMatchingRules)
+
+	PopulateRFC3672AttributeTypes(atc,
 		DefaultLDAPSyntaxes,
 		DefaultMatchingRules)
 
@@ -442,6 +492,27 @@ func PopulateRFC2079AttributeTypes(
 	mrc MatchingRuleCollection) {
 
 	for _, at := range rfc2079.AllAttributeTypes {
+		var nat AttributeType
+		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
+			panic(sprintf("%s: %s", err.Error(), string(at)))
+		}
+		atc.Set(&nat)
+	}
+}
+
+/*
+PopulateRFC3672AttributeTypes only populates the provided AttributeTypes (atc) with AttributeType definitions defined in this RFC.
+
+Definitions are imported from go-schemax/rfc3672.
+
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
+*/
+func PopulateRFC3672AttributeTypes(
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
+
+	for _, at := range rfc3672.AllAttributeTypes {
 		var nat AttributeType
 		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
 			panic(sprintf("%s: %s", err.Error(), string(at)))

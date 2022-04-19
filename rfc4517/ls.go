@@ -93,7 +93,7 @@ func init() {
 	DSEType = RFC4517LDAPSyntax(`( 1.3.6.1.4.1.1466.115.121.1.20 DESC 'DSE Type' X-ORIGIN 'RFC4517' )`)
 	EnhancedGuide = RFC4517LDAPSyntax(`( 1.3.6.1.4.1.1466.115.121.1.21 DESC 'Enhanced Guide' X-ORIGIN 'RFC4517' )`)
 	FacsimileTelephoneNumber = RFC4517LDAPSyntax(`( 1.3.6.1.4.1.1466.115.121.1.22 DESC 'Facsimile Telephone Number' X-ORIGIN 'RFC4517' )`)
-	Fax = RFC4517LDAPSyntax(`( 1.3.6.1.4.1.1466.115.121.1.23 DESC 'Fax' X-ORIGIN 'RFC4517' X-NOT-HUMAN-READABLE 'TRUE' )`)
+	Fax = RFC4517LDAPSyntax(`( 1.3.6.1.4.1.1466.115.121.1.23 DESC 'Fax' X-ORIGIN 'RFC4517' )`)
 	GeneralizedTime = RFC4517LDAPSyntax(`( 1.3.6.1.4.1.1466.115.121.1.24 DESC 'Generalized Time' X-ORIGIN 'RFC4517' )`)
 	Guide = RFC4517LDAPSyntax(`( 1.3.6.1.4.1.1466.115.121.1.25 DESC 'Guide' X-ORIGIN 'RFC4517' )`)
 	IA5String = RFC4517LDAPSyntax(`( 1.3.6.1.4.1.1466.115.121.1.26 DESC 'IA5 String' X-ORIGIN 'RFC4517' )`)

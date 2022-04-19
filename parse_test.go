@@ -33,4 +33,3 @@ func TestAttributeMarshal001(t *testing.T) {
 		t.Errorf("TestAttributeMarshal003 failed: nil definition accepted")
 	}
 }
-

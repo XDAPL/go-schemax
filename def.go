@@ -54,6 +54,20 @@ type Definition interface {
 	// occur during this process, a zero length string is returned, thus
 	// making this unsafe in situations where error handling is critical.
 	String() string
+
+	// SetInfo assigns the byte slice to the receiver. This is a user-leveraged
+	// field intended to allow arbitrary information (documentation?) to be
+	// assigned to the definition.
+	SetInfo([]byte)
+
+	// Info returns the assigned informational byte slice instance stored
+	// within the receiver.
+	Info() []byte
+
+	// SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature
+	// value to the receiver. The provided function shall be executed during the
+	// unmarshal or unsafe stringification process.
+	SetUnmarshalFunc(DefinitionUnmarshalFunc)
 }
 
 /*
@@ -317,68 +331,71 @@ func (def *definition) setKind(value string, idx int) (err error) {
 	return
 }
 
-func (def *definition) setBoolean(label string, x interface{}) (err error) {
+func (def *definition) setdefinitionFlags(label string, x interface{}) (err error) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		switch label {
 		case SingleValue.String():
-			tv.setBoolean(SingleValue)
+			tv.setdefinitionFlags(SingleValue)
 			return
 		case Collective.String():
-			tv.setBoolean(Collective)
+			tv.setdefinitionFlags(Collective)
 			return
 		case Obsolete.String():
-			tv.setBoolean(Obsolete)
+			tv.setdefinitionFlags(Obsolete)
 			return
 		case NoUserModification.String():
-			tv.setBoolean(NoUserModification)
+			tv.setdefinitionFlags(NoUserModification)
+			return
+		case HumanReadable.String():
+			tv.setdefinitionFlags(HumanReadable)
 			return
 		}
 	case *ObjectClass:
 		switch label {
 		case Obsolete.String():
-			tv.setBoolean(Obsolete)
+			tv.setdefinitionFlags(Obsolete)
 			return
 		}
 	case *LDAPSyntax:
 		switch label {
 		case HumanReadable.String():
-			tv.setBoolean(HumanReadable)
+			tv.setdefinitionFlags(HumanReadable)
 			return
 		}
 	case *MatchingRule:
 		switch label {
 		case Obsolete.String():
-			tv.setBoolean(Obsolete)
+			tv.setdefinitionFlags(Obsolete)
 			return
 		}
 	case *MatchingRuleUse:
 		switch label {
 		case Obsolete.String():
-			tv.setBoolean(Obsolete)
+			tv.setdefinitionFlags(Obsolete)
 			return
 		}
 	case *DITContentRule:
 		switch label {
 		case Obsolete.String():
-			tv.setBoolean(Obsolete)
+			tv.setdefinitionFlags(Obsolete)
 			return
 		}
 	case *DITStructureRule:
 		switch label {
 		case Obsolete.String():
-			tv.setBoolean(Obsolete)
+			tv.setdefinitionFlags(Obsolete)
 			return
 		}
 	case *NameForm:
 		switch label {
 		case Obsolete.String():
-			tv.setBoolean(Obsolete)
+			tv.setdefinitionFlags(Obsolete)
 			return
 		}
 	}
-	err = raise(invalidBoolean,
-		"setBoolean: unable to resolve '%T' type (label:'%s')",
+	err = raise(invalidFlag,
+		"setdefinitionFlags: unable to resolve '%T' type (label:'%s')",
 		x, label)
 
 	return
@@ -488,8 +505,8 @@ func (def *definition) setAttrTypeSyntax(
 
 	// Check (and handle) a MUB in the event we're using one ...
 	if mub, _, ok := parse_mub(value); ok {
-		// MUB detected
 		assert.setMUB(mub[1])
+		// MUB detected
 		if ls := lsc.Get(mub[0]); !ls.IsZero() {
 			def.values[idx].Set(valueOf(ls))
 		} else {
@@ -711,17 +728,16 @@ func (def *definition) setSuperiorDITStructureRules(
 		z = NewSuperiorDITStructureRules()
 	}
 
-        for _, v := range value {
-                dsr := dsrc.Get(v)
-                if dsr.IsZero() {
-                        return raiseUnknownElement(`setSuperiorDITStructureRules`,
-                                dsr, dsrc, v, x)
-                }
+	for _, v := range value {
+		dsr := dsrc.Get(v)
+		if dsr.IsZero() {
+			return raiseUnknownElement(`setSuperiorDITStructureRules`,
+				dsr, dsrc, v, x)
+		}
 
-                z.Set(dsr)
+		z.Set(dsr)
 		def.values[idx].Set(valueOf(z))
-        }
-
+	}
 
 	return
 }
@@ -735,9 +751,9 @@ func (def *definition) setEqSubOrd(
 	value string,
 	idx int) (err error) {
 
-        if def.alreadySet(idx) {
-                return
-        }
+	if def.alreadySet(idx) {
+		return
+	}
 
 	assert, ok := x.(*AttributeType)
 	if !ok {
@@ -808,7 +824,7 @@ func (def *definition) alreadySet(idx int) (isSet bool) {
 		isSet = !tv.IsZero()
 	case Name:
 		isSet = !tv.IsZero()
-	case Boolean:
+	case definitionFlags:
 		isSet = !tv.IsZero()
 	case Description:
 		isSet = !tv.IsZero()
@@ -959,7 +975,7 @@ func (r Name) Contains(x interface{}) (idx int, has bool) {
 /*
 Index returns the nth Name value within the receiver, or a zero-length string.
 */
-func (r Name) Index(i int) string{
+func (r Name) Index(i int) string {
 	val := collection(r).index(i)
 	str, ok := val.(string)
 	if !ok {

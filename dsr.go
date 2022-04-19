@@ -66,7 +66,10 @@ type DITStructureRule struct {
 	Form          *NameForm
 	SuperiorRules DITStructureRuleCollection
 	Extensions    Extensions
-	bools         Boolean
+	flags         definitionFlags
+	ufn           DefinitionUnmarshalFunc
+	spec          string
+	info          []byte
 }
 
 /*
@@ -88,7 +91,7 @@ type SuperiorDITStructureRules struct {
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r DITStructureRules) Equal(x DITStructureRuleCollection) bool {
-        return r.slice.equal(x.(*DITStructureRules).slice)
+	return r.slice.equal(x.(*DITStructureRules).slice)
 }
 
 /*
@@ -153,8 +156,15 @@ func (r DITStructureRules) String() string {
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
 */
 func (r DITStructureRule) String() (def string) {
-	def, _ = Unmarshal(r)
+	def, _ = r.unmarshal()
 	return
+}
+
+/*
+SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: ditstructurerule). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
+*/
+func (r *DITStructureRule) SetSpecifier(spec string) {
+	r.spec = spec
 }
 
 /*
@@ -168,10 +178,10 @@ func (r SuperiorDITStructureRules) String() string {
 IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
 */
 func (r *DITStructureRules) IsZero() bool {
-        if r != nil {
-                return r.slice.isZero()
-        }
-        return r == nil
+	if r != nil {
+		return r.slice.isZero()
+	}
+	return r == nil
 }
 
 /*
@@ -196,6 +206,27 @@ func (r *DITStructureRules) Set(x *DITStructureRule) error {
 }
 
 /*
+SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
+*/
+func (r *DITStructureRule) SetInfo(info []byte) {
+	r.info = info
+}
+
+/*
+Info returns the assigned informational byte slice instance stored within the receiver.
+*/
+func (r *DITStructureRule) Info() []byte {
+	return r.info
+}
+
+/*
+SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+*/
+func (r *DITStructureRule) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+	r.ufn = fn
+}
+
+/*
 NewDITStructureRules initializes and returns a new DITStructureRuleCollection interface object.
 */
 func NewDITStructureRules() DITStructureRuleCollection {
@@ -215,7 +246,7 @@ func NewSuperiorDITStructureRules() DITStructureRuleCollection {
 		slice: make(collection, 0, 0),
 	}
 	var x interface{} = &SuperiorDITStructureRules{z}
-        return x.(DITStructureRuleCollection)
+	return x.(DITStructureRuleCollection)
 }
 
 /*
@@ -249,11 +280,11 @@ func (r *DITStructureRule) Equal(x interface{}) (equals bool) {
 		return
 	}
 
-        if !z.SuperiorRules.IsZero() && !r.SuperiorRules.IsZero() {
-                if !r.SuperiorRules.Equal(z.SuperiorRules) {
-                        return
-                }
-        }
+	if !z.SuperiorRules.IsZero() && !r.SuperiorRules.IsZero() {
+		if !r.SuperiorRules.Equal(z.SuperiorRules) {
+			return
+		}
+	}
 
 	equals = r.Extensions.Equal(z.Extensions)
 
@@ -312,7 +343,7 @@ func (r *DITStructureRule) validate() (err error) {
 		return
 	}
 
-	if err = validateBool(r.bools); err != nil {
+	if err = validateFlag(r.flags); err != nil {
 		return
 	}
 
@@ -329,15 +360,81 @@ func (r *DITStructureRule) validate() (err error) {
 	return
 }
 
-func (r *DITStructureRule) unmarshal(namesok bool) (def string, err error) {
-	if err = r.validate(); err != nil {
+func (r *DITStructureRule) unmarshal() (string, error) {
+	if err := r.validate(); err != nil {
 		err = raise(invalidUnmarshal, err.Error())
-		return
+		return ``, err
 	}
 
-	WHSP := ` `
+	if r.ufn != nil {
+		return r.ufn()
+	}
+	return r.unmarshalBasic()
+}
 
-	def += `(` + WHSP + r.ID.String() // will never be zero length
+/*
+DITStructureRuleUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+
+The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
+*/
+func (r *DITStructureRule) DITStructureRuleUnmarshalFunc() (def string, err error) {
+	var (
+		WHSP string = ` `
+		idnt string = "\n\t"
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.ID.String()
+
+	if !r.Name.IsZero() {
+		def += idnt + r.Name.Label()
+		def += WHSP + r.Name.String()
+	}
+
+	if !r.Description.IsZero() {
+		def += idnt + r.Description.Label()
+		def += WHSP + r.Description.String()
+	}
+
+	if r.Obsolete() {
+		def += idnt + Obsolete.String()
+	}
+
+	// Form will never be zero
+	def += idnt + r.Form.Label()
+	def += WHSP + r.Form.String()
+
+	if !r.SuperiorRules.IsZero() {
+		def += idnt + r.SuperiorRules.Label()
+		def += WHSP + r.SuperiorRules.String()
+	}
+
+	if !r.Extensions.IsZero() {
+		def += idnt + r.Extensions.String()
+	}
+
+	def += WHSP + tail
+
+	return
+}
+
+func (r *DITStructureRule) unmarshalBasic() (def string, err error) {
+	var (
+		WHSP string = ` `
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.ID.String()
 
 	if !r.Name.IsZero() {
 		def += WHSP + r.Name.Label()
@@ -349,8 +446,8 @@ func (r *DITStructureRule) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.bools.enabled(Obsolete) {
-		def += WHSP + r.bools.Obsolete()
+	if r.Obsolete() {
+		def += WHSP + Obsolete.String()
 	}
 
 	// Form will never be zero
@@ -366,7 +463,7 @@ func (r *DITStructureRule) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Extensions.String()
 	}
 
-	def += WHSP + `)`
+	def += WHSP + tail
 
 	return
 }

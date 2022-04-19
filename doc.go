@@ -51,6 +51,17 @@ An obvious real-world example of this is for the 'name' attribute (per RFC4519),
 
 This logic applies no matter how the definitions are being received (or "read"), and applies whether or not the all-encompassing Subschema type is used.  In short: MIND YOUR ORDERING.
 
+Iterating Collections
+
+Iterating a collection type, such as AttributeTypeCollection instances, MUST be done using the Len() collection method, e.g.:
+
+  for i := 0; i < attrs.Len(); i++ {
+	attr := attrs.Index(i)
+        ... do stuff ...
+  }
+
+Iteration will always returns collection members in FIFO ordering (First-In/First-Out).
+
 Standard Definitions
 
 Within subdirectories of this package are popular Go implementations of standard Attribute Types, Object Classes, Matching Rules and LDAP Syntaxes from RFCs that are recognized (almost) universally.  This includes (but is not limited to) content from RFC4512, RFC4519 and RFC2307.  Included in each subdirectory is an unmodified text copy of the Internet-Draft from which the relevant definitions originate.

@@ -11,28 +11,33 @@ MatchingRuleUseCollection describes all MatchingRuleUses-based types.
 type MatchingRuleUseCollection interface {
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-        Contains(interface{}) (int, bool)
+	Contains(interface{}) (int, bool)
 
 	// Get returns the *MatchingRuleUse instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-        Get(interface{}) *MatchingRuleUse
+	Get(interface{}) *MatchingRuleUse
 
 	// Index returns the *MatchingRuleUse instance stored at the nth
 	// index within the receiver, or nil.
-        Index(int) *MatchingRuleUse
+	Index(int) *MatchingRuleUse
 
 	// Equal performs a deep-equal between the receiver and the
 	// interface MatchingRuleUseCollection provided.
-        Equal(MatchingRuleUseCollection) bool
+	Equal(MatchingRuleUseCollection) bool
 
 	// Set returns an error instance based on an attempt to add
 	// the provided *MatchingRuleUse instance to the receiver.
-        Set(*MatchingRuleUse) error
+	Set(*MatchingRuleUse) error
+
+	// Refresh will update the collection of MatchingRuleUse
+	// instances based on the contents of the provided instance
+	// of AttributeTypeCollection.
+	Refresh(AttributeTypeCollection) error
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
-        String() string
+	String() string
 
 	// Label returns the field name associated with the interface
 	// types, or a zero string if no label is appropriate.
@@ -40,11 +45,11 @@ type MatchingRuleUseCollection interface {
 
 	// IsZero returns a boolean value indicative of whether the
 	// receiver is considered zero, or undefined.
-        IsZero() bool
+	IsZero() bool
 
 	// Len returns an integer value indicative of the current
 	// number of elements stored within the receiver.
-        Len() int
+	Len() int
 }
 
 /*
@@ -54,9 +59,12 @@ type MatchingRuleUse struct {
 	OID         OID
 	Name        Name
 	Description Description
-	Applies     ApplicableAttributeTypes
+	Applies     AttributeTypeCollection
 	Extensions  Extensions
-	bools       Boolean
+	flags       definitionFlags
+	ufn         DefinitionUnmarshalFunc
+	spec        string
+	info        []byte
 }
 
 /*
@@ -71,7 +79,7 @@ type MatchingRuleUses struct {
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r MatchingRuleUses) Equal(x MatchingRuleUseCollection) bool {
-        return r.slice.equal(x.(*MatchingRuleUses).slice)
+	return r.slice.equal(x.(*MatchingRuleUses).slice)
 }
 
 /*
@@ -125,8 +133,15 @@ func (r MatchingRuleUses) String() string { return `` }
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
 */
 func (r MatchingRuleUse) String() (def string) {
-	def, _ = Unmarshal(r)
+	def, _ = r.unmarshal()
 	return
+}
+
+/*
+SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: matchingruleuse). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
+*/
+func (r *MatchingRuleUse) SetSpecifier(spec string) {
+	r.spec = spec
 }
 
 /*
@@ -158,6 +173,162 @@ func (r *MatchingRuleUses) Set(x *MatchingRuleUse) error {
 }
 
 /*
+Refresh accepts an AttributeTypeCollection which will be processed and used to create new, or update existing, *MatchingRuleUse instances within the receiver.
+*/
+func (r *MatchingRuleUses) Refresh(atc AttributeTypeCollection) (err error) {
+	if atc.IsZero() {
+		err = raise(noContent, "%T is nil", atc)
+		return
+	}
+
+	createOrAppend := func(o OID, n Name, at *AttributeType) error {
+
+		// If the definition exists already, save the index number.
+		// If not found, handle it properly.
+		idx, found := r.Contains(o)
+		if !found {
+
+			// Create an empty definition
+			// to start with.
+			r.Set(&MatchingRuleUse{
+				OID:     o,
+				Name:    n,
+				Applies: NewApplicableAttributeTypes(),
+			})
+
+			// Make sure it actually got added
+			idx, found = r.Contains(o)
+			if !found {
+				return raise(invalidMatchingRuleUse,
+					"Attempt to register %s within %T failed for reasons unknown",
+					o, r)
+			}
+		}
+
+		// Append attributeType to receiver. Any definitions
+		// already present as APPLIES values are silently
+		// ignored.
+		if e := r.Index(idx).Applies.Set(at); e != nil {
+			return e
+		}
+
+		return nil
+	}
+
+	for i := 0; i < atc.Len(); i++ {
+		a := atc.Index(i)
+		if a.IsZero() {
+			continue
+		}
+
+		if !a.Equality.IsZero() {
+			if err = createOrAppend(a.Equality.OID, a.Equality.Name, a); err != nil {
+				return
+			}
+		}
+
+		if !a.Substring.IsZero() {
+			if err = createOrAppend(a.Substring.OID, a.Substring.Name, a); err != nil {
+				return
+			}
+		}
+
+		if !a.Ordering.IsZero() {
+			if err = createOrAppend(a.Ordering.OID, a.Ordering.Name, a); err != nil {
+				return
+			}
+		}
+	}
+
+	return
+}
+
+/*
+	if !a.Equality.IsZero() {
+		idx, found := r.Contains(a.Equality.OID)
+		if !found {
+			r.Set(&MatchingRuleUse{
+				OID:     a.Equality.OID,
+				Name:    a.Equality.Name,
+				Applies: NewApplicableAttributeTypes())
+			}
+			idx, found = r.Contains(a.Equality.OID)
+			if !found {
+				err = raise(invalidMatchingRuleUse,
+					"Attempt to register %s within %T failed for reasons unknown",
+					a.Equality.OID, r)
+				return
+			}
+		}
+
+		if err = r.Index(idx).Applies.Set(a); err != nil {
+			return
+		}
+	}
+
+	if !a.Substring.IsZero() {
+                idx, found := r.Contains(a.Substring.OID)
+                if !found {
+                        r.Set(&MatchingRuleUse{
+                                OID:     a.Substring.OID,
+                                Name:    a.Substring.Name,
+                                Applies: NewApplicableAttributeTypes())
+                        }
+                        idx, found = r.Contains(a.Substring.OID)
+                        if !found {
+                                err = raise(invalidMatchingRuleUse,
+                                        "Attempt to register %s within %T failed for reasons unknown",
+                                        a.Substring.OID, r)
+                                return
+                        }
+                }
+
+                if err = r.Index(idx).Applies.Set(a); err != nil {
+                        return
+                }
+	}
+
+	if !a.Ordering.IsZero() {
+                idx, found := r.Contains(a.Ordering.OID)
+                if !found {
+                        r.Set(&MatchingRuleUse{
+                                OID:     a.Ordering.OID,
+                                Name:    a.Ordering.Name,
+                                Applies: NewApplicableAttributeTypes())
+                        }
+                        idx, found = r.Contains(a.Ordering.OID)
+                        if !found {
+                                err = raise(invalidMatchingRuleUse,
+                                        "Attempt to register %s within %T failed for reasons unknown",
+                                        a.Ordering.OID, r)
+                                return
+                        }
+                }
+	}
+*/
+
+/*
+SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
+*/
+func (r *MatchingRuleUse) SetInfo(info []byte) {
+	r.info = info
+}
+
+/*
+Info returns the assigned informational byte slice instance stored within the receiver.
+*/
+func (r *MatchingRuleUse) Info() []byte {
+	return r.info
+}
+
+/*
+SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+*/
+func (r *MatchingRuleUse) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+	r.ufn = fn
+}
+
+/*
 Equal performs a deep-equal between the receiver and the provided collection type.
 
 Description text is ignored.
@@ -183,7 +354,7 @@ func (r *MatchingRuleUse) Equal(x interface{}) (equals bool) {
 		return
 	}
 
-	if z.bools != r.bools {
+	if z.flags != r.flags {
 		return
 	}
 
@@ -207,16 +378,16 @@ func NewMatchingRuleUses() MatchingRuleUseCollection {
 }
 
 /*
-is returns a boolean value indicative of whether the provided interface argument is an enabled Boolean option.
+is returns a boolean value indicative of whether the provided interface argument is an enabled definitionFlags option.
 */
-func (r MatchingRuleUse) is(b interface{}) bool {
+func (r *MatchingRuleUse) is(b interface{}) bool {
 	switch tv := b.(type) {
 	case *AttributeType:
 		if _, x := r.Applies.Contains(tv); !x {
 			return false
 		}
-	case Boolean:
-		return r.bools.is(tv)
+	case definitionFlags:
+		return r.flags.is(tv)
 	}
 
 	return false
@@ -252,22 +423,83 @@ func (r *MatchingRuleUse) validate() (err error) {
 			r, r.Applies)
 	}
 
-	if err = validateBool(r.bools); err != nil {
+	if err = validateFlag(r.flags); err != nil {
 		return
 	}
 
 	return
 }
 
-func (r *MatchingRuleUse) unmarshal(namesok bool) (def string, err error) {
-	if err = r.validate(); err != nil {
+func (r *MatchingRuleUse) unmarshal() (string, error) {
+	if err := r.validate(); err != nil {
 		err = raise(invalidUnmarshal, err.Error())
-		return
+		return ``, err
 	}
 
-	WHSP := ` `
+	if r.ufn != nil {
+		return r.ufn()
+	}
+	return r.unmarshalBasic()
+}
 
-	def += `(` + WHSP + r.OID.String() // will never be zero length
+/*
+MatchingRuleUseUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+
+The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
+*/
+func (r *MatchingRuleUse) MatchingRuleUseUnmarshalFunc() (def string, err error) {
+	var (
+		WHSP string = ` `
+		idnt string = "\n\t"
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
+
+	if !r.Name.IsZero() {
+		def += idnt + r.Name.Label()
+		def += WHSP + r.Name.String()
+	}
+
+	if !r.Description.IsZero() {
+		def += idnt + r.Description.Label()
+		def += WHSP + r.Description.String()
+	}
+
+	if r.Obsolete() {
+		def += idnt + Obsolete.String()
+	}
+
+	// Applies will never be zero
+	def += idnt + r.Applies.Label()
+	def += WHSP + r.Applies.String()
+
+	if !r.Extensions.IsZero() {
+		def += idnt + r.Extensions.String()
+	}
+
+	def += WHSP + tail
+
+	return
+}
+
+func (r *MatchingRuleUse) unmarshalBasic() (def string, err error) {
+	var (
+		WHSP string = ` `
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
 
 	if !r.Name.IsZero() {
 		def += WHSP + r.Name.Label()
@@ -279,8 +511,8 @@ func (r *MatchingRuleUse) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.is(Obsolete) {
-		def += WHSP + r.bools.Obsolete()
+	if r.Obsolete() {
+		def += WHSP + Obsolete.String()
 	}
 
 	// Applies will never be zero
@@ -291,7 +523,7 @@ func (r *MatchingRuleUse) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Extensions.String()
 	}
 
-	def += WHSP + `)`
+	def += WHSP + tail
 
 	return
 }
