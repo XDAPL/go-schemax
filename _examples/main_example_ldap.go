@@ -29,7 +29,7 @@ import (
 	"log"
 
 	"github.com/go-ldap/ldap/v3"
-	"go-schemax"
+	"github.com/JesseCoretta/go-schemax"
 )
 
 func main() {
