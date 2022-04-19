@@ -11,28 +11,28 @@ NameFormCollection describes all NameForms-based types.
 type NameFormCollection interface {
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-        Contains(interface{}) (int, bool)
+	Contains(interface{}) (int, bool)
 
 	// // Get returns the *NameForm instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-        Get(interface{}) *NameForm
+	Get(interface{}) *NameForm
 
 	// Index returns the *NameForm instance stored at the nth
 	// index within the receiver, or nil.
-        Index(int) *NameForm
+	Index(int) *NameForm
 
 	// Equal performs a deep-equal between the receiver and the
 	// interface NameFormCollection provided.
-        Equal(NameFormCollection) bool
+	Equal(NameFormCollection) bool
 
 	// Set returns an error instance based on an attempt to add
 	// the provided *NameForm instance to the receiver.
-        Set(*NameForm) error
+	Set(*NameForm) error
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
-        String() string
+	String() string
 
 	// Label returns the field name associated with the interface
 	// types, or a zero string if no label is appropriate.
@@ -40,11 +40,11 @@ type NameFormCollection interface {
 
 	// IsZero returns a boolean value indicative of whether the
 	// receiver is considered zero, or undefined.
-        IsZero() bool
+	IsZero() bool
 
 	// Len returns an integer value indicative of the current
 	// number of elements stored within the receiver.
-        Len() int
+	Len() int
 }
 
 /*
@@ -58,7 +58,10 @@ type NameForm struct {
 	Must        AttributeTypeCollection
 	May         AttributeTypeCollection
 	Extensions  Extensions
-	bools       Boolean
+	flags       definitionFlags
+	ufn         DefinitionUnmarshalFunc
+	spec        string
+	info        []byte
 }
 
 /*
@@ -74,7 +77,7 @@ type NameForms struct {
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r NameForms) Equal(x NameFormCollection) bool {
-        return r.slice.equal(x.(*NameForms).slice)
+	return r.slice.equal(x.(*NameForms).slice)
 }
 
 /*
@@ -82,6 +85,27 @@ SetMacros assigns the *Macros instance to the receiver, allowing subsequent OID 
 */
 func (r *NameForms) SetMacros(macros *Macros) {
 	r.macros = macros
+}
+
+/*
+SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
+*/
+func (r *NameForm) SetInfo(info []byte) {
+	r.info = info
+}
+
+/*
+Info returns the assigned informational byte slice instance stored within the receiver.
+*/
+func (r *NameForm) Info() []byte {
+	return r.info
+}
+
+/*
+SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+*/
+func (r *NameForm) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+	r.ufn = fn
 }
 
 /*
@@ -141,8 +165,15 @@ func (r NameForms) String() string { return `` }
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
 */
 func (r NameForm) String() (def string) {
-	def, _ = Unmarshal(r)
+	def, _ = r.unmarshal()
 	return
+}
+
+/*
+SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: nameform). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
+*/
+func (r *NameForm) SetSpecifier(spec string) {
+	r.spec = spec
 }
 
 /*
@@ -240,7 +271,7 @@ func (r *NameForm) validate() (err error) {
 		return raise(isZero, "%T.validate", r)
 	}
 
-	if err = validateBool(r.bools); err != nil {
+	if err = validateFlag(r.flags); err != nil {
 		return
 	}
 
@@ -290,15 +321,85 @@ func (r *NameForm) validateStructuralObjectClass() (err error) {
 	return
 }
 
-func (r *NameForm) unmarshal(namesok bool) (def string, err error) {
-	if err = r.validate(); err != nil {
+func (r *NameForm) unmarshal() (string, error) {
+	if err := r.validate(); err != nil {
 		err = raise(invalidUnmarshal, err.Error())
-		return
+		return ``, err
 	}
 
-	WHSP := ` `
+	if r.ufn != nil {
+		return r.ufn()
+	}
+	return r.unmarshalBasic()
+}
 
-	def += `(` + WHSP + r.OID.String() // will never be zero length
+/*
+NameFormUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+
+The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
+*/
+func (r *NameForm) NameFormUnmarshalFunc() (def string, err error) {
+	var (
+		WHSP string = ` `
+		idnt string = "\n\t"
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
+
+	if !r.Name.IsZero() {
+		def += idnt + r.Name.Label()
+		def += WHSP + r.Name.String()
+	}
+
+	if !r.Description.IsZero() {
+		def += idnt + r.Description.Label()
+		def += WHSP + r.Description.String()
+	}
+
+	// OC will never be zero
+	def += idnt + r.OC.Label()
+	def += WHSP + r.OC.String()
+
+	// Must will never be zero
+	def += idnt + r.Must.Label()
+	def += WHSP + r.Must.String()
+
+	if !r.May.IsZero() {
+		def += idnt + r.May.Label()
+		def += WHSP + r.May.String()
+	}
+
+	if r.Obsolete() {
+		def += idnt + Obsolete.String()
+	}
+
+	if !r.Extensions.IsZero() {
+		def += idnt + r.Extensions.String()
+	}
+
+	def += WHSP + tail
+
+	return
+}
+
+func (r *NameForm) unmarshalBasic() (def string, err error) {
+	var (
+		WHSP string = ` `
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
 
 	if !r.Name.IsZero() {
 		def += WHSP + r.Name.Label()
@@ -323,15 +424,15 @@ func (r *NameForm) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.May.String()
 	}
 
-	if r.bools.enabled(Obsolete) {
-		def += WHSP + r.bools.Obsolete()
+	if r.Obsolete() {
+		def += WHSP + Obsolete.String()
 	}
 
 	if !r.Extensions.IsZero() {
 		def += WHSP + r.Extensions.String()
 	}
 
-	def += WHSP + `)`
+	def += WHSP + tail
 
 	return
 }

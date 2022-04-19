@@ -1,16 +1,19 @@
 package schemax
 
 /*
-parseMeth is the first class function bearing a signature shared by all fundamental parser methods.
-*/
-type parseMeth func(string) ([]string, string, bool)
-
-/*
 methlab.go deals with labels that are assigned to methods and stored in lookup maps. For example, `USAGE` for Usage.
 
 What, exactly, were you expecting?
 */
 
+/*
+parseMeth is the first class function bearing a signature shared by all fundamental parser methods.
+*/
+type parseMeth func(string) ([]string, string, bool)
+
+/*
+labelIsValid returns a boolean value indicative of whether the field name is valid in that it begins with an `X-`.
+*/
 func (r Extensions) labelIsValid(label string) (valid bool) {
 	if len(label) < 2 {
 		return
@@ -23,7 +26,7 @@ func (r Extensions) labelIsValid(label string) (valid bool) {
 /*
 Label returns the known label for the receiver, if one exists.
 */
-func (r Boolean) Label() string {
+func (r definitionFlags) Label() string {
 	return `` // no visible label
 }
 
@@ -94,56 +97,56 @@ func (r SuperiorAttributeType) Label() string {
 Label returns the known label for the receiver, if one exists.
 */
 func (r AttributeTypes) Label() string {
-	return ``
+	return `` // no visible label
 }
 
 /*
 Label returns the known label for the receiver, if one exists.
 */
 func (r ObjectClasses) Label() string {
-	return ``
+	return `` // no visible label
 }
 
 /*
 Label returns the known label for the receiver, if one exists.
 */
 func (r LDAPSyntaxes) Label() string {
-	return ``
+	return `` // no visible label
 }
 
 /*
 Label returns the known label for the receiver, if one exists.
 */
 func (r MatchingRules) Label() string {
-	return ``
+	return `` // no visible label
 }
 
 /*
 Label returns the known label for the receiver, if one exists.
 */
 func (r MatchingRuleUses) Label() string {
-	return ``
+	return `` // no visible label
 }
 
 /*
 Label returns the known label for the receiver, if one exists.
 */
 func (r NameForms) Label() string {
-	return ``
+	return `` // no visible label
 }
 
 /*
 Label returns the known label for the receiver, if one exists.
 */
 func (r DITStructureRules) Label() string {
-	return ``
+	return `` // no visible label
 }
 
 /*
 Label returns the known label for the receiver, if one exists.
 */
 func (r DITContentRules) Label() string {
-	return ``
+	return `` // no visible label
 }
 
 /*

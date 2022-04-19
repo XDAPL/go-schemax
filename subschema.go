@@ -32,12 +32,12 @@ This type also provides high-level oversight of what would otherwise be isolated
 Overall, use of *Subschema makes generalized use of this package slightly easier but is NOT necessarily required in all situations.
 */
 type Subschema struct {
-	DN   string            // often "cn=schema" or "cn=subschema", varies per imp.
-	LSC  LDAPSyntaxCollection      // LDAP Syntaxes         OID->*LDAPSyntax
+	DN   string                     // often "cn=schema" or "cn=subschema", varies per imp.
+	LSC  LDAPSyntaxCollection       // LDAP Syntaxes         OID->*LDAPSyntax
 	MRC  MatchingRuleCollection     // Matching Rules        OID->*MatchingRule
 	ATC  AttributeTypeCollection    // Attribute Types       OID->*AttributeType
 	MRUC MatchingRuleUseCollection  // Matching Rule "Uses"  OID->*MatchingRuleUse
-	OCC  ObjectClassCollection     // Object Classes        OID->*ObjectClass
+	OCC  ObjectClassCollection      // Object Classes        OID->*ObjectClass
 	DCRC DITContentRuleCollection   // DIT Content Rules     OID->*DITContentRule
 	NFC  NameFormCollection         // Name Forms            OID->*NameForm
 	DSRC DITStructureRuleCollection // DIT Structure Rules   ID->*DITStructureRule
@@ -278,9 +278,11 @@ In the event a successful marshal, a new *AttributeType instance is catalogued w
 
 This method requires the complete population of the following collections before-hand:
 
-  - LDAPSyntaxes (Subschema.LSC)
-  - MatchingRules (Subschema.MRC)
-  - AttributeTypes (Subschema.ATC, if a particular definition a sub type of another type)
+• LDAPSyntaxes (Subschema.LSC)
+
+• MatchingRules (Subschema.MRC)
+
+• AttributeTypes (Subschema.ATC, if a particular definition a sub type of another type)
 */
 func (r *Subschema) MarshalAttributeType(def string) (err error) {
 
@@ -314,8 +316,9 @@ In the event a successful marshal, a new *ObjectClass instance is catalogued wit
 
 This method requires the complete population of the following collections before-hand:
 
-  - AttributeTypes (Subschema.ATC) beforehand
-  - ObjectClasses (Subschema.OCC, if a particular definition a sub class one or more other classes)
+• AttributeTypes (Subschema.ATC) beforehand
+
+• ObjectClasses (Subschema.OCC, if a particular definition a sub class one or more other classes)
 */
 func (r *Subschema) MarshalObjectClass(def string) (err error) {
 
@@ -422,8 +425,9 @@ In the event a successful marshal, a new *NameForm instance is catalogued within
 
 This method requires the complete population of the following collections before-hand:
 
-  - AttributeTypes (Subschema.ATC)
-  - ObjectClasses (Subschema.OCC)
+• AttributeTypes (Subschema.ATC)
+
+• ObjectClasses (Subschema.OCC)
 */
 func (r *Subschema) MarshalNameForm(def string) (err error) {
 
@@ -459,8 +463,9 @@ In the event a successful marshal, a new *DITStructureRule instance is catalogue
 
 This method requires the complete population of the following collections before-hand:
 
-  - NameForms (Subschema.NFC)
-  - DITStructureRules (Subschema.DSRC, if superior DIT Structure Rules are referenced)
+• NameForms (Subschema.NFC)
+
+• DITStructureRules (Subschema.DSRC, if superior DIT Structure Rules are referenced)
 */
 func (r *Subschema) MarshalDITStructureRule(def string) (err error) {
 
@@ -497,8 +502,9 @@ Note that the OID assigned to the raw DIT Content Rule definition MUST correlate
 
 This method requires the complete population of the following collections before-hand:
 
-  - AttributeTypes (Subschema.ATC)
-  - ObjectClasses (Subschema.OCC)
+• AttributeTypes (Subschema.ATC)
+
+• ObjectClasses (Subschema.OCC)
 */
 func (r *Subschema) MarshalDITContentRule(def string) (err error) {
 

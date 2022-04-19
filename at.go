@@ -8,15 +8,15 @@ import (
 /*
 AttributeTypeCollection describes all of the following types:
 
-- *AttributeTypes
+• AttributeTypes
 
-- *RequiredAttributeTypes
+• RequiredAttributeTypes
 
-- *PermittedAttributeTypes
+• PermittedAttributeTypes
 
-- *ProhibitedAttributeTypes
+• ProhibitedAttributeTypes
 
-- *ApplicableAttributeTypes
+• ApplicableAttributeTypes
 */
 type AttributeTypeCollection interface {
 	// Contains returns the index number and presence boolean that
@@ -83,15 +83,18 @@ type AttributeType struct {
 	Syntax      *LDAPSyntax
 	Usage       Usage
 	Extensions  Extensions
-	bools       Boolean
+	flags       definitionFlags
 	mub         uint
+	ufn         DefinitionUnmarshalFunc
+	spec        string
+	info        []byte
 }
 
 /*
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
 */
-func (r AttributeType) String() (def string) {
-	def, _ = Unmarshal(r)
+func (r *AttributeType) String() (def string) {
+	def, _ = r.unmarshal()
 	return
 }
 
@@ -119,7 +122,7 @@ type ApplicableAttributeTypes struct {
 }
 
 func (r ApplicableAttributeTypes) String() string {
-        return r.slice.attrs_oids_string()
+	return r.slice.attrs_oids_string()
 }
 
 /*
@@ -130,7 +133,7 @@ type RequiredAttributeTypes struct {
 }
 
 func (r RequiredAttributeTypes) String() string {
-        return r.slice.attrs_oids_string()
+	return r.slice.attrs_oids_string()
 }
 
 /*
@@ -141,7 +144,7 @@ type PermittedAttributeTypes struct {
 }
 
 func (r PermittedAttributeTypes) String() string {
-        return r.slice.attrs_oids_string()
+	return r.slice.attrs_oids_string()
 }
 
 /*
@@ -152,7 +155,7 @@ type ProhibitedAttributeTypes struct {
 }
 
 func (r ProhibitedAttributeTypes) String() string {
-        return r.slice.attrs_oids_string()
+	return r.slice.attrs_oids_string()
 }
 
 /*
@@ -181,7 +184,7 @@ func (r Usage) String() string {
 /*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
-func (r AttributeTypes) Contains(x interface{}) (int, bool) {
+func (r *AttributeTypes) Contains(x interface{}) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -196,7 +199,7 @@ func (r AttributeTypes) Contains(x interface{}) (int, bool) {
 /*
 Index is a thread-safe method that returns the nth collection slice element if defined, else nil. This method supports use of negative indices which should be used with special care.
 */
-func (r AttributeTypes) Index(idx int) *AttributeType {
+func (r *AttributeTypes) Index(idx int) *AttributeType {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -207,7 +210,7 @@ func (r AttributeTypes) Index(idx int) *AttributeType {
 /*
 Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
 */
-func (r AttributeTypes) Get(x interface{}) *AttributeType {
+func (r *AttributeTypes) Get(x interface{}) *AttributeType {
 	idx, found := r.Contains(x)
 	if !found {
 		return nil
@@ -219,14 +222,14 @@ func (r AttributeTypes) Get(x interface{}) *AttributeType {
 /*
 Len is a thread-safe method that returns the effective length of the receiver slice collection.
 */
-func (r AttributeTypes) Len() int {
+func (r *AttributeTypes) Len() int {
 	return r.slice.len()
 }
 
 /*
 String is a stringer method used to return the properly-delimited and formatted series of attributeType name or OID definitions.
 */
-func (r AttributeTypes) String() string {
+func (r *AttributeTypes) String() string {
 	return ``
 }
 
@@ -234,10 +237,10 @@ func (r AttributeTypes) String() string {
 IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
 */
 func (r *AttributeTypes) IsZero() bool {
-        if r != nil {
-                return r.slice.isZero()
-        }
-        return r == nil
+	if r != nil {
+		return r.slice.isZero()
+	}
+	return r == nil
 }
 
 /*
@@ -262,10 +265,17 @@ func (r *AttributeTypes) Set(x *AttributeType) error {
 }
 
 /*
+SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: attributetype). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
+*/
+func (r *AttributeType) SetSpecifier(spec string) {
+	r.spec = spec
+}
+
+/*
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
-func (r AttributeTypes) Equal(x AttributeTypeCollection) bool {
-        return r.slice.equal(x.(*AttributeTypes).slice)
+func (r *AttributeTypes) Equal(x AttributeTypeCollection) bool {
+	return r.slice.equal(x.(*AttributeTypes).slice)
 }
 
 /*
@@ -274,8 +284,13 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 Description text is ignored.
 */
 func (r *AttributeType) Equal(x interface{}) (equals bool) {
-	z, ok := x.(*AttributeType)
-	if !ok {
+	var z *AttributeType
+	switch tv := x.(type) {
+	case *AttributeType:
+		z = tv
+	case SuperiorAttributeType:
+		z = tv.AttributeType
+	default:
 		return
 	}
 
@@ -298,7 +313,7 @@ func (r *AttributeType) Equal(x interface{}) (equals bool) {
 		return
 	}
 
-	if z.bools != r.bools {
+	if z.flags != r.flags {
 		return
 	}
 
@@ -319,6 +334,11 @@ func (r *AttributeType) Equal(x interface{}) (equals bool) {
 	if !r.Ordering.Equal(z.Ordering) {
 		return
 	}
+
+	if !r.Substring.Equal(z.Substring) {
+		return
+	}
+
 	equals = r.Extensions.Equal(z.Extensions)
 
 	return
@@ -339,48 +359,48 @@ func NewAttributeTypes() AttributeTypeCollection {
 NewApplicableAttributeTypes initializes an embedded instance of *AttributeTypes within the return value.
 */
 func NewApplicableAttributeTypes() AttributeTypeCollection {
-        var z *AttributeTypes = &AttributeTypes{
-                mutex: &sync.Mutex{},
-                slice: make(collection, 0, 0),
-        }
-        var x interface{} = &ApplicableAttributeTypes{z}
-        return x.(AttributeTypeCollection)
+	var z *AttributeTypes = &AttributeTypes{
+		mutex: &sync.Mutex{},
+		slice: make(collection, 0, 0),
+	}
+	var x interface{} = &ApplicableAttributeTypes{z}
+	return x.(AttributeTypeCollection)
 }
 
 /*
 NewRequiredAttributeTypes initializes an embedded instance of *AttributeTypes within the return value.
 */
 func NewRequiredAttributeTypes() AttributeTypeCollection {
-        var z *AttributeTypes = &AttributeTypes{
-                mutex: &sync.Mutex{},
-                slice: make(collection, 0, 0),
-        }
-        var x interface{} = &RequiredAttributeTypes{z}
-        return x.(AttributeTypeCollection)
+	var z *AttributeTypes = &AttributeTypes{
+		mutex: &sync.Mutex{},
+		slice: make(collection, 0, 0),
+	}
+	var x interface{} = &RequiredAttributeTypes{z}
+	return x.(AttributeTypeCollection)
 }
 
 /*
 NewPermittedAttributeTypes initializes an embedded instance of *AttributeTypes within the return value.
 */
 func NewPermittedAttributeTypes() AttributeTypeCollection {
-        var z *AttributeTypes = &AttributeTypes{
-                mutex: &sync.Mutex{},
-                slice: make(collection, 0, 0),
-        }
-        var x interface{} = &PermittedAttributeTypes{z}
-        return x.(AttributeTypeCollection)
+	var z *AttributeTypes = &AttributeTypes{
+		mutex: &sync.Mutex{},
+		slice: make(collection, 0, 0),
+	}
+	var x interface{} = &PermittedAttributeTypes{z}
+	return x.(AttributeTypeCollection)
 }
 
 /*
 NewProhibitedAttributeTypes initializes an embedded instance of *AttributeTypes within the return value.
 */
 func NewProhibitedAttributeTypes() AttributeTypeCollection {
-        var z *AttributeTypes = &AttributeTypes{
-                mutex: &sync.Mutex{},
-                slice: make(collection, 0, 0),
-        }
-        var x interface{} = &ProhibitedAttributeTypes{z}
-        return x.(AttributeTypeCollection)
+	var z *AttributeTypes = &AttributeTypes{
+		mutex: &sync.Mutex{},
+		slice: make(collection, 0, 0),
+	}
+	var x interface{} = &ProhibitedAttributeTypes{z}
+	return x.(AttributeTypeCollection)
 }
 
 func newUsage(x interface{}) Usage {
@@ -415,7 +435,7 @@ func newUsage(x interface{}) Usage {
 /*
 MaxLength returns the integer value, if one was specified, that defines the maximum acceptable value size supported by this *AttributeType per its associated *LDAPSyntax.  If not applicable, a 0 is returned.
 */
-func (r AttributeType) MaxLength() int {
+func (r *AttributeType) MaxLength() int {
 	return int(r.mub)
 }
 
@@ -429,20 +449,9 @@ func (r *AttributeType) SetMaxLength(max int) {
 }
 
 /*
-setBoolean is a private method used by reflect to set the minimum upper bounds.
+setMUB assigns the number (or string) as the minimum upper bounds value for the receiver.
 */
 func (r *AttributeType) setMUB(mub interface{}) {
-	if r.IsZero() {
-		return
-	}
-
-	if r.Syntax.IsZero() {
-		return
-	}
-
-	if !r.Syntax.IsHumanReadable() {
-		return
-	}
 
 	switch tv := mub.(type) {
 	case string:
@@ -462,14 +471,14 @@ func (r *AttributeType) setMUB(mub interface{}) {
 }
 
 /*
-is returns a boolean value indicative of whether the provided interface argument is either an enabled Boolean value, or an associated *MatchingRule or *LDAPSyntax.
+is returns a boolean value indicative of whether the provided interface argument is either an enabled definitionFlags value, or an associated *MatchingRule or *LDAPSyntax.
 
 In the case of an *LDAPSyntax argument, if the receiver is in fact a sub type of another *AttributeType instance, a reference to that super type is chased and analyzed accordingly.
 */
-func (r AttributeType) is(b interface{}) bool {
+func (r *AttributeType) is(b interface{}) bool {
 	switch tv := b.(type) {
-	case Boolean:
-		return r.bools.is(tv)
+	case definitionFlags:
+		return r.flags.is(tv)
 	case *MatchingRule:
 		switch {
 		case tv.Equal(r.Equality.OID):
@@ -516,21 +525,12 @@ func (r *AttributeType) validate() (err error) {
 		return raise(isZero, "%T.validate", r)
 	}
 
-	if err = validateBool(r.bools); err != nil {
+	if err = validateFlag(r.flags); err != nil {
 		return
 	}
 
 	var ls *LDAPSyntax
 	if ls, err = r.validateSyntax(); err != nil {
-		return
-	}
-
-	// verify that no length was set with a
-	// non-human-readable syntax in use.
-	if !r.HumanReadable() && r.MaxLength() != 0 {
-		err = raise(invalidUnmarshal,
-			"%T.unmarshal: %d non-human-readable syntax:%t (%s) with minimum upper-bounds set",
-			r, r.MaxLength(), r.HumanReadable(), ls.OID)
 		return
 	}
 
@@ -547,10 +547,7 @@ func (r *AttributeType) validate() (err error) {
 	}
 
 	if !r.SuperType.IsZero() {
-		if r.SuperType.Syntax.IsZero() {
-			err = raise(invalidUnmarshal, "%T.unmarshal: %T.%T: %s (sub-typed)",
-				r.SuperType, r.SuperType, r.SuperType.Syntax, isZero.Error())
-		}
+		err = r.SuperType.Validate()
 	} else {
 		if r.Syntax.IsZero() {
 			err = raise(invalidUnmarshal, "%T.unmarshal: %T.%T: %s (not sub-typed)",
@@ -624,15 +621,134 @@ func (r *AttributeType) validateOrdering(ls *LDAPSyntax) error {
 	return nil
 }
 
-func (r *AttributeType) unmarshal(namesok bool) (def string, err error) {
-	if err = r.validate(); err != nil {
-		err = raise(invalidUnmarshal, err.Error())
-		return
+/*
+SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+*/
+func (r *AttributeType) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+	r.ufn = fn
+}
+
+/*
+SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
+*/
+func (r *AttributeType) SetInfo(info []byte) {
+	r.info = info
+}
+
+/*
+Info returns the assigned informational byte slice instance stored within the receiver.
+*/
+func (r *AttributeType) Info() []byte {
+	return r.info
+}
+
+/*
+AttributeTypeUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+
+The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
+*/
+func (r *AttributeType) AttributeTypeUnmarshalFunc() (def string, err error) {
+	var (
+		WHSP string = ` `
+		idnt string = "\n\t"
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
 	}
 
-	WHSP := ` `
+	def += head + WHSP + r.OID.String()
 
-	def += `(` + WHSP + r.OID.String() // will never be zero length
+	if !r.Name.IsZero() {
+		def += idnt + r.Name.Label()
+		def += WHSP + r.Name.String()
+	}
+
+	if !r.Description.IsZero() {
+		def += idnt + r.Description.Label()
+		def += WHSP + r.Description.String()
+	}
+
+	if r.Obsolete() {
+		def += idnt + Obsolete.String()
+	}
+
+	if !r.SuperType.IsZero() {
+		def += idnt + r.SuperType.Label()
+		def += WHSP + r.SuperType.Name.Index(0)
+	}
+
+	if !r.Syntax.IsZero() {
+		def += idnt + r.Syntax.Label()
+		def += WHSP + r.Syntax.OID.String()
+		if r.MaxLength() > 0 {
+			def += `{` + itoa(r.MaxLength()) + `}`
+		}
+	}
+
+	if !r.Equality.IsZero() {
+		def += idnt + r.Equality.Label()
+		def += WHSP + r.Equality.Name.Index(0)
+	}
+
+	if !r.Ordering.IsZero() {
+		def += idnt + r.Ordering.Label()
+		def += WHSP + r.Ordering.Name.Index(0)
+	}
+
+	if !r.Substring.IsZero() {
+		def += idnt + r.Substring.Label()
+		def += WHSP + r.Substring.Name.Index(0)
+	}
+
+	if r.Usage != UserApplication {
+		def += idnt + r.Usage.Label()
+		def += WHSP + r.Usage.String()
+	}
+
+	if r.Collective() {
+		def += idnt + Collective.String()
+	}
+
+	if r.NoUserModification() {
+		def += idnt + NoUserModification.String()
+	}
+
+	if !r.Extensions.IsZero() {
+		def += idnt + r.Extensions.String()
+	}
+
+	def += WHSP + tail
+
+	return
+}
+
+func (r *AttributeType) unmarshal() (string, error) {
+	if err := r.validate(); err != nil {
+		err = raise(invalidUnmarshal, err.Error())
+		return ``, err
+	}
+
+	if r.ufn != nil {
+		return r.ufn()
+	}
+	return r.unmarshalBasic()
+}
+
+func (r *AttributeType) unmarshalBasic() (def string, err error) {
+	var (
+		WHSP string = ` `
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
 
 	if !r.Name.IsZero() {
 		def += WHSP + r.Name.Label()
@@ -644,7 +760,7 @@ func (r *AttributeType) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.bools.is(Obsolete) {
+	if r.Obsolete() {
 		def += WHSP + Obsolete.String()
 	}
 
@@ -656,6 +772,9 @@ func (r *AttributeType) unmarshal(namesok bool) (def string, err error) {
 	if !r.Syntax.IsZero() {
 		def += WHSP + r.Syntax.Label()
 		def += WHSP + r.Syntax.OID.String()
+		if r.MaxLength() > 0 {
+			def += `{` + itoa(r.MaxLength()) + `}`
+		}
 	}
 
 	if !r.Equality.IsZero() {
@@ -678,15 +797,19 @@ func (r *AttributeType) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Usage.String()
 	}
 
-	if r.bools.is(NoUserModification) {
+	if r.NoUserModification() {
 		def += WHSP + NoUserModification.String()
+	}
+
+	if r.Collective() {
+		def += WHSP + Collective.String()
 	}
 
 	if !r.Extensions.IsZero() {
 		def += WHSP + r.Extensions.String()
 	}
 
-	def += WHSP + `)`
+	def += WHSP + tail
 
 	return
 }

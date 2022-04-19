@@ -11,28 +11,28 @@ LDAPSyntaxTypeCollection describes all LDAPSyntax-based types.
 type LDAPSyntaxCollection interface {
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-        Contains(interface{}) (int, bool)
+	Contains(interface{}) (int, bool)
 
 	// Get returns the *LDAPSyntax instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-        Get(interface{}) *LDAPSyntax
+	Get(interface{}) *LDAPSyntax
 
 	// Index returns the *LDAPSyntax instance stored at the nth
 	// index within the receiver, or nil.
-        Index(int) *LDAPSyntax
+	Index(int) *LDAPSyntax
 
 	// Equal performs a deep-equal between the receiver and the
 	// interface LDAPSyntaxCollection provided.
-        Equal(LDAPSyntaxCollection) bool
+	Equal(LDAPSyntaxCollection) bool
 
 	// Set returns an error instance based on an attempt to add
 	// the provided *AttributeType instance to the receiver.
-        Set(*LDAPSyntax) error
+	Set(*LDAPSyntax) error
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
-        String() string
+	String() string
 
 	// Label returns the field name associated with the interface
 	// types, or a zero string if no label is appropriate.
@@ -40,11 +40,11 @@ type LDAPSyntaxCollection interface {
 
 	// IsZero returns a boolean value indicative of whether the
 	// receiver is considered zero, or undefined.
-        IsZero() bool
+	IsZero() bool
 
 	// Len returns an integer value indicative of the current
 	// number of elements stored within the receiver.
-        Len() int
+	Len() int
 }
 
 /*
@@ -54,7 +54,10 @@ type LDAPSyntax struct {
 	OID         OID
 	Description Description
 	Extensions  Extensions
-	bools       Boolean
+	flags       definitionFlags
+	ufn         DefinitionUnmarshalFunc
+	spec        string
+	info        []byte
 }
 
 /*
@@ -70,7 +73,7 @@ type LDAPSyntaxes struct {
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r LDAPSyntaxes) Equal(x LDAPSyntaxCollection) bool {
-        return r.slice.equal(x.(*LDAPSyntaxes).slice)
+	return r.slice.equal(x.(*LDAPSyntaxes).slice)
 }
 
 /*
@@ -128,8 +131,6 @@ func (r LDAPSyntaxes) Len() int {
 	return r.slice.len()
 }
 
-
-
 /*
 String is a stringer method used to return the properly-delimited and formatted series of attributeType name or OID definitions.
 */
@@ -139,10 +140,9 @@ func (r LDAPSyntaxes) String() string { return `` }
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
 */
 func (r LDAPSyntax) String() (def string) {
-	def, _ = Unmarshal(r)
+	def, _ = r.unmarshal()
 	return
 }
-
 
 /*
 IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
@@ -173,6 +173,34 @@ func (r *LDAPSyntaxes) Set(x *LDAPSyntax) error {
 }
 
 /*
+SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: attributetype). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
+*/
+func (r *LDAPSyntax) SetSpecifier(spec string) {
+	r.spec = spec
+}
+
+/*
+SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
+*/
+func (r *LDAPSyntax) SetInfo(info []byte) {
+	r.info = info
+}
+
+/*
+Info returns the assigned informational byte slice instance stored within the receiver.
+*/
+func (r *LDAPSyntax) Info() []byte {
+	return r.info
+}
+
+/*
+SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+*/
+func (r *LDAPSyntax) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+	r.ufn = fn
+}
+
+/*
 NewLDAPSyntaxes initializes and returns a new LDAPSyntaxesCollection interface object.
 */
 func NewLDAPSyntaxes() LDAPSyntaxCollection {
@@ -186,17 +214,20 @@ func NewLDAPSyntaxes() LDAPSyntaxCollection {
 /*
 IsHumanReadable returns a boolean value indicative of whether the receiver instance of *LDAPSyntax supports values that are human-readable.
 */
-func (r LDAPSyntax) IsHumanReadable() bool {
-	return r.bools.is(HumanReadable)
+func (r *LDAPSyntax) HumanReadable() bool {
+	if r.IsZero() {
+		return false
+	}
+	return r.flags.is(HumanReadable)
 }
 
 /*
-is returns a boolean value indicative of whether the provided interface argument is an enabled Boolean option.
+is returns a boolean value indicative of whether the provided interface argument is an enabled definitionFlags option.
 */
-func (r LDAPSyntax) is(b interface{}) bool {
+func (r *LDAPSyntax) is(b interface{}) bool {
 	switch tv := b.(type) {
-	case Boolean:
-		return r.bools.is(tv)
+	case definitionFlags:
+		return r.flags.is(tv)
 	}
 
 	return false
@@ -234,29 +265,82 @@ func (r *LDAPSyntax) validate() (err error) {
 	return
 }
 
-func (r *LDAPSyntax) unmarshal(namesok bool) (def string, err error) {
-	if err = r.validate(); err != nil {
+func (r *LDAPSyntax) unmarshal() (string, error) {
+	if err := r.validate(); err != nil {
 		err = raise(invalidUnmarshal, err.Error())
-		return
+		return ``, err
 	}
 
-	WHSP := ` `
+	if r.ufn != nil {
+		return r.ufn()
+	}
+	return r.unmarshalBasic()
+}
 
-	def += `(` + WHSP + r.OID.String() // will never be zero length
+/*
+LDAPSyntaxUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+
+The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
+*/
+func (r *LDAPSyntax) LDAPSyntaxUnmarshalFunc() (def string, err error) {
+
+	var (
+		WHSP string = ` `
+		idnt string = "\n\t"
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
+
+	// Description will never be zero
+	def += idnt + r.Description.Label()
+	def += WHSP + r.Description.String()
+
+	if r.Obsolete() {
+		def += idnt + Obsolete.String()
+	}
+
+	if !r.Extensions.IsZero() {
+		def += idnt + r.Extensions.String()
+	}
+
+	def += WHSP + tail
+
+	return
+}
+
+func (r *LDAPSyntax) unmarshalBasic() (def string, err error) {
+
+	var (
+		WHSP string = ` `
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
 
 	// Description will never be zero
 	def += WHSP + r.Description.Label()
 	def += WHSP + r.Description.String()
 
-	if r.bools.enabled(Obsolete) {
-		def += WHSP + r.bools.Obsolete()
+	if r.Obsolete() {
+		def += WHSP + Obsolete.String()
 	}
 
 	if !r.Extensions.IsZero() {
 		def += WHSP + r.Extensions.String()
 	}
 
-	def += WHSP + `)`
+	def += WHSP + tail
 
 	return
 }

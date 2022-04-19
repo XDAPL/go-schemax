@@ -82,7 +82,10 @@ type ObjectClass struct {
 	Must        AttributeTypeCollection
 	May         AttributeTypeCollection
 	Extensions  Extensions
-	bools       Boolean
+	flags       definitionFlags
+	ufn         DefinitionUnmarshalFunc
+	spec        string
+	info        []byte
 }
 
 /*
@@ -126,8 +129,15 @@ func (r *ObjectClasses) SetMacros(macros *Macros) {
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
 */
 func (r ObjectClass) String() (def string) {
-	def, _ = Unmarshal(r)
+	def, _ = r.unmarshal()
 	return
+}
+
+/*
+SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: objectclass). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
+*/
+func (r *ObjectClass) SetSpecifier(spec string) {
+	r.spec = spec
 }
 
 /*
@@ -195,10 +205,10 @@ func (r ObjectClasses) Len() int {
 IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
 */
 func (r *ObjectClasses) IsZero() bool {
-        if r != nil {
-                return r.slice.isZero()
-        }
-        return r == nil
+	if r != nil {
+		return r.slice.isZero()
+	}
+	return r == nil
 }
 
 /*
@@ -223,6 +233,27 @@ func (r *ObjectClasses) Set(x *ObjectClass) error {
 }
 
 /*
+SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
+*/
+func (r *ObjectClass) SetInfo(info []byte) {
+	r.info = info
+}
+
+/*
+Info returns the assigned informational byte slice instance stored within the receiver.
+*/
+func (r *ObjectClass) Info() []byte {
+	return r.info
+}
+
+/*
+SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+*/
+func (r *ObjectClass) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+	r.ufn = fn
+}
+
+/*
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r ObjectClasses) Equal(x ObjectClassCollection) bool {
@@ -235,9 +266,13 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 Description text is ignored.
 */
 func (r *ObjectClass) Equal(x interface{}) (equals bool) {
-
-	z, ok := x.(*ObjectClass)
-	if !ok {
+	var z *ObjectClass
+	switch tv := x.(type) {
+	case *ObjectClass:
+		z = tv
+	case *StructuralObjectClass:
+		z = tv.ObjectClass
+	default:
 		return
 	}
 
@@ -256,7 +291,7 @@ func (r *ObjectClass) Equal(x interface{}) (equals bool) {
 		return
 	}
 
-	if r.bools != z.bools {
+	if r.flags != z.flags {
 		return
 	}
 
@@ -294,24 +329,24 @@ func NewObjectClasses() ObjectClassCollection {
 NewSuperiorObjectClasses returns an initialized instance of SuperiorObjectClasses cast as an ObjectClassCollection.
 */
 func NewSuperiorObjectClasses() ObjectClassCollection {
-        var z *ObjectClasses = &ObjectClasses{
-                mutex: &sync.Mutex{},
-                slice: make(collection, 0, 0),
-        }
-        var x interface{} = &SuperiorObjectClasses{z}
-        return x.(ObjectClassCollection)
+	var z *ObjectClasses = &ObjectClasses{
+		mutex: &sync.Mutex{},
+		slice: make(collection, 0, 0),
+	}
+	var x interface{} = &SuperiorObjectClasses{z}
+	return x.(ObjectClassCollection)
 }
 
 /*
 NewAuxiliaryObjectClasses returns an initialized instance of AuxiliaryObjectClasses cast as an ObjectClassCollection.
 */
 func NewAuxiliaryObjectClasses() ObjectClassCollection {
-        var z *ObjectClasses = &ObjectClasses{
-                mutex: &sync.Mutex{},
-                slice: make(collection, 0, 0),
-        }
-        var x interface{} = &AuxiliaryObjectClasses{z}
-        return x.(ObjectClassCollection)
+	var z *ObjectClasses = &ObjectClasses{
+		mutex: &sync.Mutex{},
+		slice: make(collection, 0, 0),
+	}
+	var x interface{} = &AuxiliaryObjectClasses{z}
+	return x.(ObjectClassCollection)
 }
 
 func newKind(x interface{}) Kind {
@@ -350,12 +385,12 @@ func (r Kind) is(x Kind) bool {
 }
 
 /*
-is returns a boolean value indicative of whether the provided interface value is either a Kind or a Boolean AND is enabled within the receiver.
+is returns a boolean value indicative of whether the provided interface value is either a Kind or a definitionFlags AND is enabled within the receiver.
 */
 func (r ObjectClass) is(b interface{}) bool {
 	switch tv := b.(type) {
-	case Boolean:
-		return r.bools.is(tv)
+	case definitionFlags:
+		return r.flags.is(tv)
 	case Kind:
 		return r.Kind.is(tv)
 	}
@@ -383,7 +418,7 @@ func (r *ObjectClass) validate() (err error) {
 		return raise(isZero, "%T.validate", r)
 	}
 
-	if err = validateBool(r.bools); err != nil {
+	if err = validateFlag(r.flags); err != nil {
 		return
 	}
 
@@ -427,51 +462,51 @@ func (r *ObjectClass) getMay(m AttributeTypeCollection) (ok PermittedAttributeTy
 	}
 
 	if !r.May.IsZero() {
-                for i := 0; i < r.May.Len(); i++ {
-                        may := r.May.Index(0)
-                        if may.IsZero() {
-                                continue
-                        }
-                        ok.Set(may)
-                }
+		for i := 0; i < r.May.Len(); i++ {
+			may := r.May.Index(0)
+			if may.IsZero() {
+				continue
+			}
+			ok.Set(may)
+		}
 	}
 
 	return
 }
 
 func (r *ObjectClass) getMust(m RequiredAttributeTypes) (req RequiredAttributeTypes) {
-        for _, atr := range m.slice {
-                at, ok := atr.(*AttributeType)
-                if !ok {
-                        return
-                }
-                req.Set(at)
-        }
+	for _, atr := range m.slice {
+		at, ok := atr.(*AttributeType)
+		if !ok {
+			return
+		}
+		req.Set(at)
+	}
 
-        if !r.SuperClass.IsZero() {
-                for i := 0; i < r.SuperClass.Len(); i++ {
-                        oc := r.SuperClass.Index(0)
-                        if oc.IsZero() {
-                                continue
-                        }
-                        for j := 0; j < oc.Must.Len(); j++ {
-                                must := oc.Must.Index(j)
-                                if must.IsZero() {
-                                        req.Set(must)
-                                }
-                        }
-                }
-        }
+	if !r.SuperClass.IsZero() {
+		for i := 0; i < r.SuperClass.Len(); i++ {
+			oc := r.SuperClass.Index(0)
+			if oc.IsZero() {
+				continue
+			}
+			for j := 0; j < oc.Must.Len(); j++ {
+				must := oc.Must.Index(j)
+				if must.IsZero() {
+					req.Set(must)
+				}
+			}
+		}
+	}
 
-        if !r.Must.IsZero() {
-                for i := 0; i < r.Must.Len(); i++ {
-                        must := r.Must.Index(0)
-                        if must.IsZero() {
-                                continue
-                        }
-                        req.Set(must)
-                }
-        }
+	if !r.Must.IsZero() {
+		for i := 0; i < r.Must.Len(); i++ {
+			must := r.Must.Index(0)
+			if must.IsZero() {
+				continue
+			}
+			req.Set(must)
+		}
+	}
 
 	return
 }
@@ -497,15 +532,89 @@ func (r AuxiliaryObjectClasses) String() string {
 	return r.slice.ocs_oids_string()
 }
 
-func (r *ObjectClass) unmarshal(namesok bool) (def string, err error) {
-	if err = r.validate(); err != nil {
+func (r *ObjectClass) unmarshal() (string, error) {
+	if err := r.validate(); err != nil {
 		err = raise(invalidUnmarshal, err.Error())
-		return
+		return ``, err
 	}
 
-	WHSP := ` `
+	if r.ufn != nil {
+		return r.ufn()
+	}
+	return r.unmarshalBasic()
+}
 
-	def += `(` + WHSP + r.OID.String() // will never be zero length
+/*
+ObjectClassUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+
+The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
+*/
+func (r *ObjectClass) ObjectClassUnmarshalFunc() (def string, err error) {
+	var (
+		WHSP string = ` `
+		idnt string = "\n\t"
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
+
+	if !r.Name.IsZero() {
+		def += idnt + r.Name.Label()
+		def += WHSP + r.Name.String()
+	}
+
+	if !r.Description.IsZero() {
+		def += idnt + r.Description.Label()
+		def += WHSP + r.Description.String()
+	}
+
+	if r.Obsolete() {
+		def += idnt + Obsolete.String()
+	}
+
+	if !r.SuperClass.IsZero() {
+		def += idnt + r.SuperClass.Label()
+		def += WHSP + r.SuperClass.String()
+	}
+
+	// Kind will never be zero
+	def += idnt + r.Kind.String()
+
+	if !r.Must.IsZero() {
+		def += idnt + r.Must.Label()
+		def += WHSP + r.Must.String()
+	}
+	if !r.May.IsZero() {
+		def += idnt + r.May.Label()
+		def += WHSP + r.May.String()
+	}
+
+	if !r.Extensions.IsZero() {
+		def += idnt + r.Extensions.String()
+	}
+
+	def += WHSP + tail
+
+	return
+}
+
+func (r *ObjectClass) unmarshalBasic() (def string, err error) {
+	var (
+		WHSP string = ` `
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
 
 	if !r.Name.IsZero() {
 		def += WHSP + r.Name.Label()
@@ -517,8 +626,8 @@ func (r *ObjectClass) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.is(Obsolete) {
-		def += WHSP + r.bools.Obsolete()
+	if r.Obsolete() {
+		def += WHSP + Obsolete.String()
 	}
 
 	if !r.SuperClass.IsZero() {
@@ -542,7 +651,7 @@ func (r *ObjectClass) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Extensions.String()
 	}
 
-	def += WHSP + `)`
+	def += WHSP + tail
 
 	return
 }

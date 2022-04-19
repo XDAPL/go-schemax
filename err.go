@@ -16,7 +16,7 @@ var unknownElement error = newErr("Unknown definition element")
 var isZero error = newErr("Element or definition is zero (unpopulated or incomplete)")
 var cannotOverwrite error = newErr("Overwrites forbidden")
 
-var invalidBoolean error = newErr("Invalid or inappropriate Boolean flag")
+var invalidFlag error = newErr("Invalid or inappropriate Boolean flag")
 var invalidObjectClassKind error = newErr("Invalid kind of objectClass")
 var invalidName error = newErr("Invalid name value(s)")
 var invalidDescription error = newErr("Invalid description value")

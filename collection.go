@@ -55,63 +55,63 @@ func (r collection) equal(x collection) (equals bool) {
 		return
 	}
 
-        if x.isZero() && r.isZero() {
-                equals = true
-                return
-        } else if x.isZero() || r.isZero() {
-                return
-        }
+	if x.isZero() && r.isZero() {
+		equals = true
+		return
+	} else if x.isZero() || r.isZero() {
+		return
+	}
 
-        for i := 0; i < r.len(); i++ {
+	for i := 0; i < r.len(); i++ {
 		switch tv := r.index(i).(type) {
-                case *LDAPSyntax:
-                        assert, ok := x.index(i).(*LDAPSyntax)
-                        if !ok {
-                                return
-                        }
-                        if !tv.Equal(assert) {
-                                return
-                        }
-                case *MatchingRule:
-                        assert, ok := x.index(i).(*MatchingRule)
-                        if !ok {
-                                return
-                        }
-                        if !tv.Equal(assert) {
-                                return
-                        }
-                case *MatchingRuleUse:
-                        assert, ok := x.index(i).(*MatchingRuleUse)
-                        if !ok {
-                                return
-                        }
-                        if !tv.Equal(assert) {
-                                return
-                        }
-                case *AttributeType:
-                        assert, ok := x.index(i).(*AttributeType)
-                        if !ok {
-                                return
-                        }
-                        if !tv.Equal(assert) {
-                                return
-                        }
-                case *ObjectClass:
-                        assert, ok := x.index(i).(*ObjectClass)
-                        if !ok {
-                                return
-                        }
-                        if !tv.Equal(assert) {
-                                return
-                        }
-                case *NameForm:
-                        assert, ok := x.index(i).(*NameForm)
-                        if !ok {
-                                return
-                        }
-                        if !tv.Equal(assert) {
-                                return
-                        }
+		case *LDAPSyntax:
+			assert, ok := x.index(i).(*LDAPSyntax)
+			if !ok {
+				return
+			}
+			if !tv.Equal(assert) {
+				return
+			}
+		case *MatchingRule:
+			assert, ok := x.index(i).(*MatchingRule)
+			if !ok {
+				return
+			}
+			if !tv.Equal(assert) {
+				return
+			}
+		case *MatchingRuleUse:
+			assert, ok := x.index(i).(*MatchingRuleUse)
+			if !ok {
+				return
+			}
+			if !tv.Equal(assert) {
+				return
+			}
+		case *AttributeType:
+			assert, ok := x.index(i).(*AttributeType)
+			if !ok {
+				return
+			}
+			if !tv.Equal(assert) {
+				return
+			}
+		case *ObjectClass:
+			assert, ok := x.index(i).(*ObjectClass)
+			if !ok {
+				return
+			}
+			if !tv.Equal(assert) {
+				return
+			}
+		case *NameForm:
+			assert, ok := x.index(i).(*NameForm)
+			if !ok {
+				return
+			}
+			if !tv.Equal(assert) {
+				return
+			}
 		case *DITContentRule:
 			assert, ok := x.index(i).(*DITContentRule)
 			if !ok {
@@ -129,20 +129,20 @@ func (r collection) equal(x collection) (equals bool) {
 				return
 			}
 		case string:
-                        assert, ok := x.index(i).(string)
-                        if !ok {
-                                return
-                        }
-                        if tv != assert {
-                                return
-                        }
+			assert, ok := x.index(i).(string)
+			if !ok {
+				return
+			}
+			if tv != assert {
+				return
+			}
 		default:
 			return
-                }
-        }
+		}
+	}
 
-        equals = true
-        return
+	equals = true
+	return
 }
 
 /*
@@ -262,14 +262,14 @@ func (c collection) containsName(x string) (index int, found bool) {
 func (c collection) containsDesc(x string) (index int, found bool) {
 	index = -1
 
-        for i := 0; i < c.len(); i++ {
-                el := c.index(i)
-                if el == nil {
-                        continue
-                }
+	for i := 0; i < c.len(); i++ {
+		el := c.index(i)
+		if el == nil {
+			continue
+		}
 
-                switch tve := el.(type) {
-                case *LDAPSyntax:
+		switch tve := el.(type) {
+		case *LDAPSyntax:
 			// Syntaxes don't really have names like all other
 			// definition types, so instead we have to think a
 			// bit creatively and use the syntax DESC field.
@@ -281,17 +281,17 @@ func (c collection) containsDesc(x string) (index int, found bool) {
 				found = true
 				break
 			}
-                default:
-                        return
-                }
+		default:
+			return
+		}
 
-                if found {
-                        index = i
-                        break
-                }
-        }
+		if found {
+			index = i
+			break
+		}
+	}
 
-        return
+	return
 }
 
 /*
@@ -402,31 +402,31 @@ func (r collection) attrs_oids_string() (str string) {
 }
 
 func (r collection) dsrs_ids_string() (str string) {
-        switch len(r) {
-        case 0:
-                return
-        case 1:
+	switch len(r) {
+	case 0:
+		return
+	case 1:
 		assert, ok := r[0].(*DITStructureRule)
 		if !ok {
 			return
 		}
-                return assert.ID.String()
-        }
+		return assert.ID.String()
+	}
 
-        str += `( `
-        for i := 0; i < len(r); i++ {
+	str += `( `
+	for i := 0; i < len(r); i++ {
 		assert, ok := r[i].(*DITStructureRule)
 		if !ok {
 			return ``
 		}
-                str += assert.ID.String() + ` $ `
-        }
-        if str[len(str)-3:] == ` $ ` {
-                str = str[:len(str)-2]
-        }
-        str += `)`
+		str += assert.ID.String() + ` $ `
+	}
+	if str[len(str)-3:] == ` $ ` {
+		str = str[:len(str)-2]
+	}
+	str += `)`
 
-        return
+	return
 }
 
 func (r collection) ocs_oids_string() (str string) {

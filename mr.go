@@ -11,28 +11,28 @@ MatchingRuleCollection describes all MatchingRules-based types.
 type MatchingRuleCollection interface {
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-        Contains(interface{}) (int, bool)
+	Contains(interface{}) (int, bool)
 
 	// Get returns the *MatchingRule instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-        Get(interface{}) *MatchingRule
+	Get(interface{}) *MatchingRule
 
 	// Index returns the *MatchingRule instance stored at the nth
 	// index within the receiver, or nil.
-        Index(int) *MatchingRule
+	Index(int) *MatchingRule
 
 	// Equal performs a deep-equal between the receiver and the
 	// interface MatchingRuleCollection provided.
-        Equal(MatchingRuleCollection) bool
+	Equal(MatchingRuleCollection) bool
 
 	// Set returns an error instance based on an attempt to add
 	// the provided *MatchingRule instance to the receiver.
-        Set(*MatchingRule) error
+	Set(*MatchingRule) error
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
-        String() string
+	String() string
 
 	// Label returns the field name associated with the interface
 	// types, or a zero string if no label is appropriate.
@@ -40,11 +40,11 @@ type MatchingRuleCollection interface {
 
 	// IsZero returns a boolean value indicative of whether the
 	// receiver is considered zero, or undefined.
-        IsZero() bool
+	IsZero() bool
 
 	// Len returns an integer value indicative of the current
 	// number of elements stored within the receiver.
-        Len() int
+	Len() int
 }
 
 /*
@@ -56,7 +56,10 @@ type MatchingRule struct {
 	Description Description
 	Syntax      *LDAPSyntax
 	Extensions  Extensions
-	bools       Boolean
+	flags       definitionFlags
+	ufn         DefinitionUnmarshalFunc
+	spec        string
+	info        []byte
 }
 
 /*
@@ -67,84 +70,10 @@ type Equality struct {
 }
 
 /*
-Equal performs a deep-equal between the receiver and the provided definition type.
-
-Description text is ignored.
-*/
-func (r Equality) Equal(x interface{}) (equals bool) {
-	z, ok := x.(Equality)
-	if !ok {
-		return
-	}
-
-	if z.IsZero() && r.IsZero() {
-		equals = true
-		return
-	} else if z.IsZero() || r.IsZero() {
-		return
-	}
-
-	if !z.OID.Equal(r.OID) {
-		return
-	}
-
-	if !z.Name.Equal(r.Name) {
-		return
-	}
-
-	if !z.Syntax.Equal(r.Syntax) {
-		return
-	}
-
-	if z.bools != r.bools {
-		return
-	}
-	equals = r.Extensions.Equal(z.Extensions)
-
-	return
-}
-
-/*
 Ordering circumscribes an embedded pointer to an instance of *MatchingRule.  This type alias is intended for use solely within instances of AttributeType via its "Ordering" struct field.
 */
 type Ordering struct {
 	*MatchingRule
-}
-
-/*
-Equal performs a deep-equal between the receiver and the provided collection type.
-*/
-func (r Ordering) Equal(x interface{}) (equals bool) {
-	z, ok := x.(Ordering)
-	if !ok {
-		return
-	}
-
-	if z.IsZero() && r.IsZero() {
-		equals = true
-		return
-	} else if z.IsZero() || r.IsZero() {
-		return
-	}
-
-	if !z.OID.Equal(r.OID) {
-		return
-	}
-
-	if !z.Name.Equal(r.Name) {
-		return
-	}
-
-	if !z.Syntax.Equal(r.Syntax) {
-		return
-	}
-
-	if z.bools != r.bools {
-		return
-	}
-	equals = r.Extensions.Equal(z.Extensions)
-
-	return
 }
 
 /*
@@ -159,9 +88,18 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r Substring) Equal(x interface{}) (equals bool) {
-	z, ok := x.(Substring)
-	if !ok {
+func (r *MatchingRule) Equal(x interface{}) (equals bool) {
+	var z *MatchingRule
+	switch tv := x.(type) {
+	case *MatchingRule:
+		z = tv
+	case Equality:
+		z = tv.MatchingRule
+	case Substring:
+		z = tv.MatchingRule
+	case Ordering:
+		z = tv.MatchingRule
+	default:
 		return
 	}
 
@@ -184,9 +122,10 @@ func (r Substring) Equal(x interface{}) (equals bool) {
 		return
 	}
 
-	if z.bools != r.bools {
+	if z.flags != r.flags {
 		return
 	}
+
 	equals = r.Extensions.Equal(z.Extensions)
 
 	return
@@ -205,7 +144,7 @@ type MatchingRules struct {
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r MatchingRules) Equal(x MatchingRuleCollection) bool {
-        return r.slice.equal(x.(*MatchingRules).slice)
+	return r.slice.equal(x.(*MatchingRules).slice)
 }
 
 /*
@@ -272,8 +211,15 @@ func (r MatchingRules) String() string { return `` }
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
 */
 func (r MatchingRule) String() (def string) {
-	def, _ = Unmarshal(r)
+	def, _ = r.unmarshal()
 	return
+}
+
+/*
+SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: matchingrule). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
+*/
+func (r *MatchingRule) SetSpecifier(spec string) {
+	r.spec = spec
 }
 
 /*
@@ -305,6 +251,27 @@ func (r *MatchingRules) Set(x *MatchingRule) error {
 }
 
 /*
+SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
+*/
+func (r *MatchingRule) SetInfo(info []byte) {
+	r.info = info
+}
+
+/*
+Info returns the assigned informational byte slice instance stored within the receiver.
+*/
+func (r *MatchingRule) Info() []byte {
+	return r.info
+}
+
+/*
+SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+*/
+func (r *MatchingRule) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+	r.ufn = fn
+}
+
+/*
 NewMatchingRules initializes and returns a new MatchingRulesCollection interface object.
 */
 func NewMatchingRules() MatchingRuleCollection {
@@ -316,28 +283,14 @@ func NewMatchingRules() MatchingRuleCollection {
 }
 
 /*
-is returns a boolean value indicative of whether the provided interface argument is an enabled Boolean option.
+is returns a boolean value indicative of whether the provided interface argument is an enabled definitionFlags option.
 */
-func (r MatchingRule) is(b interface{}) bool {
+func (r *MatchingRule) is(b interface{}) bool {
 	switch tv := b.(type) {
-	case Boolean:
-		return r.bools.is(tv)
+	case definitionFlags:
+		return r.flags.is(tv)
 	case *LDAPSyntax:
 		return r.OID.Equal(tv.OID)
-	}
-
-	return false
-}
-
-/*
-Equal performs a deep-equal between the receiver and the provided collection type.
-
-Description text is ignored.
-*/
-func (r *MatchingRule) Equal(x interface{}) bool {
-	if assert, equals := x.(*MatchingRule); equals {
-		return (assert.OID.String() == r.OID.String() &&
-			assert.Name.Equal(r.Name))
 	}
 
 	return false
@@ -372,7 +325,7 @@ func (r *MatchingRule) validate() (err error) {
 		return
 	}
 
-	if err = validateBool(r.bools); err != nil {
+	if err = validateFlag(r.flags); err != nil {
 		return
 	}
 
@@ -387,15 +340,76 @@ func (r *MatchingRule) validate() (err error) {
 	return
 }
 
-func (r *MatchingRule) unmarshal(namesok bool) (def string, err error) {
-	if err = r.validate(); err != nil {
+func (r *MatchingRule) unmarshal() (string, error) {
+	if err := r.validate(); err != nil {
 		err = raise(invalidUnmarshal, err.Error())
-		return
+		return ``, err
 	}
 
-	WHSP := ` `
+	if r.ufn != nil {
+		return r.ufn()
+	}
+	return r.unmarshalBasic()
+}
 
-	def += `(` + WHSP + r.OID.String() // will never be zero length
+/*
+MatchingRuleUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+
+The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
+*/
+func (r *MatchingRule) MatchingRuleUnmarshalFunc() (def string, err error) {
+	var (
+		WHSP string = ` `
+		idnt string = "\n\t"
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
+
+	if !r.Name.IsZero() {
+		def += idnt + r.Name.Label()
+		def += WHSP + r.Name.String()
+	}
+
+	if !r.Description.IsZero() {
+		def += idnt + r.Description.Label()
+		def += WHSP + r.Description.String()
+	}
+
+	if r.Obsolete() {
+		def += idnt + Obsolete.String()
+	}
+
+	// Syntax will never be zero
+	def += idnt + r.Syntax.Label()
+	def += WHSP + r.Syntax.OID.String()
+
+	if !r.Extensions.IsZero() {
+		def += idnt + r.Extensions.String()
+	}
+
+	def += WHSP + tail
+
+	return
+}
+
+func (r *MatchingRule) unmarshalBasic() (def string, err error) {
+	var (
+		WHSP string = ` `
+		head string = `(`
+		tail string = `)`
+	)
+
+	if len(r.spec) > 0 {
+		head = r.spec + WHSP + head
+	}
+
+	def += head + WHSP + r.OID.String()
 
 	if !r.Name.IsZero() {
 		def += WHSP + r.Name.Label()
@@ -407,8 +421,8 @@ func (r *MatchingRule) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.is(Obsolete) {
-		def += WHSP + r.bools.Obsolete()
+	if r.Obsolete() {
+		def += WHSP + Obsolete.String()
 	}
 
 	// Syntax will never be zero
@@ -419,7 +433,7 @@ func (r *MatchingRule) unmarshal(namesok bool) (def string, err error) {
 		def += WHSP + r.Extensions.String()
 	}
 
-	def += WHSP + `)`
+	def += WHSP + tail
 
 	return
 }
