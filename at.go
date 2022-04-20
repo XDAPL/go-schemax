@@ -1,9 +1,6 @@
 package schemax
 
-import (
-	"fmt"
-	"sync"
-)
+import "sync"
 
 /*
 AttributeTypeCollection describes all of the following types:
@@ -251,11 +248,18 @@ func (r *AttributeType) IsZero() bool {
 }
 
 /*
+IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
+*/
+func (r SuperiorAttributeType) IsZero() bool {
+	return r.AttributeType.IsZero()
+}
+
+/*
 Set is a thread-safe append method that returns an error instance indicative of whether the append operation failed in some manner. Uniqueness is enforced for new elements based on Object Identifier and not the effective Name of the definition, if defined.
 */
 func (r *AttributeTypes) Set(x *AttributeType) error {
 	if _, exists := r.Contains(x.OID); exists {
-		return fmt.Errorf("%T already contains %T:%s", r, x, x.OID)
+		return nil //silent
 	}
 
 	r.mutex.Lock()
@@ -643,6 +647,93 @@ func (r *AttributeType) Info() []byte {
 }
 
 /*
+Map is a convenience method that returns a map[string][]string instance containing the effective contents of the receiver.
+*/
+func (r *AttributeType) Map() (def map[string][]string) {
+	if err := r.Validate(); err != nil {
+		return
+	}
+
+	def = make(map[string][]string, 14)
+	def[`OID`] = []string{r.OID.String()}
+
+	if !r.Name.IsZero() {
+		def[`NAME`] = make([]string, 0)
+		for i := 0; i < r.Name.Len(); i++ {
+			def[`NAME`] = append(def[`NAME`], r.Name.Index(i))
+		}
+	}
+
+	if r.Usage != UserApplication {
+		def[`USAGE`] = []string{r.Usage.String()}
+	}
+
+	if len(r.Description) > 0 {
+		def[`DESC`] = []string{r.Description.String()}
+	}
+
+	if !r.Syntax.IsZero() {
+		def[`SYNTAX`] = []string{r.Syntax.OID.String()}
+	}
+
+	if !r.Equality.IsZero() {
+		term := r.Equality.Name.Index(0)
+		if len(term) == 0 {
+			term = r.Equality.OID.String()
+		}
+		def[`EQUALITY`] = []string{term}
+	}
+
+	if !r.Substring.IsZero() {
+		term := r.Substring.Name.Index(0)
+		if len(term) == 0 {
+			term = r.Substring.OID.String()
+		}
+		def[`SUBSTR`] = []string{term}
+	}
+
+	if !r.Ordering.IsZero() {
+		term := r.Ordering.Name.Index(0)
+		if len(term) == 0 {
+			term = r.Ordering.OID.String()
+		}
+		def[`ORDERING`] = []string{term}
+	}
+
+	if !r.SuperType.IsZero() {
+		term := r.SuperType.Name.Index(0)
+		if len(term) == 0 {
+			term = r.SuperType.OID.String()
+		}
+		def[`SUP`] = []string{term}
+	}
+
+	if !r.Extensions.IsZero() {
+		for k, v := range r.Extensions {
+			def[k] = v
+		}
+	}
+
+	if r.Obsolete() {
+		def[`OBSOLETE`] = []string{`TRUE`}
+	}
+
+	if r.Collective() {
+		def[`COLLECTIVE`] = []string{`TRUE`}
+	}
+
+	if r.NoUserModification() {
+		def[`NO-USER-MODIFICATION`] = []string{`TRUE`}
+	}
+
+	if r.SingleValue() {
+		def[`SINGLE-VALUE`] = []string{`TRUE`}
+	}
+
+	return def
+}
+
+/*
 AttributeTypeUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
@@ -680,14 +771,6 @@ func (r *AttributeType) AttributeTypeUnmarshalFunc() (def string, err error) {
 		def += WHSP + r.SuperType.Name.Index(0)
 	}
 
-	if !r.Syntax.IsZero() {
-		def += idnt + r.Syntax.Label()
-		def += WHSP + r.Syntax.OID.String()
-		if r.MaxLength() > 0 {
-			def += `{` + itoa(r.MaxLength()) + `}`
-		}
-	}
-
 	if !r.Equality.IsZero() {
 		def += idnt + r.Equality.Label()
 		def += WHSP + r.Equality.Name.Index(0)
@@ -703,9 +786,16 @@ func (r *AttributeType) AttributeTypeUnmarshalFunc() (def string, err error) {
 		def += WHSP + r.Substring.Name.Index(0)
 	}
 
-	if r.Usage != UserApplication {
-		def += idnt + r.Usage.Label()
-		def += WHSP + r.Usage.String()
+	if !r.Syntax.IsZero() {
+		def += idnt + r.Syntax.Label()
+		def += WHSP + r.Syntax.OID.String()
+		if r.MaxLength() > 0 {
+			def += `{` + itoa(r.MaxLength()) + `}`
+		}
+	}
+
+	if r.SingleValue() {
+		def += idnt + SingleValue.String()
 	}
 
 	if r.Collective() {
@@ -714,6 +804,11 @@ func (r *AttributeType) AttributeTypeUnmarshalFunc() (def string, err error) {
 
 	if r.NoUserModification() {
 		def += idnt + NoUserModification.String()
+	}
+
+	if r.Usage != UserApplication {
+		def += idnt + r.Usage.Label()
+		def += WHSP + r.Usage.String()
 	}
 
 	if !r.Extensions.IsZero() {
@@ -769,14 +864,6 @@ func (r *AttributeType) unmarshalBasic() (def string, err error) {
 		def += WHSP + r.SuperType.Name.Index(0)
 	}
 
-	if !r.Syntax.IsZero() {
-		def += WHSP + r.Syntax.Label()
-		def += WHSP + r.Syntax.OID.String()
-		if r.MaxLength() > 0 {
-			def += `{` + itoa(r.MaxLength()) + `}`
-		}
-	}
-
 	if !r.Equality.IsZero() {
 		def += WHSP + r.Equality.Label()
 		def += WHSP + r.Equality.Name.Index(0)
@@ -792,17 +879,29 @@ func (r *AttributeType) unmarshalBasic() (def string, err error) {
 		def += WHSP + r.Substring.Name.Index(0)
 	}
 
-	if r.Usage != UserApplication {
-		def += WHSP + r.Usage.Label()
-		def += WHSP + r.Usage.String()
+	if !r.Syntax.IsZero() {
+		def += WHSP + r.Syntax.Label()
+		def += WHSP + r.Syntax.OID.String()
+		if r.MaxLength() > 0 {
+			def += `{` + itoa(r.MaxLength()) + `}`
+		}
+	}
+
+	if r.SingleValue() {
+		def += WHSP + SingleValue.String()
+	}
+
+	if r.Collective() {
+		def += WHSP + Collective.String()
 	}
 
 	if r.NoUserModification() {
 		def += WHSP + NoUserModification.String()
 	}
 
-	if r.Collective() {
-		def += WHSP + Collective.String()
+	if r.Usage != UserApplication {
+		def += WHSP + r.Usage.Label()
+		def += WHSP + r.Usage.String()
 	}
 
 	if !r.Extensions.IsZero() {

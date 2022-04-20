@@ -1,9 +1,6 @@
 package schemax
 
-import (
-	"fmt"
-	"sync"
-)
+import "sync"
 
 /*
 LDAPSyntaxTypeCollection describes all LDAPSyntax-based types.
@@ -163,7 +160,7 @@ Set is a thread-safe append method that returns an error instance indicative of 
 */
 func (r *LDAPSyntaxes) Set(x *LDAPSyntax) error {
 	if _, exists := r.Contains(x.OID); exists {
-		return fmt.Errorf("%T already contains %T:%s", r, x, x.OID)
+		return nil
 	}
 
 	r.mutex.Lock()
@@ -312,6 +309,34 @@ func (r *LDAPSyntax) LDAPSyntaxUnmarshalFunc() (def string, err error) {
 	def += WHSP + tail
 
 	return
+}
+
+/*
+Map is a convenience method that returns a map[string][]string instance containing the effective contents of the receiver.
+*/
+func (r *LDAPSyntax) Map() (def map[string][]string) {
+	if err := r.Validate(); err != nil {
+		return
+	}
+
+	def = make(map[string][]string, 14)
+	def[`OID`] = []string{r.OID.String()}
+
+	if len(r.Description) > 0 {
+		def[`DESC`] = []string{r.Description.String()}
+	}
+
+	if !r.Extensions.IsZero() {
+		for k, v := range r.Extensions {
+			def[k] = v
+		}
+	}
+
+	if r.Obsolete() {
+		def[`OBSOLETE`] = []string{`TRUE`}
+	}
+
+	return def
 }
 
 func (r *LDAPSyntax) unmarshalBasic() (def string, err error) {

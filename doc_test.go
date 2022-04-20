@@ -210,7 +210,6 @@ func ExampleSubschema_MarshalNameForm() {
 	sch.MRC = PopulateDefaultMatchingRules()
 	sch.ATC = PopulateDefaultAttributeTypes()
 	sch.OCC = PopulateDefaultObjectClasses()
-	sch.NFC = NewNameForms()
 
 	myDef := `( 1.3.6.1.4.1.56521.999.104.17.2.16.4
                 NAME 'jesseNameForm'
@@ -273,7 +272,6 @@ func ExampleSubschema_MarshalDITContentRule() {
 	sch.MRC = PopulateDefaultMatchingRules()
 	sch.ATC = PopulateDefaultAttributeTypes()
 	sch.OCC = PopulateDefaultObjectClasses()
-	sch.DCRC = NewDITContentRules()
 
 	dcr := `( 0.9.2342.19200300.100.4.5
                 NAME 'accountContentRule'
@@ -529,7 +527,7 @@ func ExampleUnmarshal() {
 	}
 
 	fmt.Printf("%s\n", def)
-	// Output: ( 2.5.4.41 NAME 'name' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch X-ORIGIN 'RFC4519' )
+	// Output: ( 2.5.4.41 NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC4519' )
 }
 
 func ExampleAttributeTypes_Get() {
@@ -1256,6 +1254,186 @@ func ExampleProhibitedAttributeTypes_Label() {
 	lab := not.Label()
 	fmt.Printf("%T label: %s (len:%d)\n", not, lab, len(lab))
 	// Output: schemax.ProhibitedAttributeTypes label: NOT (len:3)
+}
+
+func ExampleAttributeType_SingleValue() {
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = NewAttributeTypes()
+
+	myDef := `( 1.3.6.1.4.1.56521.999.104.17.2.1.10
+                        NAME ( 'jessesNewAttr' 'jesseAltName' )
+                        DESC 'This is an example AttributeType definition'
+                        SINGLE-VALUE SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+                        EQUALITY caseIgnoreMatch X-ORIGIN 'Jesse Coretta' )`
+
+	if err := sch.MarshalAttributeType(myDef); err != nil {
+		panic(err)
+	}
+
+	jattr := sch.ATC.Get(`jessesNewAttr`)
+	fmt.Printf("%T is single-value: %t\n", jattr, jattr.SingleValue())
+	// Output: *schemax.AttributeType is single-value: true
+}
+
+func ExampleLDAPSyntax_Map() {
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+
+	syn := sch.LSC.Get(`1.3.6.1.4.1.1466.115.121.1.15`).Map()
+	fmt.Printf("%T fields: %d\n", syn, len(syn))
+	// Output: map[string][]string fields: 3
+}
+
+func ExampleDITContentRule_Map() {
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+	sch.OCC = PopulateDefaultObjectClasses()
+
+	myDef := `( 2.16.840.1.113730.3.2.2
+			NAME 'inetOrgPerson-content-rule'
+			AUX strongAuthenticationUser
+			MUST uid
+			MAY c
+			NOT telexNumber )`
+
+	if err := sch.MarshalDITContentRule(myDef); err != nil {
+		panic(err)
+	}
+
+	dcr := sch.DCRC.Get(`2.16.840.1.113730.3.2.2`).Map()
+	fmt.Printf("%T fields: %d\n", dcr, len(dcr))
+	// Output: map[string][]string fields: 6
+}
+
+func ExampleMatchingRuleUse_Map() {
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+	sch.MRUC.Refresh(sch.ATC)
+
+	mru := sch.MRUC.Get(`2.5.13.1`).Map()
+	fmt.Printf("%T fields: %d\n", mru, len(mru))
+	// Output: map[string][]string fields: 3
+}
+
+func ExampleMatchingRule_Map() {
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+
+	mr := sch.MRC.Get(`2.5.13.1`).Map()
+	fmt.Printf("%T fields: %d\n", mr, len(mr))
+	// Output: map[string][]string fields: 4
+}
+
+func ExampleAttributeType_Map() {
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = NewAttributeTypes()
+
+	myDef := `( 1.3.6.1.4.1.56521.999.104.17.2.1.10
+                        NAME ( 'jessesNewAttr' 'jesseAltName' )
+                        DESC 'This is an example AttributeType definition'
+                        SINGLE-VALUE SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+                        EQUALITY caseIgnoreMatch X-ORIGIN 'Jesse Coretta' )`
+
+	if err := sch.MarshalAttributeType(myDef); err != nil {
+		panic(err)
+	}
+
+	jattr := sch.ATC.Get(`jessesNewAttr`).Map()
+	fmt.Printf("%T fields: %d\n", jattr, len(jattr))
+	// Output: map[string][]string fields: 7
+}
+
+func ExampleObjectClass_Map() {
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+	sch.OCC = PopulateDefaultObjectClasses()
+
+	myDef := `( 1.3.6.1.4.1.56521.999.104.17.3.71.3
+                        NAME 'jessesClass'
+                        DESC 'This is an example ObjectClass definition'
+			SUP top
+			AUXILIARY
+			MUST ( cn $ l $ o )
+			MAY ( description $ c )
+                        X-ORIGIN 'Jesse Coretta' )`
+
+	if err := sch.MarshalObjectClass(myDef); err != nil {
+		panic(err)
+	}
+
+	jclass := sch.OCC.Get(`jessesClass`).Map()
+	fmt.Printf("%T fields: %d\n", jclass, len(jclass))
+	// Output: map[string][]string fields: 8
+}
+
+func ExampleNameForm_Map() {
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+	sch.OCC = PopulateDefaultObjectClasses()
+	sch.NFC = NewNameForms()
+
+	myDef := `( 1.3.6.1.4.1.56521.999.104.17.2.16.4
+                NAME 'jesseNameForm'
+                DESC 'this is an example Name Form definition'
+                OC account
+                MUST ( cn $ o $ uid )
+                MAY ( description $ l )
+                X-ORIGIN 'Jesse Coretta' )`
+
+	if err := sch.MarshalNameForm(myDef); err != nil {
+		panic(err)
+	}
+
+	jnf := sch.NFC.Get(`jesseNameForm`).Map()
+	fmt.Printf("%T fields: %d\n", jnf, len(jnf))
+	// Output: map[string][]string fields: 7
+}
+
+func ExampleDITStructureRule_Map() {
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+	sch.OCC = PopulateDefaultObjectClasses()
+
+	nf := `( 1.3.6.1.4.1.56521.999.104.17.2.16.4
+                NAME 'jesseNameForm'
+                DESC 'this is an example Name Form definition'
+                OC account
+                MUST ( cn $ o $ uid )
+                MAY ( description $ l )
+                X-ORIGIN 'Jesse Coretta' )`
+
+	if err := sch.MarshalNameForm(nf); err != nil {
+		panic(err)
+	}
+
+	dsr := `( 0
+                NAME 'jesseDSR'
+                DESC 'this is an example DIT Structure Rule'
+                FORM jesseNameForm
+                X-ORIGIN 'Jesse Coretta' )`
+
+	if err := sch.MarshalDITStructureRule(dsr); err != nil {
+		panic(err)
+	}
+
+	jdsr := sch.DSRC.Get(`jesseDSR`).Map()
+	fmt.Printf("%T fields: %d\n", jdsr, len(jdsr))
+	// Output: map[string][]string fields: 5
 }
 
 func ExampleUsage_Label() {
