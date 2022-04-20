@@ -1,9 +1,6 @@
 package schemax
 
-import (
-	"fmt"
-	"sync"
-)
+import "sync"
 
 /*
 MatchingRuleUseCollection describes all MatchingRuleUses-based types.
@@ -163,7 +160,7 @@ Set is a thread-safe append method that returns an error instance indicative of 
 */
 func (r *MatchingRuleUses) Set(x *MatchingRuleUse) error {
 	if _, exists := r.Contains(x.OID); exists {
-		return fmt.Errorf("%T already contains %T:%s", r, x, x.OID)
+		return nil //silent
 	}
 
 	r.mutex.Lock()
@@ -440,6 +437,53 @@ func (r *MatchingRuleUse) unmarshal() (string, error) {
 		return r.ufn()
 	}
 	return r.unmarshalBasic()
+}
+
+/*
+Map is a convenience method that returns a map[string][]string instance containing the effective contents of the receiver.
+*/
+func (r *MatchingRuleUse) Map() (def map[string][]string) {
+	if err := r.Validate(); err != nil {
+		return
+	}
+
+	def = make(map[string][]string, 14)
+	def[`OID`] = []string{r.OID.String()}
+
+	if !r.Name.IsZero() {
+		def[`NAME`] = make([]string, 0)
+		for i := 0; i < r.Name.Len(); i++ {
+			def[`NAME`] = append(def[`NAME`], r.Name.Index(i))
+		}
+	}
+
+	if len(r.Description) > 0 {
+		def[`DESC`] = []string{r.Description.String()}
+	}
+
+	if !r.Applies.IsZero() {
+		def[`APPLIES`] = make([]string, 0)
+		for i := 0; i < r.Applies.Len(); i++ {
+			appl := r.Applies.Index(i)
+			term := appl.Name.Index(0)
+			if len(term) == 0 {
+				term = appl.OID.String()
+			}
+			def[`APPLIES`] = append(def[`APPLIES`], term)
+		}
+	}
+
+	if !r.Extensions.IsZero() {
+		for k, v := range r.Extensions {
+			def[k] = v
+		}
+	}
+
+	if r.Obsolete() {
+		def[`OBSOLETE`] = []string{`TRUE`}
+	}
+
+	return def
 }
 
 /*

@@ -877,6 +877,16 @@ func (def *definition) alreadySet(idx int) (isSet bool) {
 
 type Name collection
 
+/*
+Len returns an integer indicative of the number of NAME values present within the receiver.
+*/
+func (r Name) Len() int {
+	return len(r)
+}
+
+/*
+Equal returns a boolean indicative of whether the value(s) provided match the receiver.
+*/
 func (r Name) Equal(x interface{}) bool {
 	//return collection(r).equal(collection(n))
 	if r.IsZero() {

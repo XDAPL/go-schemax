@@ -1,9 +1,5 @@
 package schemax
 
-import (
-	"fmt"
-)
-
 type collection []interface{}
 
 /*
@@ -357,15 +353,15 @@ func (c *collection) append(x interface{}) error {
 		*DITStructureRule:
 		// ok
 	default:
-		return fmt.Errorf("Unsupported type (%T) for collection append", tv)
+		return raise(unexpectedType, "Unsupported type (%T) for collection append", tv)
 	}
 
 	// If there is at least one element, make sure we
 	// only appending new elements of the same type.
 	if c.len() > 0 {
 		first := c.index(0)
-		if fmt.Sprintf("%T", first) != fmt.Sprintf("%T", x) {
-			return fmt.Errorf("Unsupported type mixture: cannot append %T to %T-based collection", x, first)
+		if sprintf("%T", first) != sprintf("%T", x) {
+			return raise(unexpectedType, "Unsupported type mixture: cannot append %T to %T-based collection", x, first)
 		}
 	}
 

@@ -1,9 +1,6 @@
 package schemax
 
-import (
-	"fmt"
-	"sync"
-)
+import "sync"
 
 /*
 NameFormCollection describes all NameForms-based types.
@@ -195,7 +192,7 @@ Set is a thread-safe append method that returns an error instance indicative of 
 */
 func (r *NameForms) Set(x *NameForm) error {
 	if _, exists := r.Contains(x.OID); exists {
-		return fmt.Errorf("%T already contains %T:%s", r, x, x.OID)
+		return nil //silent
 	}
 
 	r.mutex.Lock()
@@ -334,6 +331,69 @@ func (r *NameForm) unmarshal() (string, error) {
 }
 
 /*
+Map is a convenience method that returns a map[string][]string instance containing the effective contents of the receiver.
+*/
+func (r *NameForm) Map() (def map[string][]string) {
+	if err := r.Validate(); err != nil {
+		return
+	}
+
+	def = make(map[string][]string, 14)
+	def[`OID`] = []string{r.OID.String()}
+
+	if !r.Name.IsZero() {
+		def[`NAME`] = make([]string, 0)
+		for i := 0; i < r.Name.Len(); i++ {
+			def[`NAME`] = append(def[`NAME`], r.Name.Index(i))
+		}
+	}
+
+	if len(r.Description) > 0 {
+		def[`DESC`] = []string{r.Description.String()}
+	}
+
+	if !r.OC.IsZero() {
+		def[`OC`] = []string{r.OC.OID.String(), r.OC.Name.Index(0)}
+	}
+
+	if !r.Must.IsZero() {
+		def[`MUST`] = make([]string, 0)
+		for i := 0; i < r.Must.Len(); i++ {
+			must := r.Must.Index(i)
+			term := must.Name.Index(0)
+			if len(term) == 0 {
+				term = must.OID.String()
+			}
+			def[`MUST`] = append(def[`MUST`], term)
+		}
+	}
+
+	if !r.May.IsZero() {
+		def[`MAY`] = make([]string, 0)
+		for i := 0; i < r.May.Len(); i++ {
+			must := r.May.Index(i)
+			term := must.Name.Index(0)
+			if len(term) == 0 {
+				term = must.OID.String()
+			}
+			def[`MAY`] = append(def[`MAY`], term)
+		}
+	}
+
+	if !r.Extensions.IsZero() {
+		for k, v := range r.Extensions {
+			def[k] = v
+		}
+	}
+
+	if r.Obsolete() {
+		def[`OBSOLETE`] = []string{`TRUE`}
+	}
+
+	return def
+}
+
+/*
 NameFormUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
@@ -362,6 +422,10 @@ func (r *NameForm) NameFormUnmarshalFunc() (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
+	if r.Obsolete() {
+		def += idnt + Obsolete.String()
+	}
+
 	// OC will never be zero
 	def += idnt + r.OC.Label()
 	def += WHSP + r.OC.String()
@@ -373,10 +437,6 @@ func (r *NameForm) NameFormUnmarshalFunc() (def string, err error) {
 	if !r.May.IsZero() {
 		def += idnt + r.May.Label()
 		def += WHSP + r.May.String()
-	}
-
-	if r.Obsolete() {
-		def += idnt + Obsolete.String()
 	}
 
 	if !r.Extensions.IsZero() {
@@ -411,6 +471,10 @@ func (r *NameForm) unmarshalBasic() (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
+	if r.Obsolete() {
+		def += WHSP + Obsolete.String()
+	}
+
 	// OC will never be zero
 	def += WHSP + r.OC.Label()
 	def += WHSP + r.OC.String()
@@ -422,10 +486,6 @@ func (r *NameForm) unmarshalBasic() (def string, err error) {
 	if !r.May.IsZero() {
 		def += WHSP + r.May.Label()
 		def += WHSP + r.May.String()
-	}
-
-	if r.Obsolete() {
-		def += WHSP + Obsolete.String()
 	}
 
 	if !r.Extensions.IsZero() {

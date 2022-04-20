@@ -1,9 +1,6 @@
 package schemax
 
-import (
-	"fmt"
-	"sync"
-)
+import "sync"
 
 /*
 DITStructureRuleCollection describes all of the following types:
@@ -196,7 +193,7 @@ Set is a thread-safe append method that returns an error instance indicative of 
 */
 func (r *DITStructureRules) Set(x *DITStructureRule) error {
 	if _, exists := r.Contains(x.ID); exists {
-		return fmt.Errorf("%T already contains %T:%s", r, x, x.ID)
+		return nil //silent
 	}
 
 	r.mutex.Lock()
@@ -370,6 +367,54 @@ func (r *DITStructureRule) unmarshal() (string, error) {
 		return r.ufn()
 	}
 	return r.unmarshalBasic()
+}
+
+/*
+Map is a convenience method that returns a map[string][]string instance containing the effective contents of the receiver.
+*/
+func (r *DITStructureRule) Map() (def map[string][]string) {
+	if err := r.Validate(); err != nil {
+		return
+	}
+
+	def = make(map[string][]string, 14)
+	def[`ID`] = []string{r.ID.String()}
+
+	if !r.Name.IsZero() {
+		def[`NAME`] = make([]string, 0)
+		for i := 0; i < r.Name.Len(); i++ {
+			def[`NAME`] = append(def[`NAME`], r.Name.Index(i))
+		}
+	}
+
+	if len(r.Description) > 0 {
+		def[`DESC`] = []string{r.Description.String()}
+	}
+
+	if !r.Form.IsZero() {
+		def[`FORM`] = []string{r.Form.OID.String(), r.Form.Name.Index(0)}
+	}
+
+	if !r.SuperiorRules.IsZero() {
+		def[`SUP`] = make([]string, 0)
+		for i := 0; i < r.SuperiorRules.Len(); i++ {
+			sup := r.SuperiorRules.Index(i)
+			term := sup.ID.String()
+			def[`SUP`] = append(def[`SUP`], term)
+		}
+	}
+
+	if !r.Extensions.IsZero() {
+		for k, v := range r.Extensions {
+			def[k] = v
+		}
+	}
+
+	if r.Obsolete() {
+		def[`OBSOLETE`] = []string{`TRUE`}
+	}
+
+	return def
 }
 
 /*

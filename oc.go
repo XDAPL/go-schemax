@@ -1,9 +1,6 @@
 package schemax
 
-import (
-	"fmt"
-	"sync"
-)
+import "sync"
 
 /*
 ObjectClassCollection describes all ObjectClasses-based types:
@@ -223,7 +220,7 @@ Set is a thread-safe append method that returns an error instance indicative of 
 */
 func (r *ObjectClasses) Set(x *ObjectClass) error {
 	if _, exists := r.Contains(x.OID); exists {
-		return fmt.Errorf("%T already contains %T:%s", r, x, x.OID)
+		return nil //silent
 	}
 
 	r.mutex.Lock()
@@ -545,6 +542,78 @@ func (r *ObjectClass) unmarshal() (string, error) {
 }
 
 /*
+Map is a convenience method that returns a map[string][]string instance containing the effective contents of the receiver.
+*/
+func (r *ObjectClass) Map() (def map[string][]string) {
+	if err := r.Validate(); err != nil {
+		return
+	}
+
+	def = make(map[string][]string, 14)
+	def[`OID`] = []string{r.OID.String()}
+	def[`KIND`] = []string{r.Kind.String()}
+
+	if !r.Name.IsZero() {
+		def[`NAME`] = make([]string, 0)
+		for i := 0; i < r.Name.Len(); i++ {
+			def[`NAME`] = append(def[`NAME`], r.Name.Index(i))
+		}
+	}
+
+	if len(r.Description) > 0 {
+		def[`DESC`] = []string{r.Description.String()}
+	}
+
+	if !r.SuperClass.IsZero() {
+		def[`SUP`] = make([]string, 0)
+		for i := 0; i < r.SuperClass.Len(); i++ {
+			sup := r.SuperClass.Index(i)
+			term := sup.Name.Index(0)
+			if len(term) == 0 {
+				term = sup.OID.String()
+			}
+			def[`SUP`] = append(def[`SUP`], term)
+		}
+	}
+
+	if !r.Must.IsZero() {
+		def[`MUST`] = make([]string, 0)
+		for i := 0; i < r.Must.Len(); i++ {
+			must := r.Must.Index(i)
+			term := must.Name.Index(0)
+			if len(term) == 0 {
+				term = must.OID.String()
+			}
+			def[`MUST`] = append(def[`MUST`], term)
+		}
+	}
+
+	if !r.May.IsZero() {
+		def[`MAY`] = make([]string, 0)
+		for i := 0; i < r.May.Len(); i++ {
+			must := r.May.Index(i)
+			term := must.Name.Index(0)
+			if len(term) == 0 {
+				term = must.OID.String()
+			}
+			def[`MAY`] = append(def[`MAY`], term)
+		}
+	}
+
+	if !r.Extensions.IsZero() {
+		for k, v := range r.Extensions {
+			def[k] = v
+		}
+	}
+
+	if r.Obsolete() {
+		def[`OBSOLETE`] = []string{`TRUE`}
+	}
+
+	return def
+}
+
+/*
 ObjectClassUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
@@ -589,6 +658,7 @@ func (r *ObjectClass) ObjectClassUnmarshalFunc() (def string, err error) {
 		def += idnt + r.Must.Label()
 		def += WHSP + r.Must.String()
 	}
+
 	if !r.May.IsZero() {
 		def += idnt + r.May.Label()
 		def += WHSP + r.May.String()
@@ -642,6 +712,7 @@ func (r *ObjectClass) unmarshalBasic() (def string, err error) {
 		def += WHSP + r.Must.Label()
 		def += WHSP + r.Must.String()
 	}
+
 	if !r.May.IsZero() {
 		def += WHSP + r.May.Label()
 		def += WHSP + r.May.String()
