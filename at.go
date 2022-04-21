@@ -673,7 +673,11 @@ func (r *AttributeType) Map() (def map[string][]string) {
 	}
 
 	if !r.Syntax.IsZero() {
-		def[`SYNTAX`] = []string{r.Syntax.OID.String()}
+		syn := r.Syntax.OID.String()
+		if r.MaxLength() > 0 {
+			syn += `{` + itoa(r.MaxLength()) + `}`
+		}
+		def[`SYNTAX`] = []string{syn}
 	}
 
 	if !r.Equality.IsZero() {
