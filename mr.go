@@ -81,6 +81,13 @@ type Substring struct {
 }
 
 /*
+Type returns the formal name of the receiver in order to satisfy signature requirements of the Definition interface type.
+*/
+func (r *MatchingRule) Type() string {
+	return `MatchingRule`
+}
+
+/*
 Equal performs a deep-equal between the receiver and the provided definition type.
 
 Description text is ignored.
@@ -358,6 +365,7 @@ func (r *MatchingRule) Map() (def map[string][]string) {
 	}
 
 	def = make(map[string][]string, 14)
+	def[`RAW`] = []string{r.String()}
 	def[`OID`] = []string{r.OID.String()}
 
 	if !r.Name.IsZero() {
@@ -389,11 +397,11 @@ func (r *MatchingRule) Map() (def map[string][]string) {
 }
 
 /*
-MatchingRuleUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *MatchingRule) MatchingRuleUnmarshalFunc() (def string, err error) {
+func (r *MatchingRule) UnmarshalFunc() (def string, err error) {
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"

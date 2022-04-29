@@ -88,6 +88,13 @@ type AttributeType struct {
 }
 
 /*
+Type returns the formal name of the receiver in order to satisfy signature requirements of the Definition interface type.
+*/
+func (r *AttributeType) Type() string {
+	return `AttributeType`
+}
+
+/*
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
 */
 func (r *AttributeType) String() (def string) {
@@ -655,6 +662,7 @@ func (r *AttributeType) Map() (def map[string][]string) {
 	}
 
 	def = make(map[string][]string, 14)
+	def[`RAW`] = []string{r.String()}
 	def[`OID`] = []string{r.OID.String()}
 
 	if !r.Name.IsZero() {
@@ -674,10 +682,10 @@ func (r *AttributeType) Map() (def map[string][]string) {
 
 	if !r.Syntax.IsZero() {
 		syn := r.Syntax.OID.String()
-		if r.MaxLength() > 0 {
-			syn += `{` + itoa(r.MaxLength()) + `}`
-		}
 		def[`SYNTAX`] = []string{syn}
+		if r.MaxLength() > 0 {
+			def[`MUB`] = []string{itoa(r.MaxLength())}
+		}
 	}
 
 	if !r.Equality.IsZero() {
@@ -738,11 +746,11 @@ func (r *AttributeType) Map() (def map[string][]string) {
 }
 
 /*
-AttributeTypeUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *AttributeType) AttributeTypeUnmarshalFunc() (def string, err error) {
+func (r *AttributeType) UnmarshalFunc() (def string, err error) {
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"

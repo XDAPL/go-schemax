@@ -71,6 +71,13 @@ type NameForms struct {
 }
 
 /*
+Type returns the formal name of the receiver in order to satisfy signature requirements of the Definition interface type.
+*/
+func (r *NameForm) Type() string {
+	return `NameForm`
+}
+
+/*
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r NameForms) Equal(x NameFormCollection) bool {
@@ -339,6 +346,7 @@ func (r *NameForm) Map() (def map[string][]string) {
 	}
 
 	def = make(map[string][]string, 14)
+	def[`RAW`] = []string{r.String()}
 	def[`OID`] = []string{r.OID.String()}
 
 	if !r.Name.IsZero() {
@@ -394,11 +402,11 @@ func (r *NameForm) Map() (def map[string][]string) {
 }
 
 /*
-NameFormUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *NameForm) NameFormUnmarshalFunc() (def string, err error) {
+func (r *NameForm) UnmarshalFunc() (def string, err error) {
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"

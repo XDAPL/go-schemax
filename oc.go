@@ -86,6 +86,13 @@ type ObjectClass struct {
 }
 
 /*
+Type returns the formal name of the receiver in order to satisfy signature requirements of the Definition interface type.
+*/
+func (r *ObjectClass) Type() string {
+	return `ObjectClass`
+}
+
+/*
 ObjectClasses is a thread-safe collection of *ObjectClass slice instances.
 */
 type ObjectClasses struct {
@@ -550,6 +557,7 @@ func (r *ObjectClass) Map() (def map[string][]string) {
 	}
 
 	def = make(map[string][]string, 14)
+	def[`RAW`] = []string{r.String()}
 	def[`OID`] = []string{r.OID.String()}
 	def[`KIND`] = []string{r.Kind.String()}
 
@@ -614,11 +622,11 @@ func (r *ObjectClass) Map() (def map[string][]string) {
 }
 
 /*
-ObjectClassUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *ObjectClass) ObjectClassUnmarshalFunc() (def string, err error) {
+func (r *ObjectClass) UnmarshalFunc() (def string, err error) {
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"
