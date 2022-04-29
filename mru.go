@@ -457,6 +457,7 @@ func (r *MatchingRuleUse) Map() (def map[string][]string) {
 	def = make(map[string][]string, 14)
 	def[`RAW`] = []string{r.String()}
 	def[`OID`] = []string{r.OID.String()}
+	def[`TYPE`] = []string{r.Type()}
 
 	if len(r.info) > 0 {
 		def[`INFO`] = []string{string(r.info)}

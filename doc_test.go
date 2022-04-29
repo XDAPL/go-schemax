@@ -1283,7 +1283,7 @@ func ExampleLDAPSyntax_Map() {
 
 	syn := sch.LSC.Get(`1.3.6.1.4.1.1466.115.121.1.15`).Map()
 	fmt.Printf("%T fields: %d\n", syn, len(syn))
-	// Output: map[string][]string fields: 4
+	// Output: map[string][]string fields: 5
 }
 
 func ExampleDITContentRule_Map() {
@@ -1306,7 +1306,7 @@ func ExampleDITContentRule_Map() {
 
 	dcr := sch.DCRC.Get(`2.16.840.1.113730.3.2.2`).Map()
 	fmt.Printf("%T fields: %d\n", dcr, len(dcr))
-	// Output: map[string][]string fields: 7
+	// Output: map[string][]string fields: 8
 }
 
 func ExampleMatchingRuleUse_Map() {
@@ -1318,7 +1318,7 @@ func ExampleMatchingRuleUse_Map() {
 
 	mru := sch.MRUC.Get(`2.5.13.1`).Map()
 	fmt.Printf("%T fields: %d\n", mru, len(mru))
-	// Output: map[string][]string fields: 4
+	// Output: map[string][]string fields: 5
 }
 
 func ExampleMatchingRule_Map() {
@@ -1328,7 +1328,7 @@ func ExampleMatchingRule_Map() {
 
 	mr := sch.MRC.Get(`2.5.13.1`).Map()
 	fmt.Printf("%T fields: %d\n", mr, len(mr))
-	// Output: map[string][]string fields: 5
+	// Output: map[string][]string fields: 6
 }
 
 func ExampleAttributeType_Map() {
@@ -1349,7 +1349,7 @@ func ExampleAttributeType_Map() {
 
 	jattr := sch.ATC.Get(`jessesNewAttr`).Map()
 	fmt.Printf("%T fields: %d\n", jattr, len(jattr))
-	// Output: map[string][]string fields: 9
+	// Output: map[string][]string fields: 10
 }
 
 func ExampleObjectClass_Map() {
@@ -1374,7 +1374,7 @@ func ExampleObjectClass_Map() {
 
 	jclass := sch.OCC.Get(`jessesClass`).Map()
 	fmt.Printf("%T fields: %d\n", jclass, len(jclass))
-	// Output: map[string][]string fields: 9
+	// Output: map[string][]string fields: 10
 }
 
 func ExampleNameForm_Map() {
@@ -1399,7 +1399,7 @@ func ExampleNameForm_Map() {
 
 	jnf := sch.NFC.Get(`jesseNameForm`).Map()
 	fmt.Printf("%T fields: %d\n", jnf, len(jnf))
-	// Output: map[string][]string fields: 8
+	// Output: map[string][]string fields: 9
 }
 
 func ExampleDITStructureRule_Map() {
@@ -1433,7 +1433,7 @@ func ExampleDITStructureRule_Map() {
 
 	jdsr := sch.DSRC.Get(`jesseDSR`).Map()
 	fmt.Printf("%T fields: %d\n", jdsr, len(jdsr))
-	// Output: map[string][]string fields: 6
+	// Output: map[string][]string fields: 7
 }
 
 func ExampleUsage_Label() {
