@@ -388,6 +388,10 @@ func (r *DITStructureRule) Map() (def map[string][]string) {
 	def[`RAW`] = []string{r.String()}
 	def[`ID`] = []string{r.ID.String()}
 
+	if len(r.info) > 0 {
+		def[`INFO`] = []string{string(r.info)}
+	}
+
 	if !r.Name.IsZero() {
 		def[`NAME`] = make([]string, 0)
 		for i := 0; i < r.Name.Len(); i++ {

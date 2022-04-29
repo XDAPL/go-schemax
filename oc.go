@@ -561,6 +561,10 @@ func (r *ObjectClass) Map() (def map[string][]string) {
 	def[`OID`] = []string{r.OID.String()}
 	def[`KIND`] = []string{r.Kind.String()}
 
+	if len(r.info) > 0 {
+		def[`INFO`] = []string{string(r.info)}
+	}
+
 	if !r.Name.IsZero() {
 		def[`NAME`] = make([]string, 0)
 		for i := 0; i < r.Name.Len(); i++ {

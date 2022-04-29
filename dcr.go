@@ -362,6 +362,10 @@ func (r *DITContentRule) Map() (def map[string][]string) {
 	def[`RAW`] = []string{r.String()}
 	def[`OID`] = []string{r.OID.String()}
 
+	if len(r.info) > 0 {
+		def[`INFO`] = []string{string(r.info)}
+	}
+
 	if !r.Name.IsZero() {
 		def[`NAME`] = make([]string, 0)
 		for i := 0; i < r.Name.Len(); i++ {
