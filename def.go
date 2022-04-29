@@ -64,10 +64,27 @@ type Definition interface {
 	// within the receiver.
 	Info() []byte
 
+	// Map returns a map[string][]string instance containing the receiver's
+	// components. A nil map is returned if validation checks fail.
+	Map() map[string][]string
+
+	// Type returns the formal name of the type of definition expressed by
+	// the receiver. The given value will be one of: AttributeType, NameForm,
+	// ObjectClass, DITContentRule, DITStructureRule, LDAPSyntax, MatchingRule
+	// or MatchingRuleUse.
+	Type() string
+
 	// SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature
 	// value to the receiver. The provided function shall be executed during the
 	// unmarshal or unsafe stringification process.
 	SetUnmarshalFunc(DefinitionUnmarshalFunc)
+
+	// UnmarshalFunc is a package-included function that honors the signature
+	// of the first class (closure) DefinitionUnmarshalFunc type. The purpose
+	// of this function, and similar user-devised ones, is to help unmarshal
+	// a definition with specific formatting included, such as linebreaks,
+	// leading specifier declarations and indenting.
+	UnmarshalFunc() (string, error)
 }
 
 /*

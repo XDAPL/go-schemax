@@ -85,6 +85,13 @@ type SuperiorDITStructureRules struct {
 }
 
 /*
+Type returns the formal name of the receiver in order to satisfy signature requirements of the Definition interface type.
+*/
+func (r *DITStructureRule) Type() string {
+	return `DITStructureRule`
+}
+
+/*
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r DITStructureRules) Equal(x DITStructureRuleCollection) bool {
@@ -378,7 +385,13 @@ func (r *DITStructureRule) Map() (def map[string][]string) {
 	}
 
 	def = make(map[string][]string, 14)
+	def[`RAW`] = []string{r.String()}
 	def[`ID`] = []string{r.ID.String()}
+	def[`TYPE`] = []string{r.Type()}
+
+	if len(r.info) > 0 {
+		def[`INFO`] = []string{string(r.info)}
+	}
 
 	if !r.Name.IsZero() {
 		def[`NAME`] = make([]string, 0)
@@ -418,11 +431,11 @@ func (r *DITStructureRule) Map() (def map[string][]string) {
 }
 
 /*
-DITStructureRuleUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *DITStructureRule) DITStructureRuleUnmarshalFunc() (def string, err error) {
+func (r *DITStructureRule) UnmarshalFunc() (def string, err error) {
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"

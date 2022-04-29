@@ -67,6 +67,13 @@ type LDAPSyntaxes struct {
 }
 
 /*
+Type returns the formal name of the receiver in order to satisfy signature requirements of the Definition interface type.
+*/
+func (r *LDAPSyntax) Type() string {
+	return `LDAPSyntax`
+}
+
+/*
 Equal performs a deep-equal between the receiver and the provided collection type.
 */
 func (r LDAPSyntaxes) Equal(x LDAPSyntaxCollection) bool {
@@ -275,11 +282,11 @@ func (r *LDAPSyntax) unmarshal() (string, error) {
 }
 
 /*
-LDAPSyntaxUnmarshalFunction is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *LDAPSyntax) LDAPSyntaxUnmarshalFunc() (def string, err error) {
+func (r *LDAPSyntax) UnmarshalFunc() (def string, err error) {
 
 	var (
 		WHSP string = ` `
@@ -320,7 +327,13 @@ func (r *LDAPSyntax) Map() (def map[string][]string) {
 	}
 
 	def = make(map[string][]string, 14)
+	def[`RAW`] = []string{r.String()}
 	def[`OID`] = []string{r.OID.String()}
+	def[`TYPE`] = []string{r.Type()}
+
+	if len(r.info) > 0 {
+		def[`INFO`] = []string{string(r.info)}
+	}
 
 	if len(r.Description) > 0 {
 		def[`DESC`] = []string{r.Description.String()}
