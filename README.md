@@ -57,10 +57,13 @@ This logic applies no matter how the definitions are being received (or "read"),
 
 Iterating a collection type, such as AttributeTypeCollection instances, MUST be done using the Len() collection method, e.g.:
 
+```
   for i := 0; i < attrs.Len(); i++ {
 	attr := attrs.Index(i)
         ... do stuff ...
   }
+```
+
 Iteration will always returns collection members in FIFO ordering (First-In/First-Out).
 
 ## Standard Definitions
