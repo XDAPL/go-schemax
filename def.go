@@ -5,7 +5,7 @@ import (
 )
 
 /*
-Definition describes all discrete definition types:
+Definition provides methods common to all discrete definition types:
 
 - *AttributeType
 
@@ -20,8 +20,6 @@ Definition describes all discrete definition types:
 - *DITContentRule
 
 - *DITStructureRule
-
-All methods contained in this interface type are shared by all of the above types.
 */
 type Definition interface {
 	// SetObsolete assigns the OBSOLETE bit to the receiver field value,
@@ -68,11 +66,24 @@ type Definition interface {
 	// components. A nil map is returned if validation checks fail.
 	Map() map[string][]string
 
-	// Type returns the formal name of the type of definition expressed by
-	// the receiver. The given value will be one of: AttributeType, NameForm,
-	// ObjectClass, DITContentRule, DITStructureRule, LDAPSyntax, MatchingRule
-	// or MatchingRuleUse.
+	// Type returns the formal string name of the type of definition held
+	// by the receiver. The value will be one of:
+	//
+	//   - LDAPSyntax
+	//   - MatchingRule
+	//   - AttributeType
+	//   - MatchingRuleUse
+	//   - ObjectClass
+	//   - DITContentRule
+	//   - NameForm
+	//   - DITStructureRule
 	Type() string
+
+	// SetSpecifier assigns a string value to the receiver, useful for placement
+	// into configurations that require a type name (e.g.: attributetype). This
+	// will be displayed at the beginning of the definition value during the 
+	// unmarshal or unsafe stringification process.
+	SetSpecifier(string)
 
 	// SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature
 	// value to the receiver. The provided function shall be executed during the
