@@ -174,32 +174,30 @@ func main() {
 		chkerr(subschema.MRUC.Refresh(subschema.ATC))
 	}
 
-	// Set our specifiers and our desired unmarshal func.
+	// Set our specifiers and our desired unmarshal funcs.
 	subschema.LSC.SetSpecifier(`ldapsyntax`)
-	if subschema.LSC.Len() > 0 {
-		subschema.LSC.SetUnmarshalFunc(subschema.LSC.Index(0).UnmarshalFunc)
-	}
+	subschema.LSC.SetUnmarshaler(schemax.LDAPSyntaxUnmarshaler)
 
 	subschema.MRC.SetSpecifier(`matchingrule`)
-	subschema.MRC.SetUnmarshalFunc((&schemax.MatchingRule{}).UnmarshalFunc)
+	subschema.MRC.SetUnmarshaler(schemax.MatchingRuleUnmarshaler)
 
-	subschema.MRC.SetSpecifier(`matchingruleuse`)
-	subschema.MRC.SetUnmarshalFunc((&schemax.MatchingRuleUse{}).UnmarshalFunc)
+	subschema.ATC.SetSpecifier(`attributetype`)
+	subschema.ATC.SetUnmarshaler(schemax.AttributeTypeUnmarshaler)
 
-	subschema.MRC.SetSpecifier(`attributetype`)
-	subschema.MRC.SetUnmarshalFunc((&schemax.AttributeType{}).UnmarshalFunc)
+	subschema.MRUC.SetSpecifier(`matchingruleuse`)
+	subschema.MRUC.SetUnmarshaler(schemax.MatchingRuleUseUnmarshaler)
 
-	subschema.MRC.SetSpecifier(`objectclass`)
-	subschema.MRC.SetUnmarshalFunc((&schemax.ObjectClass{}).UnmarshalFunc)
+	subschema.OCC.SetSpecifier(`objectclass`)
+	subschema.OCC.SetUnmarshaler(schemax.ObjectClassUnmarshaler)
 
-	subschema.MRC.SetSpecifier(`ditcontentrule`)
-	subschema.MRC.SetUnmarshalFunc((&schemax.DITContentRule{}).UnmarshalFunc)
+	subschema.DCRC.SetSpecifier(`ditcontentrule`)
+	subschema.DCRC.SetUnmarshaler(schemax.DITContentRuleUnmarshaler)
 
-	subschema.MRC.SetSpecifier(`nameform`)
-	subschema.MRC.SetUnmarshalFunc((&schemax.NameForm{}).UnmarshalFunc)
+	subschema.NFC.SetSpecifier(`nameform`)
+	subschema.NFC.SetUnmarshaler(schemax.NameFormUnmarshaler)
 
-	subschema.MRC.SetSpecifier(`ditstructurerule`)
-	subschema.MRC.SetUnmarshalFunc((&schemax.DITStructureRule{}).UnmarshalFunc)
+	subschema.DSRC.SetSpecifier(`ditstructurerule`)
+	subschema.DSRC.SetUnmarshaler(schemax.DITStructureRuleUnmarshaler)
 
 	fmt.Printf("############################################################\n")
 	fmt.Printf("## BEGIN SCHEMA %s\n\n", subschema.DN)
