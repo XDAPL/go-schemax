@@ -10,10 +10,6 @@ DITStructureRuleCollection describes all of the following types:
 - *SuperiorDITStructureRules
 */
 type DITStructureRuleCollection interface {
-	// Contains returns the index number and presence boolean that
-	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
-
 	// Get returns the *DITStructureRule instance retrieved as a result
 	// of a term search, based on Name or ID. If no match is found,
 	// nil is returned.
@@ -31,21 +27,38 @@ type DITStructureRuleCollection interface {
 	// the provided *DITStructureRule instance to the receiver.
 	Set(*DITStructureRule) error
 
-	// String returns a properly-delimited sequence of string
-	// values, either as a Name or ID, for the receiver type.
-	String() string
+        // Contains returns the index number and presence boolean that
+        // reflects the result of a term search within the receiver.
+        Contains(interface{}) (int, bool)
 
-	// Label returns the field name associated with the interface
-	// types, or a zero string if no label is appropriate.
-	Label() string
+        // String returns a properly-delimited sequence of string
+        // values, either as a Name or OID, for the receiver type.
+        String() string
 
-	// IsZero returns a boolean value indicative of whether the
-	// receiver is considered zero, or undefined.
-	IsZero() bool
+        // Label returns the field name associated with the interface
+        // types, or a zero string if no label is appropriate.
+        Label() string
 
-	// Len returns an integer value indicative of the current
-	// number of elements stored within the receiver.
-	Len() int
+        // IsZero returns a boolean value indicative of whether the
+        // receiver is considered zero, or undefined.
+        IsZero() bool
+
+        // Len returns an integer value indicative of the current
+        // number of elements stored within the receiver.
+        Len() int
+
+        // SetSpecifier assigns a string value to all definitions within
+        // the receiver. This value is used in cases where a definition
+        // type name (e.g.: attributetype, objectclass, etc.) is required.
+        // This value will be displayed at the beginning of the definition
+        // value during the unmarshal or unsafe stringification process.
+        SetSpecifier(string)
+
+        // SetUnmarshaler assigns the provided DefinitionUnmarshaler
+        // signature to all definitions within the receiver. The provided
+        // function shall be executed during the unmarshal or unsafe
+        // stringification process.
+        SetUnmarshaler(DefinitionUnmarshaler)
 }
 
 /*
@@ -64,7 +77,7 @@ type DITStructureRule struct {
 	SuperiorRules DITStructureRuleCollection
 	Extensions    Extensions
 	flags         definitionFlags
-	ufn           DefinitionUnmarshalFunc
+	ufn           DefinitionUnmarshaler
 	spec          string
 	info          []byte
 }
@@ -96,6 +109,24 @@ Equal performs a deep-equal between the receiver and the provided collection typ
 */
 func (r DITStructureRules) Equal(x DITStructureRuleCollection) bool {
 	return r.slice.equal(x.(*DITStructureRules).slice)
+}
+
+/*
+SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
+*/
+func (r *DITStructureRules) SetSpecifier(spec string) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetSpecifier(spec)
+        }
+}
+
+/*
+SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
+*/
+func (r *DITStructureRules) SetUnmarshaler(fn DefinitionUnmarshaler) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetUnmarshaler(fn)
+        }
 }
 
 /*
@@ -152,9 +183,10 @@ func (r DITStructureRules) Len() int {
 	return r.slice.len()
 }
 
-func (r DITStructureRules) String() string {
-	return ``
-}
+/*
+String is a non-functional stringer method needed to satisfy interface type requirements and should not be used. See the SuperiorDITStructureRules.String() method instead.
+*/
+func (r DITStructureRules) String() string { return `` }
 
 /*
 String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
@@ -224,9 +256,9 @@ func (r *DITStructureRule) Info() []byte {
 }
 
 /*
-SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+SetUnmarshaler assigns the provided DefinitionUnmarshaler signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
 */
-func (r *DITStructureRule) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+func (r *DITStructureRule) SetUnmarshaler(fn DefinitionUnmarshaler) {
 	r.ufn = fn
 }
 
@@ -371,7 +403,7 @@ func (r *DITStructureRule) unmarshal() (string, error) {
 	}
 
 	if r.ufn != nil {
-		return r.ufn()
+		return r.ufn(r)
 	}
 	return r.unmarshalBasic()
 }
@@ -431,11 +463,25 @@ func (r *DITStructureRule) Map() (def map[string][]string) {
 }
 
 /*
-UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+DITStructureRuleUnmarshaler is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshaler type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *DITStructureRule) UnmarshalFunc() (def string, err error) {
+func DITStructureRuleUnmarshaler(x interface{}) (def string, err error) {
+        var r *DITStructureRule
+        switch tv := x.(type) {
+        case *DITStructureRule:
+                if tv.IsZero() {
+                        err = raise(isZero, "%T is nil", tv)
+                        return
+                }
+                r = tv
+        default:
+                err = raise(unexpectedType,
+                        "Bad type for unmarshal (%T)", tv)
+                return
+        }
+
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"

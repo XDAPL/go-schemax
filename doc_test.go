@@ -362,7 +362,7 @@ func ExampleMarshal_newAttributeTypeWithFormatting() {
                 EQUALITY caseIgnoreMatch X-ORIGIN 'Jesse Coretta' )`
 
         var x AttributeType
-	x.SetUnmarshalFunc(x.AttributeTypeUnmarshalFunc)
+	x.SetUnmarshaler(x.AttributeTypeUnmarshalFunc)
         err := Marshal(def, &x, nil, nil, lsc, mrc, nil, nil, nil, nil)
         if err != nil {
                 panic(err)

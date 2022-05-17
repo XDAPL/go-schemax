@@ -6,10 +6,6 @@ import "sync"
 MatchingRuleUseCollection describes all MatchingRuleUses-based types.
 */
 type MatchingRuleUseCollection interface {
-	// Contains returns the index number and presence boolean that
-	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
-
 	// Get returns the *MatchingRuleUse instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
@@ -32,21 +28,38 @@ type MatchingRuleUseCollection interface {
 	// of AttributeTypeCollection.
 	Refresh(AttributeTypeCollection) error
 
-	// String returns a properly-delimited sequence of string
-	// values, either as a Name or OID, for the receiver type.
-	String() string
+        // Contains returns the index number and presence boolean that
+        // reflects the result of a term search within the receiver.
+        Contains(interface{}) (int, bool)
 
-	// Label returns the field name associated with the interface
-	// types, or a zero string if no label is appropriate.
-	Label() string
+        // String returns a properly-delimited sequence of string
+        // values, either as a Name or OID, for the receiver type.
+        String() string
 
-	// IsZero returns a boolean value indicative of whether the
-	// receiver is considered zero, or undefined.
-	IsZero() bool
+        // Label returns the field name associated with the interface
+        // types, or a zero string if no label is appropriate.
+        Label() string
 
-	// Len returns an integer value indicative of the current
-	// number of elements stored within the receiver.
-	Len() int
+        // IsZero returns a boolean value indicative of whether the
+        // receiver is considered zero, or undefined.
+        IsZero() bool
+
+        // Len returns an integer value indicative of the current
+        // number of elements stored within the receiver.
+        Len() int
+
+        // SetSpecifier assigns a string value to all definitions within
+        // the receiver. This value is used in cases where a definition
+        // type name (e.g.: attributetype, objectclass, etc.) is required.
+        // This value will be displayed at the beginning of the definition
+        // value during the unmarshal or unsafe stringification process.
+        SetSpecifier(string)
+
+        // SetUnmarshaler assigns the provided DefinitionUnmarshaler
+        // signature to all definitions within the receiver. The provided
+        // function shall be executed during the unmarshal or unsafe
+        // stringification process.
+        SetUnmarshaler(DefinitionUnmarshaler)
 }
 
 /*
@@ -59,7 +72,7 @@ type MatchingRuleUse struct {
 	Applies     AttributeTypeCollection
 	Extensions  Extensions
 	flags       definitionFlags
-	ufn         DefinitionUnmarshalFunc
+	ufn         DefinitionUnmarshaler
 	spec        string
 	info        []byte
 }
@@ -84,6 +97,24 @@ Equal performs a deep-equal between the receiver and the provided collection typ
 */
 func (r MatchingRuleUses) Equal(x MatchingRuleUseCollection) bool {
 	return r.slice.equal(x.(*MatchingRuleUses).slice)
+}
+
+/*
+SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
+*/
+func (r *MatchingRuleUses) SetSpecifier(spec string) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetSpecifier(spec)
+        }
+}
+
+/*
+SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
+*/
+func (r *MatchingRuleUses) SetUnmarshaler(fn DefinitionUnmarshaler) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetUnmarshaler(fn)
+        }
 }
 
 /*
@@ -129,7 +160,7 @@ func (r MatchingRuleUses) Len() int {
 }
 
 /*
-String is a stringer method used to return the properly-delimited and formatted series of attributeType name or OID definitions.
+String is a non-functional stringer method needed to satisfy interface type requirements and should not be used. There is no practical application for a list of matchingRuleUse names or object identifiers in this package.
 */
 func (r MatchingRuleUses) String() string { return `` }
 
@@ -248,70 +279,6 @@ func (r *MatchingRuleUses) Refresh(atc AttributeTypeCollection) (err error) {
 }
 
 /*
-	if !a.Equality.IsZero() {
-		idx, found := r.Contains(a.Equality.OID)
-		if !found {
-			r.Set(&MatchingRuleUse{
-				OID:     a.Equality.OID,
-				Name:    a.Equality.Name,
-				Applies: NewApplicableAttributeTypes())
-			}
-			idx, found = r.Contains(a.Equality.OID)
-			if !found {
-				err = raise(invalidMatchingRuleUse,
-					"Attempt to register %s within %T failed for reasons unknown",
-					a.Equality.OID, r)
-				return
-			}
-		}
-
-		if err = r.Index(idx).Applies.Set(a); err != nil {
-			return
-		}
-	}
-
-	if !a.Substring.IsZero() {
-                idx, found := r.Contains(a.Substring.OID)
-                if !found {
-                        r.Set(&MatchingRuleUse{
-                                OID:     a.Substring.OID,
-                                Name:    a.Substring.Name,
-                                Applies: NewApplicableAttributeTypes())
-                        }
-                        idx, found = r.Contains(a.Substring.OID)
-                        if !found {
-                                err = raise(invalidMatchingRuleUse,
-                                        "Attempt to register %s within %T failed for reasons unknown",
-                                        a.Substring.OID, r)
-                                return
-                        }
-                }
-
-                if err = r.Index(idx).Applies.Set(a); err != nil {
-                        return
-                }
-	}
-
-	if !a.Ordering.IsZero() {
-                idx, found := r.Contains(a.Ordering.OID)
-                if !found {
-                        r.Set(&MatchingRuleUse{
-                                OID:     a.Ordering.OID,
-                                Name:    a.Ordering.Name,
-                                Applies: NewApplicableAttributeTypes())
-                        }
-                        idx, found = r.Contains(a.Ordering.OID)
-                        if !found {
-                                err = raise(invalidMatchingRuleUse,
-                                        "Attempt to register %s within %T failed for reasons unknown",
-                                        a.Ordering.OID, r)
-                                return
-                        }
-                }
-	}
-*/
-
-/*
 SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
 */
 func (r *MatchingRuleUse) SetInfo(info []byte) {
@@ -326,9 +293,9 @@ func (r *MatchingRuleUse) Info() []byte {
 }
 
 /*
-SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+SetUnmarshaler assigns the provided DefinitionUnmarshaler signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
 */
-func (r *MatchingRuleUse) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+func (r *MatchingRuleUse) SetUnmarshaler(fn DefinitionUnmarshaler) {
 	r.ufn = fn
 }
 
@@ -441,7 +408,7 @@ func (r *MatchingRuleUse) unmarshal() (string, error) {
 	}
 
 	if r.ufn != nil {
-		return r.ufn()
+		return r.ufn(r)
 	}
 	return r.unmarshalBasic()
 }
@@ -500,11 +467,25 @@ func (r *MatchingRuleUse) Map() (def map[string][]string) {
 }
 
 /*
-UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+MatchingRuleUseUnmarshaler is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshaler type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *MatchingRuleUse) UnmarshalFunc() (def string, err error) {
+func MatchingRuleUseUnmarshaler(x interface{}) (def string, err error) {
+        var r *MatchingRuleUse
+        switch tv := x.(type) {
+        case *MatchingRuleUse:
+                if tv.IsZero() {
+                        err = raise(isZero, "%T is nil", tv)
+                        return
+                }
+                r = tv
+        default:
+                err = raise(unexpectedType,
+                        "Bad type for unmarshal (%T)", tv)
+                return
+        }
+
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"

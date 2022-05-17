@@ -6,10 +6,6 @@ import "sync"
 MatchingRuleCollection describes all MatchingRules-based types.
 */
 type MatchingRuleCollection interface {
-	// Contains returns the index number and presence boolean that
-	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
-
 	// Get returns the *MatchingRule instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
@@ -27,21 +23,38 @@ type MatchingRuleCollection interface {
 	// the provided *MatchingRule instance to the receiver.
 	Set(*MatchingRule) error
 
-	// String returns a properly-delimited sequence of string
-	// values, either as a Name or OID, for the receiver type.
-	String() string
+        // Contains returns the index number and presence boolean that
+        // reflects the result of a term search within the receiver.
+        Contains(interface{}) (int, bool)
 
-	// Label returns the field name associated with the interface
-	// types, or a zero string if no label is appropriate.
-	Label() string
+        // String returns a properly-delimited sequence of string
+        // values, either as a Name or OID, for the receiver type.
+        String() string
 
-	// IsZero returns a boolean value indicative of whether the
-	// receiver is considered zero, or undefined.
-	IsZero() bool
+        // Label returns the field name associated with the interface
+        // types, or a zero string if no label is appropriate.
+        Label() string
 
-	// Len returns an integer value indicative of the current
-	// number of elements stored within the receiver.
-	Len() int
+        // IsZero returns a boolean value indicative of whether the
+        // receiver is considered zero, or undefined.
+        IsZero() bool
+
+        // Len returns an integer value indicative of the current
+        // number of elements stored within the receiver.
+        Len() int
+
+        // SetSpecifier assigns a string value to all definitions within
+        // the receiver. This value is used in cases where a definition
+        // type name (e.g.: attributetype, objectclass, etc.) is required.
+        // This value will be displayed at the beginning of the definition
+        // value during the unmarshal or unsafe stringification process.
+        SetSpecifier(string)
+
+        // SetUnmarshaler assigns the provided DefinitionUnmarshaler
+        // signature to all definitions within the receiver. The provided
+        // function shall be executed during the unmarshal or unsafe
+        // stringification process.
+        SetUnmarshaler(DefinitionUnmarshaler)
 }
 
 /*
@@ -54,7 +67,7 @@ type MatchingRule struct {
 	Syntax      *LDAPSyntax
 	Extensions  Extensions
 	flags       definitionFlags
-	ufn         DefinitionUnmarshalFunc
+	ufn         DefinitionUnmarshaler
 	spec        string
 	info        []byte
 }
@@ -159,6 +172,24 @@ func (r *MatchingRules) SetMacros(macros *Macros) {
 }
 
 /*
+SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
+*/
+func (r *MatchingRules) SetSpecifier(spec string) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetSpecifier(spec)
+        }
+}
+
+/*
+SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
+*/
+func (r *MatchingRules) SetUnmarshaler(fn DefinitionUnmarshaler) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetUnmarshaler(fn)
+        }
+}
+
+/*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
 func (r MatchingRules) Contains(x interface{}) (int, bool) {
@@ -207,7 +238,7 @@ func (r MatchingRules) Len() int {
 }
 
 /*
-String is a stringer method used to return the properly-delimited and formatted series of attributeType name or OID definitions.
+String is a non-functional stringer method needed to satisfy interface type requirements and should not be used. There is no practical application for a list of matchingRule names or object identifiers in this package.
 */
 func (r MatchingRules) String() string { return `` }
 
@@ -269,9 +300,9 @@ func (r *MatchingRule) Info() []byte {
 }
 
 /*
-SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+SetUnmarshaler assigns the provided DefinitionUnmarshaler signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
 */
-func (r *MatchingRule) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+func (r *MatchingRule) SetUnmarshaler(fn DefinitionUnmarshaler) {
 	r.ufn = fn
 }
 
@@ -351,7 +382,7 @@ func (r *MatchingRule) unmarshal() (string, error) {
 	}
 
 	if r.ufn != nil {
-		return r.ufn()
+		return r.ufn(r)
 	}
 	return r.unmarshalBasic()
 }
@@ -402,11 +433,25 @@ func (r *MatchingRule) Map() (def map[string][]string) {
 }
 
 /*
-UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+MatchingRuleUnmarshaler is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshaler type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *MatchingRule) UnmarshalFunc() (def string, err error) {
+func MatchingRuleUnmarshaler(x interface{}) (def string, err error) {
+        var r *MatchingRule
+        switch tv := x.(type) {
+        case *MatchingRule:
+                if tv.IsZero() {
+                        err = raise(isZero, "%T is nil", tv)
+                        return
+                }
+                r = tv
+        default:
+                err = raise(unexpectedType,
+                        "Bad type for unmarshal (%T)", tv)
+                return
+        }
+
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"

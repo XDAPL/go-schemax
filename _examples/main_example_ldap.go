@@ -155,8 +155,6 @@ func main() {
 				err = subschema.MarshalMatchingRule(def)
 			case `attributeTypes`:
 				err = subschema.MarshalAttributeType(def)
-			case `matchingRuleUses`:
-				//err = subschema.MarshalMatchingRuleUse(def)
 			case `objectClasses`:
 				err = subschema.MarshalObjectClass(def)
 			case `dITContentRules`:
@@ -176,80 +174,100 @@ func main() {
 		chkerr(subschema.MRUC.Refresh(subschema.ATC))
 	}
 
+	// Set our specifiers and our desired unmarshal func.
+	subschema.LSC.SetSpecifier(`ldapsyntax`)
+	if subschema.LSC.Len() > 0 {
+		subschema.LSC.SetUnmarshalFunc(subschema.LSC.Index(0).UnmarshalFunc)
+	}
+
+	subschema.MRC.SetSpecifier(`matchingrule`)
+	subschema.MRC.SetUnmarshalFunc((&schemax.MatchingRule{}).UnmarshalFunc)
+
+	subschema.MRC.SetSpecifier(`matchingruleuse`)
+	subschema.MRC.SetUnmarshalFunc((&schemax.MatchingRuleUse{}).UnmarshalFunc)
+
+	subschema.MRC.SetSpecifier(`attributetype`)
+	subschema.MRC.SetUnmarshalFunc((&schemax.AttributeType{}).UnmarshalFunc)
+
+	subschema.MRC.SetSpecifier(`objectclass`)
+	subschema.MRC.SetUnmarshalFunc((&schemax.ObjectClass{}).UnmarshalFunc)
+
+	subschema.MRC.SetSpecifier(`ditcontentrule`)
+	subschema.MRC.SetUnmarshalFunc((&schemax.DITContentRule{}).UnmarshalFunc)
+
+	subschema.MRC.SetSpecifier(`nameform`)
+	subschema.MRC.SetUnmarshalFunc((&schemax.NameForm{}).UnmarshalFunc)
+
+	subschema.MRC.SetSpecifier(`ditstructurerule`)
+	subschema.MRC.SetUnmarshalFunc((&schemax.DITStructureRule{}).UnmarshalFunc)
+
 	fmt.Printf("############################################################\n")
 	fmt.Printf("## BEGIN SCHEMA %s\n\n", subschema.DN)
 
-	fmt.Printf("\n############################################################\n")
-	fmt.Printf("## Parsed ldapSyntaxes: %d\n\n", subschema.LSC.Len())
-	for i := 0; i < subschema.LSC.Len(); i++ {
-		def := subschema.LSC.Index(i)
-		def.SetSpecifier(`ldapsyntax`)
-		def.SetUnmarshalFunc(def.LDAPSyntaxUnmarshalFunc)
-		fmt.Printf("%s\n\n", def.String())
+	if ls, err := schemax.Unmarshal(subschema.LSC); err != nil {
+		fmt.Println(err)
+		return
+	} else {
+		fmt.Printf("\n############################################################\n")
+		fmt.Printf("## Parsed ldapSyntaxes: %d\n\n", subschema.LSC.Len())
+		fmt.Printf("%s\n", ls)
 	}
 
-	fmt.Printf("\n############################################################\n")
-	fmt.Printf("## Parsed matchingRules: %d\n\n", subschema.MRC.Len())
-	for i := 0; i < subschema.MRC.Len(); i++ {
-		def := subschema.MRC.Index(i)
-		def.SetSpecifier(`matchingrule`)
-		def.SetUnmarshalFunc(def.MatchingRuleUnmarshalFunc)
-		fmt.Printf("%s\n\n", def.String())
-	}
+        if mr, err := schemax.Unmarshal(subschema.MRC); err != nil {
+                fmt.Println(err)
+        } else {
+                fmt.Printf("\n############################################################\n")
+		fmt.Printf("## Parsed matchingRules: %d\n\n", subschema.MRC.Len())
+                fmt.Printf("%s\n", mr)
+        }
 
-	fmt.Printf("\n############################################################\n")
-	fmt.Printf("## Parsed attributeTypes: %d\n\n", subschema.ATC.Len())
-	for i := 0; i < subschema.ATC.Len(); i++ {
-		def := subschema.ATC.Index(i)
-		def.SetSpecifier(`attributetype`)
-		def.SetUnmarshalFunc(def.AttributeTypeUnmarshalFunc)
-		fmt.Printf("%s\n\n", def.String())
-	}
+        if at, err := schemax.Unmarshal(subschema.ATC); err != nil {
+                fmt.Println(err)
+        } else {
+                fmt.Printf("\n############################################################\n")
+		fmt.Printf("## Parsed attributeTypes: %d\n\n", subschema.ATC.Len())
+                fmt.Printf("%s\n", at)
+        }
 
-	fmt.Printf("\n############################################################\n")
-	fmt.Printf("## Parsed matchingRuleUses:%d\n\n", subschema.MRUC.Len())
-	for i := 0; i < subschema.MRUC.Len(); i++ {
-		def := subschema.MRUC.Index(i)
-		def.SetSpecifier(`matchingruleuse`)
-		def.SetUnmarshalFunc(def.MatchingRuleUseUnmarshalFunc)
-		fmt.Printf("%s\n\n", def.String())
-	}
+        if mru, err := schemax.Unmarshal(subschema.MRUC); err != nil {
+                fmt.Println(err)
+        } else {
+                fmt.Printf("\n############################################################\n")
+		fmt.Printf("## Parsed matchingRuleUses: %d\n\n", subschema.MRUC.Len())
+                fmt.Printf("%s\n", mru)
+        }
 
-	fmt.Printf("\n############################################################\n")
-	fmt.Printf("## Parsed objectClasses: %d\n\n", subschema.OCC.Len())
-	for i := 0; i < subschema.OCC.Len(); i++ {
-		def := subschema.OCC.Index(i)
-		def.SetSpecifier(`objectclass`)
-		def.SetUnmarshalFunc(def.ObjectClassUnmarshalFunc)
-		fmt.Printf("%s\n\n", def.String())
-	}
+        if oc, err := schemax.Unmarshal(subschema.OCC); err != nil {
+                fmt.Println(err)
+        } else {
+                fmt.Printf("\n############################################################\n")
+		fmt.Printf("## Parsed objectClasses: %d\n\n", subschema.OCC.Len())
+                fmt.Printf("%s\n", oc)
+        }
 
-	fmt.Printf("\n############################################################\n")
-	fmt.Printf("## Parsed dITContentRules: %d\n\n", subschema.DCRC.Len())
-	for i := 0; i < subschema.DCRC.Len(); i++ {
-		def := subschema.DCRC.Index(i)
-		def.SetSpecifier(`ditcontentrule`)
-		def.SetUnmarshalFunc(def.DITContentRuleUnmarshalFunc)
-		fmt.Printf("%s\n\n", def.String())
-	}
+        if dcr, err := schemax.Unmarshal(subschema.DCRC); err != nil {
+                fmt.Println(err)
+        } else {
+                fmt.Printf("\n############################################################\n")
+		fmt.Printf("## Parsed dITContentRules: %d\n\n", subschema.DCRC.Len())
+                fmt.Printf("%s\n", dcr)
+        }
 
-	fmt.Printf("\n############################################################\n")
-	fmt.Printf("## Parsed nameForms: %d\n\n", subschema.NFC.Len())
-	for i := 0; i < subschema.NFC.Len(); i++ {
-		def := subschema.NFC.Index(i)
-		def.SetSpecifier(`nameform`)
-		def.SetUnmarshalFunc(def.NameFormUnmarshalFunc)
-		fmt.Printf("%s\n\n", def.String())
-	}
+        if nf, err := schemax.Unmarshal(subschema.NFC); err != nil {
+                fmt.Println(err)
+        } else {
+                fmt.Printf("\n############################################################\n")
+		fmt.Printf("## Parsed nameForms: %d\n\n", subschema.NFC.Len())
+                fmt.Printf("%s\n", nf)
+        }
 
-	fmt.Printf("\n############################################################\n")
-	fmt.Printf("## Parsed dITStructureRules: %d\n\n", subschema.DSRC.Len())
-	for i := 0; i < subschema.DSRC.Len(); i++ {
-		def := subschema.DSRC.Index(i)
-		def.SetSpecifier(`ditstructurerule`)
-		def.SetUnmarshalFunc(def.DITStructureRuleUnmarshalFunc)
-		fmt.Printf("%s\n\n", def.String())
-	}
+        if dsr, err := schemax.Unmarshal(subschema.DSRC); err != nil {
+                fmt.Println(err)
+        } else {
+                fmt.Printf("\n############################################################\n")
+		fmt.Printf("## Parsed dITStructureRules: %d\n\n", subschema.DSRC.Len())
+                fmt.Printf("%s\n", dsr)
+        }
 
 	fmt.Printf("\n## END SCHEMA\n")
 	fmt.Printf("##########################\n\n")

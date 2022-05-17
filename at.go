@@ -16,10 +16,6 @@ AttributeTypeCollection describes all of the following types:
 • ApplicableAttributeTypes
 */
 type AttributeTypeCollection interface {
-	// Contains returns the index number and presence boolean that
-	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
-
 	// Get returns the *AttributeType instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
@@ -37,21 +33,38 @@ type AttributeTypeCollection interface {
 	// the provided *AttributeType instance to the receiver.
 	Set(*AttributeType) error
 
-	// String returns a properly-delimited sequence of string
-	// values, either as a Name or OID, for the receiver type.
-	String() string
+        // Contains returns the index number and presence boolean that
+        // reflects the result of a term search within the receiver.
+        Contains(interface{}) (int, bool)
 
-	// Label returns the field name associated with the interface
-	// types, or a zero string if no label is appropriate.
-	Label() string
+        // String returns a properly-delimited sequence of string
+        // values, either as a Name or OID, for the receiver type.
+        String() string
 
-	// IsZero returns a boolean value indicative of whether the
-	// receiver is considered zero, or undefined.
-	IsZero() bool
+        // Label returns the field name associated with the interface
+        // types, or a zero string if no label is appropriate.
+        Label() string
 
-	// Len returns an integer value indicative of the current
-	// number of elements stored within the receiver.
-	Len() int
+        // IsZero returns a boolean value indicative of whether the
+        // receiver is considered zero, or undefined.
+        IsZero() bool
+
+        // Len returns an integer value indicative of the current
+        // number of elements stored within the receiver.
+        Len() int
+
+        // SetSpecifier assigns a string value to all definitions within
+        // the receiver. This value is used in cases where a definition
+        // type name (e.g.: attributetype, objectclass, etc.) is required.
+        // This value will be displayed at the beginning of the definition
+        // value during the unmarshal or unsafe stringification process.
+        SetSpecifier(string)
+
+        // SetUnmarshaler assigns the provided DefinitionUnmarshaler
+        // signature to all definitions within the receiver. The provided
+        // function shall be executed during the unmarshal or unsafe
+        // stringification process.
+        SetUnmarshaler(DefinitionUnmarshaler)
 }
 
 /*
@@ -82,7 +95,7 @@ type AttributeType struct {
 	Extensions  Extensions
 	flags       definitionFlags
 	mub         uint
-	ufn         DefinitionUnmarshalFunc
+	ufn         DefinitionUnmarshaler
 	spec        string
 	info        []byte
 }
@@ -125,6 +138,9 @@ type ApplicableAttributeTypes struct {
 	*AttributeTypes
 }
 
+/*
+String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
+*/
 func (r ApplicableAttributeTypes) String() string {
 	return r.slice.attrs_oids_string()
 }
@@ -136,6 +152,9 @@ type RequiredAttributeTypes struct {
 	*AttributeTypes
 }
 
+/*
+String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
+*/
 func (r RequiredAttributeTypes) String() string {
 	return r.slice.attrs_oids_string()
 }
@@ -147,6 +166,9 @@ type PermittedAttributeTypes struct {
 	*AttributeTypes
 }
 
+/*
+String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
+*/
 func (r PermittedAttributeTypes) String() string {
 	return r.slice.attrs_oids_string()
 }
@@ -158,6 +180,9 @@ type ProhibitedAttributeTypes struct {
 	*AttributeTypes
 }
 
+/*
+String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
+*/
 func (r ProhibitedAttributeTypes) String() string {
 	return r.slice.attrs_oids_string()
 }
@@ -167,6 +192,24 @@ SetMacros assigns the *Macros instance to the receiver, allowing subsequent OID 
 */
 func (r *AttributeTypes) SetMacros(macros *Macros) {
 	r.macros = macros
+}
+
+/*
+SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
+*/
+func (r *AttributeTypes) SetSpecifier(spec string) {
+	for i := 0; i < r.Len(); i++ {
+		r.Index(i).SetSpecifier(spec)
+	}
+}
+
+/*
+SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
+*/
+func (r *AttributeTypes) SetUnmarshaler(fn DefinitionUnmarshaler) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetUnmarshaler(fn)
+        }
 }
 
 /*
@@ -231,7 +274,7 @@ func (r *AttributeTypes) Len() int {
 }
 
 /*
-String is a stringer method used to return the properly-delimited and formatted series of attributeType name or OID definitions.
+String is a non-functional stringer method needed to satisfy interface type requirements and should not be used. See the String() method for ApplicableAttributeTypes, RequiredAttributeTypes, PermittedAttributeTypes and ProhibitedAttributeTypes instead.
 */
 func (r *AttributeTypes) String() string {
 	return ``
@@ -633,9 +676,9 @@ func (r *AttributeType) validateOrdering(ls *LDAPSyntax) error {
 }
 
 /*
-SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+SetUnmarshaler assigns the provided DefinitionUnmarshaler signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
 */
-func (r *AttributeType) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+func (r *AttributeType) SetUnmarshaler(fn DefinitionUnmarshaler) {
 	r.ufn = fn
 }
 
@@ -751,11 +794,25 @@ func (r *AttributeType) Map() (def map[string][]string) {
 }
 
 /*
-UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+AttributeTypeUnmarshaler is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshaler type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *AttributeType) UnmarshalFunc() (def string, err error) {
+func AttributeTypeUnmarshaler(x interface{}) (def string, err error) {
+	var r *AttributeType
+	switch tv := x.(type) {
+	case *AttributeType:
+		if tv.IsZero() {
+			err = raise(isZero, "%T is nil", tv)
+			return
+		}
+		r = tv
+	default:
+		err = raise(unexpectedType,
+                        "Bad type for unmarshal (%T)", tv)
+		return
+	}
+
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"
@@ -844,7 +901,7 @@ func (r *AttributeType) unmarshal() (string, error) {
 	}
 
 	if r.ufn != nil {
-		return r.ufn()
+		return r.ufn(r)
 	}
 	return r.unmarshalBasic()
 }
