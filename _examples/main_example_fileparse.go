@@ -20,7 +20,7 @@ import (
 )
 
 /*
-flatten will (crudely) do all of the following in the order specified:
+sanitize will (crudely) do all of the following in the order specified:
 
  - Take the provided byte slice and remove all linebreaks EXCEPT those that act as boundaries between definitions
  - Collapse all WHSP (\s+ and \t+) to a singular WHSP instances
@@ -34,7 +34,7 @@ This function has been tested with all of the following file "conditions" in var
  - Definitions are single-line definitions WITH OR WITHOUT an empty newline in between
  - Definitions are accompanied by comments of varying styles that MAY OR MAY NOT span multiple lines
 */
-func flatten(data []byte) []string {
+func sanitize(data []byte) []string {
 
 	// I don't want regex, so let's do this
 	// a different way ...
@@ -124,6 +124,10 @@ func main() {
 			log.Fatalln(err)
 		}
 	}
+
+	// This is a quick means of ascertaining what
+	// kind of definition is being read based on
+	// the leading specifier name.
 	hasPrefix := func(line, pfx string) bool {
 		if strings.HasPrefix(strings.ToLower(line), pfx) {
 			return true
@@ -135,15 +139,14 @@ func main() {
 	data, err := ioutil.ReadFile(file)
 	chkerr(err)
 
+	// Sanitize what we just parsed, and
+	// transfer contents to []string value.
+	lines := sanitize(data)
+
 	// Make a schema object
 	sch := schemax.NewSubschema()
 	sch.PopulateDefaultLDAPSyntaxes()
 	sch.PopulateDefaultMatchingRules()
-
-	// Create a set of lines, one definition each
-	lines := flatten(data)
-	//fmt.Printf("%#v\n", lines)
-	//panic("yo")
 
 	// Iterate over each perceived line, and evaluate the raw text
 	// to ascertain if it is a known definition type. If recognized,
@@ -183,58 +186,89 @@ func main() {
 	// and set our desired specifier for each collection.
 	var raw string
 
-	sch.LSC.SetSpecifier(`ldapsyntax`)
-	sch.LSC.SetUnmarshaler(schemax.LDAPSyntaxUnmarshaler)
-	raw, err = schemax.Unmarshal(sch.LSC)
-	chkerr(err)
-	fmt.Printf("%s\n", raw)
+	if sch.LSC.Len() > 0 {
+		sch.LSC.SetSpecifier(`ldapsyntax`)
+		sch.LSC.SetUnmarshaler(schemax.LDAPSyntaxUnmarshaler)
+		raw, err = schemax.Unmarshal(sch.LSC)
+		chkerr(err)
+		fmt.Printf("## Parsed [%d] LDAPSyntax definitions\n%s\n", sch.LSC.Len(), raw)
+	} else {
+		fmt.Printf("## No LDAPSyntax definitions parsed\n")
+	}
 
-	sch.MRC.SetSpecifier(`matchingrule`)
-	sch.MRC.SetUnmarshaler(schemax.MatchingRuleUnmarshaler)
-	raw, err = schemax.Unmarshal(sch.MRC)
-	chkerr(err)
-	fmt.Printf("%s\n", raw)
+	if sch.MRC.Len() > 0 {
+		sch.MRC.SetSpecifier(`matchingrule`)
+		sch.MRC.SetUnmarshaler(schemax.MatchingRuleUnmarshaler)
+		raw, err = schemax.Unmarshal(sch.MRC)
+		chkerr(err)
+		fmt.Printf("## Parsed [%d] MatchingRule definitions\n%s\n", sch.MRC.Len(), raw)
+	} else {
+		fmt.Printf("## No MatchingRule definitions parsed\n")
+	}
 
-	sch.ATC.SetSpecifier(`attributetype`)
-	sch.ATC.SetUnmarshaler(schemax.AttributeTypeUnmarshaler)
-	raw, err = schemax.Unmarshal(sch.ATC)
-	chkerr(err)
-	fmt.Printf("%s\n", raw)
+	if sch.ATC.Len() > 0 {
+		sch.ATC.SetSpecifier(`attributetype`)
+		sch.ATC.SetUnmarshaler(schemax.AttributeTypeUnmarshaler)
+		raw, err = schemax.Unmarshal(sch.ATC)
+		chkerr(err)
+		fmt.Printf("## Parsed [%d] AttributeType definitions\n%s\n", sch.ATC.Len(), raw)
 
-	// OPTIONAL: Now that all ATs are loaded, refresh the
-	// manifest of applied MatchingRuleUses ...
-	sch.MRUC.Refresh(sch.ATC)
+		// OPTIONAL: Now that all ATs are loaded, refresh the
+		// manifest of applied MatchingRuleUses ...
+		sch.MRUC.Refresh(sch.ATC)
+	} else {
+		fmt.Printf("## No AttributeType definitions parsed\n")
+	}
+
 	if sch.MRUC.Len() > 0 {
 		sch.MRUC.SetSpecifier(`matchingruleuse`)
 		sch.MRUC.SetUnmarshaler(schemax.MatchingRuleUseUnmarshaler)
 		raw, err = schemax.Unmarshal(sch.MRUC)
 		chkerr(err)
-		fmt.Printf("%s\n", raw)
+		fmt.Printf("## Parsed [%d] MatchingRuleUse definitions\n%s\n", sch.MRUC.Len(), raw)
+	} else {
+		fmt.Printf("## No MatchingRuleUse definitions were generated\n")
 	}
 
-	sch.OCC.SetSpecifier(`objectclass`)
-	sch.OCC.SetUnmarshaler(schemax.ObjectClassUnmarshaler)
-	raw, err = schemax.Unmarshal(sch.OCC)
-	chkerr(err)
-	fmt.Printf("%s\n", raw)
+	if sch.OCC.Len() > 0 {
+		sch.OCC.SetSpecifier(`objectclass`)
+		sch.OCC.SetUnmarshaler(schemax.ObjectClassUnmarshaler)
+		raw, err = schemax.Unmarshal(sch.OCC)
+		chkerr(err)
+		fmt.Printf("## Parsed [%d] ObjectClass definitions\n%s\n", sch.OCC.Len(), raw)
+	} else {
+		fmt.Printf("## No ObjectClass definitions parsed\n")
+	}
 
-	sch.DCRC.SetSpecifier(`ditcontentrule`)
-	sch.DCRC.SetUnmarshaler(schemax.DITContentRuleUnmarshaler)
-	raw, err = schemax.Unmarshal(sch.DCRC)
-	chkerr(err)
-	fmt.Printf("%s\n", raw)
+	if sch.DCRC.Len() > 0 {
+		sch.DCRC.SetSpecifier(`ditcontentrule`)
+		sch.DCRC.SetUnmarshaler(schemax.DITContentRuleUnmarshaler)
+		raw, err = schemax.Unmarshal(sch.DCRC)
+		chkerr(err)
+		fmt.Printf("## Parsed [%d] DITContentRule definitions\n%s\n", sch.DCRC.Len(), raw)
+	} else {
+		fmt.Printf("## No DITContentRule definitions parsed\n")
+	}
 
-	sch.NFC.SetSpecifier(`nameform`)
-	sch.NFC.SetUnmarshaler(schemax.NameFormUnmarshaler)
-	raw, err = schemax.Unmarshal(sch.NFC)
-	chkerr(err)
-	fmt.Printf("%s\n", raw)
+	if sch.NFC.Len() > 0 {
+		sch.NFC.SetSpecifier(`nameform`)
+		sch.NFC.SetUnmarshaler(schemax.NameFormUnmarshaler)
+		raw, err = schemax.Unmarshal(sch.NFC)
+		chkerr(err)
+		fmt.Printf("## Parsed [%d] NameForm definitions\n%s\n", sch.NFC.Len(), raw)
+	} else {
+		fmt.Printf("## No NameForm definitions parsed\n")
+	}
 
-	sch.DSRC.SetSpecifier(`ditstructurerule`)
-	sch.DSRC.SetUnmarshaler(schemax.DITStructureRuleUnmarshaler)
-	raw, err = schemax.Unmarshal(sch.DSRC)
-	chkerr(err)
-	fmt.Printf("%s\n", raw)
+	if sch.DSRC.Len() > 0 {
+		sch.DSRC.SetSpecifier(`ditstructurerule`)
+		sch.DSRC.SetUnmarshaler(schemax.DITStructureRuleUnmarshaler)
+		raw, err = schemax.Unmarshal(sch.DSRC)
+		chkerr(err)
+		fmt.Printf("## Parsed [%d] DITStructureRule definitions\n%s\n", sch.DSRC.Len(), raw)
+	} else {
+		fmt.Printf("## No DITStructureRule definitions parsed\n")
+	}
 
 	return
 }
