@@ -102,7 +102,7 @@ func (r *Subschema) set(x interface{}) (ok bool) {
 /*
 PopulateDefaultLDAPSyntaxes is a Subschema-housed convenience method for PopulateDefaultLDAPSyntaxes, and includes internal indexing to maintain proper ordering of definitions.
 */
-func (r *Subschema) PopulateDefaultLDAPSyntaxe() {
+func (r *Subschema) PopulateDefaultLDAPSyntaxes() {
 	r.LSC = PopulateDefaultLDAPSyntaxes()
 }
 
