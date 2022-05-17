@@ -19,6 +19,101 @@ import (
 	"github.com/JesseCoretta/go-schemax"
 )
 
+/*
+flatten will (crudely) do all of the following in the order specified:
+
+ - Take the provided byte slice and remove all linebreaks EXCEPT those that act as boundaries between definitions
+ - Collapse all WHSP (\s+ and \t+) to a singular WHSP instances
+ - Remove comments
+ - Return the resultant set of lines as an instance of []string
+ - ... all without regex :)
+
+This function has been tested with all of the following file "conditions" in varying permutations:
+
+ - Definitions contain "\n\t" or "\n\s" hanging indents for each field EXCEPT the first
+ - Definitions are single-line definitions WITH OR WITHOUT an empty newline in between
+ - Definitions are accompanied by comments of varying styles that MAY OR MAY NOT span multiple lines
+*/
+func flatten(data []byte) []string {
+
+	// I don't want regex, so let's do this
+	// a different way ...
+	var clean string
+	var next, last rune
+	var activeComment bool
+	for idx, char := range data {
+		ch := rune(char)
+
+		if idx+1 < len(data) {
+			next = rune(data[idx+1])
+		} else {
+			next = rune(0)
+		}
+
+		switch ch {
+		case '#':
+			if last == '\n' || last != '#' {
+				clean += string(ch)
+				activeComment = true
+			}
+		case ' ':
+			if ch != last && last != '\n' {
+				clean += string(ch)
+			}
+		case '\n':
+			if !activeComment {
+				if last == ')' && ( next != ' ' && next != '\t' ) {
+					clean += "<SPLITHERE>"
+				}
+			} else {
+				activeComment = false
+				if last != '\'' {
+					clean += "<SPLITHERE>"
+				}
+			}
+		case '\t':
+			clean += " "
+		default:
+			clean += string(ch)
+		}
+
+		last = ch
+	}
+
+	// Split at the desired split points
+	tlines := strings.Split(clean, "<SPLITHERE>")
+
+	// Begin final processing, cleaning up each
+	// delimited line to remove characters that
+	// are no longer needed.
+	var lines []string = make([]string, 0)
+	for _, line := range tlines {
+		if len(line) == 0 {
+			continue
+		}
+		if line[0] == '#' {
+			continue
+		}
+
+		var newline string = line
+		if newline[0] == ' ' {
+			newline = newline[1:]
+		}
+
+		if strings.HasSuffix(line, `\n`) {
+			newline = newline[:len(newline)-2]
+		}
+
+		if strings.HasSuffix(line, " ") {
+			newline = newline[:len(newline)-1]
+		}
+
+		lines = append(lines, newline) // seems ok
+	}
+
+	return lines
+}
+
 func main() {
 
 	file := `/tmp/my.schema` // update as needed
@@ -40,33 +135,20 @@ func main() {
 	data, err := ioutil.ReadFile(file)
 	chkerr(err)
 
-	proc := strings.ReplaceAll(string(data), "\n\t", " ")
-	data = []byte(proc)
-
 	// Make a schema object
 	sch := schemax.NewSubschema()
 	sch.PopulateDefaultLDAPSyntaxes()
 	sch.PopulateDefaultMatchingRules()
 
-	// Split "data" ([]byte) into string slices, delimited on the
-	// newline character. Each slice represents a single line and
-	// (possibly) a schema definition ...
-	lines := strings.Split(string(data), "\n")
+	// Create a set of lines, one definition each
+	lines := flatten(data)
+	//fmt.Printf("%#v\n", lines)
+	//panic("yo")
 
 	// Iterate over each perceived line, and evaluate the raw text
-	// to ascertain if it is a known definition type. If not recognized,
-	// then take no action. If recognized, then unmarshal.
+	// to ascertain if it is a known definition type. If recognized,
+	// then unmarshal.
 	for idx, line := range lines {
-
-		// Ignore any purely empty lines
-		if len(line) == 0 {
-			continue
-		}
-
-		// Ignore any lines we believe are comments
-		if line[0] == '#' {
-			continue
-		}
 
 		// Look for a definition specifier (e.g.: "attributetype")
 		// as the first component of each line. Please keep in mind
@@ -95,9 +177,6 @@ func main() {
 		chkerr(err)
 	}
 
-	// Now that all ATs are loaded, refresh the
-	// manifest of applied MatchingRuleUses ...
-	sch.MRUC.Refresh(sch.ATC)
 
 	// Use the pretty package-provided unmarshaler
 	// funcs to print with nice indenting and linebreaks,
@@ -122,11 +201,16 @@ func main() {
 	chkerr(err)
 	fmt.Printf("%s\n", raw)
 
-	sch.MRUC.SetSpecifier(`matchingruleuse`)
-	sch.MRUC.SetUnmarshaler(schemax.MatchingRuleUseUnmarshaler)
-	raw, err = schemax.Unmarshal(sch.MRUC)
-	chkerr(err)
-	fmt.Printf("%s\n", raw)
+	// OPTIONAL: Now that all ATs are loaded, refresh the
+	// manifest of applied MatchingRuleUses ...
+	sch.MRUC.Refresh(sch.ATC)
+	if sch.MRUC.Len() > 0 {
+		sch.MRUC.SetSpecifier(`matchingruleuse`)
+		sch.MRUC.SetUnmarshaler(schemax.MatchingRuleUseUnmarshaler)
+		raw, err = schemax.Unmarshal(sch.MRUC)
+		chkerr(err)
+		fmt.Printf("%s\n", raw)
+	}
 
 	sch.OCC.SetSpecifier(`objectclass`)
 	sch.OCC.SetUnmarshaler(schemax.ObjectClassUnmarshaler)
