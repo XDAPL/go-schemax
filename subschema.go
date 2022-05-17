@@ -33,14 +33,14 @@ Overall, use of *Subschema makes generalized use of this package slightly easier
 */
 type Subschema struct {
 	DN   string                     // often "cn=schema" or "cn=subschema", varies per imp.
-	LSC  LDAPSyntaxCollection       // LDAP Syntaxes         OID->*LDAPSyntax
-	MRC  MatchingRuleCollection     // Matching Rules        OID->*MatchingRule
-	ATC  AttributeTypeCollection    // Attribute Types       OID->*AttributeType
-	MRUC MatchingRuleUseCollection  // Matching Rule "Uses"  OID->*MatchingRuleUse
-	OCC  ObjectClassCollection      // Object Classes        OID->*ObjectClass
-	DCRC DITContentRuleCollection   // DIT Content Rules     OID->*DITContentRule
-	NFC  NameFormCollection         // Name Forms            OID->*NameForm
-	DSRC DITStructureRuleCollection // DIT Structure Rules   ID->*DITStructureRule
+	LSC  LDAPSyntaxCollection       // LDAP Syntaxes
+	MRC  MatchingRuleCollection     // Matching Rules
+	ATC  AttributeTypeCollection    // Attribute Types
+	MRUC MatchingRuleUseCollection  // Matching Rule "Uses"
+	OCC  ObjectClassCollection      // Object Classes
+	DCRC DITContentRuleCollection   // DIT Content Rules
+	NFC  NameFormCollection         // Name Forms
+	DSRC DITStructureRuleCollection // DIT Structure Rules
 }
 
 /*
@@ -102,7 +102,7 @@ func (r *Subschema) set(x interface{}) (ok bool) {
 /*
 PopulateDefaultLDAPSyntaxes is a Subschema-housed convenience method for PopulateDefaultLDAPSyntaxes, and includes internal indexing to maintain proper ordering of definitions.
 */
-func (r *Subschema) PopulateDefaultLDAPSyntaxe() {
+func (r *Subschema) PopulateDefaultLDAPSyntaxes() {
 	r.LSC = PopulateDefaultLDAPSyntaxes()
 }
 

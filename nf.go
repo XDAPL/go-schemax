@@ -6,11 +6,7 @@ import "sync"
 NameFormCollection describes all NameForms-based types.
 */
 type NameFormCollection interface {
-	// Contains returns the index number and presence boolean that
-	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
-
-	// // Get returns the *NameForm instance retrieved as a result
+	// Get returns the *NameForm instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
 	Get(interface{}) *NameForm
@@ -27,21 +23,38 @@ type NameFormCollection interface {
 	// the provided *NameForm instance to the receiver.
 	Set(*NameForm) error
 
-	// String returns a properly-delimited sequence of string
-	// values, either as a Name or OID, for the receiver type.
-	String() string
+        // Contains returns the index number and presence boolean that
+        // reflects the result of a term search within the receiver.
+        Contains(interface{}) (int, bool)
 
-	// Label returns the field name associated with the interface
-	// types, or a zero string if no label is appropriate.
-	Label() string
+        // String returns a properly-delimited sequence of string
+        // values, either as a Name or OID, for the receiver type.
+        String() string
 
-	// IsZero returns a boolean value indicative of whether the
-	// receiver is considered zero, or undefined.
-	IsZero() bool
+        // Label returns the field name associated with the interface
+        // types, or a zero string if no label is appropriate.
+        Label() string
 
-	// Len returns an integer value indicative of the current
-	// number of elements stored within the receiver.
-	Len() int
+        // IsZero returns a boolean value indicative of whether the
+        // receiver is considered zero, or undefined.
+        IsZero() bool
+
+        // Len returns an integer value indicative of the current
+        // number of elements stored within the receiver.
+        Len() int
+
+        // SetSpecifier assigns a string value to all definitions within
+        // the receiver. This value is used in cases where a definition
+        // type name (e.g.: attributetype, objectclass, etc.) is required.
+        // This value will be displayed at the beginning of the definition
+        // value during the unmarshal or unsafe stringification process.
+        SetSpecifier(string)
+
+        // SetUnmarshaler assigns the provided DefinitionUnmarshaler
+        // signature to all definitions within the receiver. The provided
+        // function shall be executed during the unmarshal or unsafe
+        // stringification process.
+        SetUnmarshaler(DefinitionUnmarshaler)
 }
 
 /*
@@ -56,7 +69,7 @@ type NameForm struct {
 	May         AttributeTypeCollection
 	Extensions  Extensions
 	flags       definitionFlags
-	ufn         DefinitionUnmarshalFunc
+	ufn         DefinitionUnmarshaler
 	spec        string
 	info        []byte
 }
@@ -92,6 +105,24 @@ func (r *NameForms) SetMacros(macros *Macros) {
 }
 
 /*
+SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
+*/
+func (r *NameForms) SetSpecifier(spec string) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetSpecifier(spec)
+        }
+}
+
+/*
+SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
+*/
+func (r *NameForms) SetUnmarshaler(fn DefinitionUnmarshaler) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetUnmarshaler(fn)
+        }
+}
+
+/*
 SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
 */
 func (r *NameForm) SetInfo(info []byte) {
@@ -106,9 +137,9 @@ func (r *NameForm) Info() []byte {
 }
 
 /*
-SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+SetUnmarshaler assigns the provided DefinitionUnmarshaler signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
 */
-func (r *NameForm) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+func (r *NameForm) SetUnmarshaler(fn DefinitionUnmarshaler) {
 	r.ufn = fn
 }
 
@@ -161,7 +192,7 @@ func (r NameForms) Len() int {
 }
 
 /*
-String is a stringer method used to return the properly-delimited and formatted series of attributeType name or OID definitions.
+String is a non-functional stringer method needed to satisfy interface type requirements and should not be used. There is no practical application for a list of nameForm names or object identifiers in this package.
 */
 func (r NameForms) String() string { return `` }
 
@@ -332,7 +363,7 @@ func (r *NameForm) unmarshal() (string, error) {
 	}
 
 	if r.ufn != nil {
-		return r.ufn()
+		return r.ufn(r)
 	}
 	return r.unmarshalBasic()
 }
@@ -407,11 +438,25 @@ func (r *NameForm) Map() (def map[string][]string) {
 }
 
 /*
-UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+NameFormUnmarshaler is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshaler type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *NameForm) UnmarshalFunc() (def string, err error) {
+func NameFormUnmarshaler(x interface{}) (def string, err error) {
+        var r *NameForm
+        switch tv := x.(type) {
+        case *NameForm:
+                if tv.IsZero() {
+                        err = raise(isZero, "%T is nil", tv)
+                        return
+                }
+                r = tv
+        default:
+                err = raise(unexpectedType,
+                        "Bad type for unmarshal (%T)", tv)
+                return
+        }
+
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"

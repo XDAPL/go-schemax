@@ -85,18 +85,29 @@ type Definition interface {
 	// unmarshal or unsafe stringification process.
 	SetSpecifier(string)
 
-	// SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature
+	// SetUnmarshaler assigns the provided DefinitionUnmarshaler signature
 	// value to the receiver. The provided function shall be executed during the
 	// unmarshal or unsafe stringification process.
-	SetUnmarshalFunc(DefinitionUnmarshalFunc)
+	SetUnmarshaler(DefinitionUnmarshaler)
 
-	// UnmarshalFunc is a package-included function that honors the signature
-	// of the first class (closure) DefinitionUnmarshalFunc type. The purpose
-	// of this function, and similar user-devised ones, is to help unmarshal
-	// a definition with specific formatting included, such as linebreaks,
-	// leading specifier declarations and indenting.
-	UnmarshalFunc() (string, error)
+	// unmarshal is for internal use only
+	unmarshal() (string, error)
 }
+
+/*
+DefinitionUnmarshaler is a first-class "closure" function intended for use in situations where it is desirable to format a given definition during the unmarshal process, i.e.: to add indents and linebreaks.
+
+During the unmarshaling or unsafe stringifaction processes, users may choose to:
+
+• Perform NO formatting whatsoever, producing definitions that span only a single line, or ...
+
+• Use the package-provided formatting closure function appropriate for the definition type, or ...
+
+• Define a custom unmarshal function that honors the defined signature of this type
+
+By default, NO special formatting is performed during unmarshaling or unsafe stringification of definitions.
+*/
+type DefinitionUnmarshaler func(interface{}) (string, error)
 
 /*
 OID is a type alias for []int that describes an ASN.1 Object Identifier.

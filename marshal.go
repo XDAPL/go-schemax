@@ -205,23 +205,6 @@ func Marshal(raw string, x interface{},
 }
 
 /*
-DefinitionUnmarshalFunc is a first-class "closure" function intended for use in situations where it is desirable to format a given definition during the unmarshal process, i.e.: to add indents and linebreaks.
-
-The string input argument defines a specifier to be printed just before the definition value. This is used to declare the type of definition being defined in a schema, e.g.: "attributetype". This is particularly useful when interacting with different LDAP DSA products, as such specifiers do vary between implementations.  One real-world example of this is the difference between OpenLDAP and Netscape directory subschema subentries -- namely "attributetype" vs. "attributetypes:". Providing a zero length string argument results in no specifier being printed. The user-provided specifier case is preserved when used (neither "folding" nor normalization will occur).
-
-During the unmarshaling or unsafe stringifaction processes, users may choose to:
-
-• Perform NO formatting whatsoever, producing definitions that span only a single line, or ...
-
-• Use the package-provided formatting closure function appropriate for the definition type, or ...
-
-• Define a custom unmarshal function that honors the defined signature of this type
-
-By default, NO special formatting is performed during unmarshaling or unsafe stringification of definitions.
-*/
-type DefinitionUnmarshalFunc func() (string, error)
-
-/*
 Unmarshal takes an instance of one (1) of the following types and (if valid) and returns the textual form of the definition:
 
 • ObjectClass
@@ -242,24 +225,84 @@ Unmarshal takes an instance of one (1) of the following types and (if valid) and
 
 Should any validation errors occur, a non-nil instance of error is returned.
 */
-func Unmarshal(x interface{}) (def string, err error) {
+func Unmarshal(x interface{}) (string, error) {
+	var err error
+	var defs string
 	switch tv := x.(type) {
-	case *ObjectClass:
-		def, err = tv.unmarshal()
-	case *AttributeType:
-		def, err = tv.unmarshal()
-	case *LDAPSyntax:
-		def, err = tv.unmarshal()
-	case *MatchingRule:
-		def, err = tv.unmarshal()
-	case *MatchingRuleUse:
-		def, err = tv.unmarshal()
-	case *DITContentRule:
-		def, err = tv.unmarshal()
-	case *DITStructureRule:
-		def, err = tv.unmarshal()
-	case *NameForm:
-		def, err = tv.unmarshal()
+	case AttributeTypeCollection:
+		for i := 0; i < tv.Len(); i++ {
+			var def string
+                        if def, err = tv.Index(i).unmarshal(); err != nil {
+				return ``, err
+			}
+			defs += def + "\n\n"
+		}
+		return defs, nil
+        case ObjectClassCollection:
+                for i := 0; i < tv.Len(); i++ {
+                        var def string
+                        if def, err = tv.Index(i).unmarshal(); err != nil {
+                                return ``, err
+                        }
+                        defs += def + "\n\n"
+                }
+                return defs, nil
+        case LDAPSyntaxCollection:
+                for i := 0; i < tv.Len(); i++ {
+                        var def string
+                        if def, err = tv.Index(i).unmarshal(); err != nil {
+                                return ``, err
+                        }
+                        defs += def + "\n\n"
+                }
+                return defs, nil
+        case MatchingRuleCollection:
+                for i := 0; i < tv.Len(); i++ {
+                        var def string
+                        if def, err = tv.Index(i).unmarshal(); err != nil {
+                                return ``, err
+                        }
+                        defs += def + "\n\n"
+                }
+                return defs, nil
+        case MatchingRuleUseCollection:
+                for i := 0; i < tv.Len(); i++ {
+                        var def string
+                        if def, err = tv.Index(i).unmarshal(); err != nil {
+                                return ``, err
+                        }
+                        defs += def + "\n\n"
+                }
+                return defs, nil
+        case DITContentRuleCollection:
+                for i := 0; i < tv.Len(); i++ {
+                        var def string
+                        if def, err = tv.Index(i).unmarshal(); err != nil {
+                                return ``, err
+                        }
+                        defs += def + "\n\n"
+                }
+                return defs, nil
+        case NameFormCollection:
+                for i := 0; i < tv.Len(); i++ {
+                        var def string
+                        if def, err = tv.Index(i).unmarshal(); err != nil {
+                                return ``, err
+                        }
+                        defs += def + "\n\n"
+                }
+                return defs, nil
+        case DITStructureRuleCollection:
+                for i := 0; i < tv.Len(); i++ {
+                        var def string
+                        if def, err = tv.Index(i).unmarshal(); err != nil {
+                                return ``, err
+                        }
+                        defs += def + "\n\n"
+                }
+                return defs, nil
+	case Definition:
+		return tv.unmarshal()
 	default:
 		err = raise(invalidUnmarshal,
 			"unknown or unsupported type %T", tv)
@@ -267,10 +310,10 @@ func Unmarshal(x interface{}) (def string, err error) {
 
 	if err != nil {
 		err = raise(invalidUnmarshal, err.Error())
-	} else if len(def) == 0 {
+	} else {
 		err = raise(invalidUnmarshal,
-			"zero-length definition returned from Unmarshal (of %T)", x)
+			"an unknown error occurred during unmarshal of %T", x)
 	}
 
-	return
+	return ``, err
 }

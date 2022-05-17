@@ -18,7 +18,7 @@ Types provided by this package are created based on the precepts of RFC2252 and 
 
 LDAP directories contain and serve data in a hierarchical manner. The syntax and evaluation of this data is governed by a schema, which itself is hierarchical in nature.
 
-The nature of this package's operation is highly referential. Objects are referenced via pointers, and these objects can inhabit multiple other multi-valued types. For example, `*AttributeType` instances are stored within a type-specific map type called a manifest. Each `*AttributeType` that exists can be referenced by other `*AttributeType` instances (in a scenario where "super typing" is in effect), or by other `*ObjectClass` instances via their own PermittedAttributeTypes (May) and RequiredAttributeTypes (Must) list types. Literal "copies" of single objects are never made. References are always through pointers.
+The nature of this package's operation is highly referential. Objects are referenced via pointers, and these objects can inhabit multiple other multi-valued types. For example, `*AttributeType` instances are stored within a type-specific slices called collections. Each `*AttributeType` that exists can be referenced by other `*AttributeType` instances (in a scenario where "super typing" is in effect), or by other `*ObjectClass` instances via their own PermittedAttributeTypes (May) and RequiredAttributeTypes (Must) list types. Literal "copies" of single objects are never made. References are always through pointers.
 
 ## Intended Audience
 

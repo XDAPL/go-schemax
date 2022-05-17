@@ -7,7 +7,7 @@ Abstract
 
 LDAP directories contain and serve data in a hierarchical manner. The syntax and evaluation of this data is governed by a schema, which itself is hierarchical in nature.
 
-The nature of this package's operation is highly referential.  Objects are referenced via pointers, and these objects can inhabit multiple other multi-valued types. For example, *AttributeType instances are stored within a type-specific map type called a manifest.  Each *AttributeType that exists can be referenced by other *AttributeType instances (in a scenario where "super typing" is in effect), or by other *ObjectClass instances via their own PermittedAttributeTypes (May) and RequiredAttributeTypes (Must) list types.  Literal "copies" of single objects are never made.  References are always through pointers.
+The nature of this package's operation is highly referential.  Objects are referenced via pointers, and these objects can inhabit multiple other multi-valued types. For example, *AttributeType instances are stored within a type-specific slices called Collections.  Each *AttributeType that exists can be referenced by other *AttributeType instances (in a scenario where "super typing" is in effect), or by other *ObjectClass instances via their own PermittedAttributeTypes (May) and RequiredAttributeTypes (Must) list types.  Literal "copies" of single objects are never made.  References are always through pointers.
 
 Intended Audience
 
@@ -77,5 +77,85 @@ Also known as OID "aliases", macros allow a succinct expression of an OID prefix
 This package supports the registration and use of such aliases within the Macros map type.  Note that this is an all-or-nothing mechanism. Understand that if a non-nil Macros instance is detected, and unregistered aliases are encountered during a parsing run, normal operations will be impacted. As such, users are advised to anticipate any aliases needed in advance or to abolish their use altogether.
 
 OID aliasing supports both dot (.) and colon (:) runes for delimitation, thus 'nisSchema.1.1' and 'nisSchema:1.1' are acceptable.
+
+Custom Unmarshalers
+
+By default, definitions are unmarshaled as single-line string values. This package supports the creation of user-authored closure functions to allow customization of this behavior. As a practical example, users may opt to write a function to convert definitions to individual CSV rows, or perhaps JSON objects -- literally anything, so long as it is a string.
+
+Each definition type comes with a default (optional) UnmarshalFunc instance. This, or any custom function, can be invoked by-name as follows:
+
+  myfunc := UnmarshalerFuncName		// Must conform to the DefinitionUnmarshaler signature!
+  def.SetUnmarshaler(myfunc)		// assign the function by name to your definition
+  raw, err := schemax.Unmarshal(def)	// unmarshal
+  ...
+
+In the above example, the definition would unmarshal as a standard RFC4512 schema definition, but with linebreaks and indenting added. This must be done for EVERY definition being unmarshaled.
+
+User-authored functions MUST honor the following function signature (see the DefinitionUnmarshaler type for details).
+
+  func(interface{}) (string, error)
+
+The structure of a given user-authored unmarshaler function will vary, but should generally reflect the example below.
+
+ // Example attributeType unmarshaler
+ func myCustomAttributeUnmarshaler(x interface{}) (def string, err error) {
+
+	// We'll use this variable to store the
+	// value once we verify it's copacetic.
+
+        var r *AttributeType
+
+	// As you can clearly see in the signature, the user
+	// will provide a value as an interface. We'll need
+	// to type-assert whatever they provide to ensure
+	// its the exact type we are prepared to handle.
+
+        switch tv := x.(type) {
+        case *AttributeType:
+                if tv.IsZero() {
+                        err = fmt.Errorf("%T is nil", tv)
+                        return
+                }
+                r = tv
+        default:
+                err = fmt.Errorf("Bad type for unmarshal (%T)", tv)
+                return
+        }
+
+	//
+	// <<Your custom attributeType-handling code would go here>>
+	//
+
+	return
+ }
+
+ // ... later in your code ...
+ //
+ // This can be applied to a single definition
+ // -OR- a collection of definitions!
+ obj.SetUnmarshaler(myCustomAttributeUnmarshaler)
+
+Map Unmarshaler
+
+For added convenience, each definition includes a Map() method that returns a map[string][]string instance containing the effective contents of said definition. This is useful in situations where the user is more interested in simple access to string values in fields, as opposed to the complicated traversal of pointer instances that may exist within a definition.
+
+  defmap := def.Map()
+  if value, exists := defmap[`SYNTAX`]; exists {
+	val := value[0]
+	fmt.Printf("Syntax OID is: %s\n", val)
+  }
+
+Naturally, ordering of fields is lost due to use of a map in this fashion. It is up to the consuming application to ensure correct ordering of fields as described in RFC4512 section 4.1, wherever applicable.
+
+Extended Information
+
+Each definition supports the optional assignment of a []byte value containing "extended information", which can literally be anything (pre-rendered HTML, or even Graphviz content to name a few potential use cases). This package imposes no restrictions of any kind regarding the nature or length of the assigned byte slice.
+
+The main purpose of this functionality is to allow the user to annotate information that goes well beyond the terse DESC field value normally present within definitions.
+
+  info := []byte(`<html>...</html>`)
+  def.SetInfo(info)
+  ...
+  fmt.Printf("%s\n", string(def.Info()))
 */
 package schemax

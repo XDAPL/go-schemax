@@ -10,10 +10,6 @@ ObjectClassCollection describes all ObjectClasses-based types:
 - *AuxiliaryObjectClasses
 */
 type ObjectClassCollection interface {
-	// Contains returns the index number and presence boolean that
-	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
-
 	// Get returns the *ObjectClass instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
@@ -31,21 +27,38 @@ type ObjectClassCollection interface {
 	// the provided *ObjectClass instance to the receiver.
 	Set(*ObjectClass) error
 
-	// String returns a properly-delimited sequence of string
-	// values, either as a Name or OID, for the receiver type.
-	String() string
+        // Contains returns the index number and presence boolean that
+        // reflects the result of a term search within the receiver.
+        Contains(interface{}) (int, bool)
 
-	// Label returns the field name associated with the interface
-	// types, or a zero string if no label is appropriate.
-	Label() string
+        // String returns a properly-delimited sequence of string
+        // values, either as a Name or OID, for the receiver type.
+        String() string
 
-	// IsZero returns a boolean value indicative of whether the
-	// receiver is considered zero, or undefined.
-	IsZero() bool
+        // Label returns the field name associated with the interface
+        // types, or a zero string if no label is appropriate.
+        Label() string
 
-	// Len returns an integer value indicative of the current
-	// number of elements stored within the receiver.
-	Len() int
+        // IsZero returns a boolean value indicative of whether the
+        // receiver is considered zero, or undefined.
+        IsZero() bool
+
+        // Len returns an integer value indicative of the current
+        // number of elements stored within the receiver.
+        Len() int
+
+        // SetSpecifier assigns a string value to all definitions within
+        // the receiver. This value is used in cases where a definition
+        // type name (e.g.: attributetype, objectclass, etc.) is required.
+        // This value will be displayed at the beginning of the definition
+        // value during the unmarshal or unsafe stringification process.
+        SetSpecifier(string)
+
+        // SetUnmarshaler assigns the provided DefinitionUnmarshaler
+        // signature to all definitions within the receiver. The provided
+        // function shall be executed during the unmarshal or unsafe
+        // stringification process.
+        SetUnmarshaler(DefinitionUnmarshaler)
 }
 
 /*
@@ -80,7 +93,7 @@ type ObjectClass struct {
 	May         AttributeTypeCollection
 	Extensions  Extensions
 	flags       definitionFlags
-	ufn         DefinitionUnmarshalFunc
+	ufn         DefinitionUnmarshaler
 	spec        string
 	info        []byte
 }
@@ -127,6 +140,24 @@ SetMacros assigns the *Macros instance to the receiver, allowing subsequent OID 
 */
 func (r *ObjectClasses) SetMacros(macros *Macros) {
 	r.macros = macros
+}
+
+/*
+SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
+*/
+func (r *ObjectClasses) SetSpecifier(spec string) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetSpecifier(spec)
+        }
+}
+
+/*
+SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
+*/
+func (r *ObjectClasses) SetUnmarshaler(fn DefinitionUnmarshaler) {
+        for i := 0; i < r.Len(); i++ {
+                r.Index(i).SetUnmarshaler(fn)
+        }
 }
 
 /*
@@ -251,9 +282,9 @@ func (r *ObjectClass) Info() []byte {
 }
 
 /*
-SetUnmarshalFunc assigns the provided DefinitionUnmarshalFunc signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+SetUnmarshaler assigns the provided DefinitionUnmarshaler signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
 */
-func (r *ObjectClass) SetUnmarshalFunc(fn DefinitionUnmarshalFunc) {
+func (r *ObjectClass) SetUnmarshaler(fn DefinitionUnmarshaler) {
 	r.ufn = fn
 }
 
@@ -543,7 +574,7 @@ func (r *ObjectClass) unmarshal() (string, error) {
 	}
 
 	if r.ufn != nil {
-		return r.ufn()
+		return r.ufn(r)
 	}
 	return r.unmarshalBasic()
 }
@@ -627,11 +658,25 @@ func (r *ObjectClass) Map() (def map[string][]string) {
 }
 
 /*
-UnmarshalFunc is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshalFunc type.
+ObjectClassUnmarshaler is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshaler type.
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func (r *ObjectClass) UnmarshalFunc() (def string, err error) {
+func ObjectClassUnmarshaler(x interface{}) (def string, err error) {
+        var r *ObjectClass
+        switch tv := x.(type) {
+        case *ObjectClass:
+                if tv.IsZero() {
+                        err = raise(isZero, "%T is nil", tv)
+                        return
+                }
+                r = tv
+        default:
+                err = raise(unexpectedType,
+                        "Bad type for unmarshal (%T)", tv)
+                return
+        }
+
 	var (
 		WHSP string = ` `
 		idnt string = "\n\t"
