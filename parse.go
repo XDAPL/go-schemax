@@ -45,10 +45,9 @@ func lfindex(term string, def definition) (idx int) {
 				Auxiliary.String():
 				return idx
 			}
-		} else if def.labels[idx] == `BOOLS` {
+		} else if def.labels[idx] == `FLAGS` {
 			switch term {
-			case Obsolete.String(), SingleValue.String(),
-				NoUserModification.String(), Collective.String():
+			case SingleValue.String(), NoUserModification.String(),	Collective.String():
 				return idx
 			}
 		} else {
@@ -138,8 +137,8 @@ func parse_qdescrs(def string) (name []string, rest string, ok bool) {
 	}
 	ndef := def[idx:]
 
-	switch {
-	case def[0] == '(':
+	switch def[0] {
+	case '(':
 		// *POSSIBLY* multi-valued
 		closer := ')'
 		idx = indexRune(ndef[2:], closer)
@@ -157,7 +156,7 @@ func parse_qdescrs(def string) (name []string, rest string, ok bool) {
 		}
 		name = split(vals, ` `)
 		rest = def[idx+5:]
-	case def[0] == '\'':
+	case '\'':
 		// *DEFINITELY* single-valued
 		closer := '\''
 		idx = indexRune(def[1:], closer)
@@ -173,9 +172,19 @@ func parse_qdescrs(def string) (name []string, rest string, ok bool) {
 	return
 }
 
+func parse_atflags(def string) ([]string, string, bool) {
+	return []string{`true`}, def, true
+}
+
+func parse_obsolete(def string) ([]string, string, bool) {
+	return []string{`true`}, def, true
+}
+
+/*
 func parse_boolean(def string) ([]string, string, bool) {
 	return []string{`true`}, def, true
 }
+*/
 
 func parse_kind(def string) (name []string, rest string, ok bool) {
 	if len(def) == 0 {
@@ -237,8 +246,7 @@ func parse_definition_label(def string) (label []string, rest string, ok bool) {
 	case Auxiliary.String(), Structural.String(), Abstract.String():
 		label = []string{`KIND`}
 		rest = def
-	case Obsolete.String(), NoUserModification.String(),
-		Collective.String(), SingleValue.String():
+	case NoUserModification.String(), Collective.String(), SingleValue.String():
 		label = []string{testlabel}
 		rest = def[idx+1:]
 	default:

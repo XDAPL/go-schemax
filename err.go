@@ -44,8 +44,6 @@ func raise(err error, text string, m ...interface{}) error {
 	return newErr(sprintf(err.Error()+`: `+text, m...))
 }
 
-//                        oc, ocm, value, x)
-
 func raiseUnknownElement(funcname string, fobj interface{}, fman interface{}, val string, dest interface{}) error {
 	return raise(unknownElement, "%s: no such %T was found in %T for value '%s' (type: %T)",
 		funcname, fobj, fman, val, dest)

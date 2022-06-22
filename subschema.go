@@ -1,6 +1,10 @@
 package schemax
 
 /*
+schema.go deals with the high-level interactions within the subschema as a whole.  A higher degree of referential integrity is present, as individual list and map contents are verified with other such collections to avoid (or fail in the presence of) certain mutexes (e.g.: An *AttributeType present within both ProhibitedAttributeTypes and RequiredAttributeTypes lists associated with a *DITContentRule instance that resides within a single *Subschema instance).
+*/
+
+/*
 NewSubschema returns a partially-initialized instance of *Subschema.
 */
 func NewSubschema() (s *Subschema) {
@@ -42,10 +46,6 @@ type Subschema struct {
 	NFC  NameFormCollection         // Name Forms
 	DSRC DITStructureRuleCollection // DIT Structure Rules
 }
-
-/*
-schema.go deals with the high-level interactions within the subschema as a whole.  A higher degree of referential integrity is present, as individual list and map contents are verified with other such collections to avoid (or fail in the presence of) certain mutexes (e.g.: An *AttributeType present within both ProhibitedAttributeTypes and RequiredAttributeTypes lists associated with a *DITContentRule instance that resides within a single *Subschema instance).
-*/
 
 /*
 Set will take the assigned interface{} x and attempt to store (register) it within the appropriate slice member within the receiver instance of the receiver.  A boolean value is returned indicative of success.
@@ -139,7 +139,7 @@ func (r *Subschema) GetAttributeType(x string) *AttributeType {
 }
 
 /*
-Set will assign x to the receiver, storing the content within the appropriate manifest.  A boolean value is returned indicative of success.
+Set will assign x to the receiver, storing the content within the appropriate collection.  A boolean value is returned indicative of success.
 */
 func (r *Subschema) SetAttributeType(x *AttributeType) (ok bool) {
 	return r.set(x)
@@ -157,7 +157,7 @@ func (r Subschema) GetObjectClass(x string) *ObjectClass {
 }
 
 /*
-Set will assign x to the receiver, storing the content within the appropriate manifest.  A boolean value is returned indicative of success.
+Set will assign x to the receiver, storing the content within the appropriate collection.  A boolean value is returned indicative of success.
 */
 func (r *Subschema) SetObjectClass(x *ObjectClass) (ok bool) {
 	return r.set(x)
@@ -175,7 +175,7 @@ func (r Subschema) GetNameForm(x string) *NameForm {
 }
 
 /*
-Set will assign x to the receiver, storing the content within the appropriate manifest.  A boolean value is returned indicative of success.
+Set will assign x to the receiver, storing the content within the appropriate collection.  A boolean value is returned indicative of success.
 */
 func (r *Subschema) SetNameForm(x *NameForm) (ok bool) {
 	return r.set(x)
@@ -193,7 +193,7 @@ func (r Subschema) GetDITContentRule(x string) *DITContentRule {
 }
 
 /*
-Set will assign x to the receiver, storing the content within the appropriate manifest.  A boolean value is returned indicative of success.
+Set will assign x to the receiver, storing the content within the appropriate collection.  A boolean value is returned indicative of success.
 */
 func (r *Subschema) SetDITContentRule(x *DITContentRule) (ok bool) {
 	return r.set(x)
@@ -211,7 +211,7 @@ func (r Subschema) GetDITStructureRule(x string) *DITStructureRule {
 }
 
 /*
-Set will assign x to the receiver, storing the content within the appropriate manifest.  A boolean value is returned indicative of success.
+Set will assign x to the receiver, storing the content within the appropriate collection.  A boolean value is returned indicative of success.
 */
 func (r *Subschema) SetDITStructureRule(x *DITStructureRule) (ok bool) {
 	return r.set(x)
@@ -229,7 +229,7 @@ func (r Subschema) GetLDAPSyntax(x string) *LDAPSyntax {
 }
 
 /*
-Set will assign x to the receiver, storing the content within the appropriate manifest.  A boolean value is returned indicative of success.
+Set will assign x to the receiver, storing the content within the appropriate collection.  A boolean value is returned indicative of success.
 */
 func (r *Subschema) SetLDAPSyntax(x *LDAPSyntax) (ok bool) {
 	return r.set(x)
@@ -247,7 +247,7 @@ func (r Subschema) GetMatchingRule(x string) *MatchingRule {
 }
 
 /*
-Set will assign x to the receiver, storing the content within the appropriate manifest.  A boolean value is returned indicative of success.
+Set will assign x to the receiver, storing the content within the appropriate collection.  A boolean value is returned indicative of success.
 */
 func (r *Subschema) SetMatchingRule(x *MatchingRule) (ok bool) {
 	return r.set(x)
@@ -265,7 +265,7 @@ func (r Subschema) GetMatchingRuleUse(x string) *MatchingRuleUse {
 }
 
 /*
-Set will assign x to the receiver, storing the content within the appropriate manifest.  A boolean value is returned indicative of success.
+Set will assign x to the receiver, storing the content within the appropriate collection.  A boolean value is returned indicative of success.
 */
 func (r *Subschema) SetMatchingRuleUse(x *MatchingRuleUse) (ok bool) {
 	return r.set(x)

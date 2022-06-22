@@ -66,7 +66,7 @@ func Marshal(raw string, x interface{},
 		isnumoid := isNumericalOID(id[0])
 		if mac.IsZero() {
 			if !isnumoid {
-				return raise(invalidMarshal, "unresolvable alias '%s' (nil manifest)", id[0])
+				return raise(invalidMarshal, "unresolvable alias '%s' (nil extensions)", id[0])
 			}
 			def.values[0].Set(valueOf(NewOID(id[0])))
 		} else {
@@ -119,8 +119,10 @@ func Marshal(raw string, x interface{},
 				err = def.setName(idx, value...)
 			case `DESC`:
 				err = def.setDesc(idx, value[0])
-			case `BOOLS`:
-				err = def.setdefinitionFlags(label[0], x)
+			case `OBSOLETE`:
+				def.values[idx].SetBool(true)
+			case `FLAGS`:
+				err = def.setATFlags(label[0], x)
 			case `USAGE`:
 				err = def.setUsage(value[0], idx)
 			case `FORM`:
@@ -167,35 +169,8 @@ func Marshal(raw string, x interface{},
 	// marshaled bytes. Now we conduct validation
 	// checks to ensure said bytes were sane.
 	switch tv := x.(type) {
-	case *LDAPSyntax:
-		// we'll take an extra step to identify
-		// any syntax that is considered to be
-		// human readable either through a value
-		// of 'FALSE' for the X-NOT-HUMAN-READABLE
-		// well-known extension, or absence of said
-		// extension altogether.
-		if tv.Extensions.Exists(`X-NOT-HUMAN-READABLE`) {
-			if strInSlice(`FALSE`, tv.Extensions[`X-NOT-HUMAN-READABLE`]) {
-				tv.flags.set(HumanReadable)
-			}
-		} else {
-			tv.flags.set(HumanReadable)
-		}
-		err = tv.validate()
-	case *AttributeType:
-		err = tv.validate()
-	case *ObjectClass:
-		err = tv.validate()
-	case *NameForm:
-		err = tv.validate()
-	case *MatchingRule:
-		err = tv.validate()
-	case *MatchingRuleUse:
-		err = tv.validate()
-	case *DITContentRule:
-		err = tv.validate()
-	case *DITStructureRule:
-		err = tv.validate()
+	case Definition:
+		err = tv.Validate()
 	default:
 		err = raise(unexpectedType,
 			"Validator for %T not yet implemented", tv)
@@ -232,75 +207,75 @@ func Unmarshal(x interface{}) (string, error) {
 	case AttributeTypeCollection:
 		for i := 0; i < tv.Len(); i++ {
 			var def string
-                        if def, err = tv.Index(i).unmarshal(); err != nil {
+			if def, err = tv.Index(i).unmarshal(); err != nil {
 				return ``, err
 			}
 			defs += def + "\n\n"
 		}
 		return defs, nil
-        case ObjectClassCollection:
-                for i := 0; i < tv.Len(); i++ {
-                        var def string
-                        if def, err = tv.Index(i).unmarshal(); err != nil {
-                                return ``, err
-                        }
-                        defs += def + "\n\n"
-                }
-                return defs, nil
-        case LDAPSyntaxCollection:
-                for i := 0; i < tv.Len(); i++ {
-                        var def string
-                        if def, err = tv.Index(i).unmarshal(); err != nil {
-                                return ``, err
-                        }
-                        defs += def + "\n\n"
-                }
-                return defs, nil
-        case MatchingRuleCollection:
-                for i := 0; i < tv.Len(); i++ {
-                        var def string
-                        if def, err = tv.Index(i).unmarshal(); err != nil {
-                                return ``, err
-                        }
-                        defs += def + "\n\n"
-                }
-                return defs, nil
-        case MatchingRuleUseCollection:
-                for i := 0; i < tv.Len(); i++ {
-                        var def string
-                        if def, err = tv.Index(i).unmarshal(); err != nil {
-                                return ``, err
-                        }
-                        defs += def + "\n\n"
-                }
-                return defs, nil
-        case DITContentRuleCollection:
-                for i := 0; i < tv.Len(); i++ {
-                        var def string
-                        if def, err = tv.Index(i).unmarshal(); err != nil {
-                                return ``, err
-                        }
-                        defs += def + "\n\n"
-                }
-                return defs, nil
-        case NameFormCollection:
-                for i := 0; i < tv.Len(); i++ {
-                        var def string
-                        if def, err = tv.Index(i).unmarshal(); err != nil {
-                                return ``, err
-                        }
-                        defs += def + "\n\n"
-                }
-                return defs, nil
-        case DITStructureRuleCollection:
-                for i := 0; i < tv.Len(); i++ {
-                        var def string
-                        if def, err = tv.Index(i).unmarshal(); err != nil {
-                                return ``, err
-                        }
-                        defs += def + "\n\n"
-                }
-                return defs, nil
+	case ObjectClassCollection:
+		for i := 0; i < tv.Len(); i++ {
+			var def string
+			if def, err = tv.Index(i).unmarshal(); err != nil {
+				return ``, err
+			}
+			defs += def + "\n\n"
+		}
+		return defs, nil
+	case LDAPSyntaxCollection:
+		for i := 0; i < tv.Len(); i++ {
+			var def string
+			if def, err = tv.Index(i).unmarshal(); err != nil {
+				return ``, err
+			}
+			defs += def + "\n\n"
+		}
+		return defs, nil
+	case MatchingRuleCollection:
+		for i := 0; i < tv.Len(); i++ {
+			var def string
+			if def, err = tv.Index(i).unmarshal(); err != nil {
+				return ``, err
+			}
+			defs += def + "\n\n"
+		}
+		return defs, nil
+	case MatchingRuleUseCollection:
+		for i := 0; i < tv.Len(); i++ {
+			var def string
+			if def, err = tv.Index(i).unmarshal(); err != nil {
+				return ``, err
+			}
+			defs += def + "\n\n"
+		}
+		return defs, nil
+	case DITContentRuleCollection:
+		for i := 0; i < tv.Len(); i++ {
+			var def string
+			if def, err = tv.Index(i).unmarshal(); err != nil {
+				return ``, err
+			}
+			defs += def + "\n\n"
+		}
+		return defs, nil
+	case NameFormCollection:
+		for i := 0; i < tv.Len(); i++ {
+			var def string
+			if def, err = tv.Index(i).unmarshal(); err != nil {
+				return ``, err
+			}
+			defs += def + "\n\n"
+		}
+		return defs, nil
+	case DITStructureRuleCollection:
+		for i := 0; i < tv.Len(); i++ {
+			var def string
+			if def, err = tv.Index(i).unmarshal(); err != nil {
+				return ``, err
+			}
+			defs += def + "\n\n"
+		}
+		return defs, nil
 	case Definition:
 		return tv.unmarshal()
 	default:

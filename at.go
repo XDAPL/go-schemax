@@ -33,38 +33,38 @@ type AttributeTypeCollection interface {
 	// the provided *AttributeType instance to the receiver.
 	Set(*AttributeType) error
 
-        // Contains returns the index number and presence boolean that
-        // reflects the result of a term search within the receiver.
-        Contains(interface{}) (int, bool)
+	// Contains returns the index number and presence boolean that
+	// reflects the result of a term search within the receiver.
+	Contains(interface{}) (int, bool)
 
-        // String returns a properly-delimited sequence of string
-        // values, either as a Name or OID, for the receiver type.
-        String() string
+	// String returns a properly-delimited sequence of string
+	// values, either as a Name or OID, for the receiver type.
+	String() string
 
-        // Label returns the field name associated with the interface
-        // types, or a zero string if no label is appropriate.
-        Label() string
+	// Label returns the field name associated with the interface
+	// types, or a zero string if no label is appropriate.
+	Label() string
 
-        // IsZero returns a boolean value indicative of whether the
-        // receiver is considered zero, or undefined.
-        IsZero() bool
+	// IsZero returns a boolean value indicative of whether the
+	// receiver is considered zero, or undefined.
+	IsZero() bool
 
-        // Len returns an integer value indicative of the current
-        // number of elements stored within the receiver.
-        Len() int
+	// Len returns an integer value indicative of the current
+	// number of elements stored within the receiver.
+	Len() int
 
-        // SetSpecifier assigns a string value to all definitions within
-        // the receiver. This value is used in cases where a definition
-        // type name (e.g.: attributetype, objectclass, etc.) is required.
-        // This value will be displayed at the beginning of the definition
-        // value during the unmarshal or unsafe stringification process.
-        SetSpecifier(string)
+	// SetSpecifier assigns a string value to all definitions within
+	// the receiver. This value is used in cases where a definition
+	// type name (e.g.: attributetype, objectclass, etc.) is required.
+	// This value will be displayed at the beginning of the definition
+	// value during the unmarshal or unsafe stringification process.
+	SetSpecifier(string)
 
-        // SetUnmarshaler assigns the provided DefinitionUnmarshaler
-        // signature to all definitions within the receiver. The provided
-        // function shall be executed during the unmarshal or unsafe
-        // stringification process.
-        SetUnmarshaler(DefinitionUnmarshaler)
+	// SetUnmarshaler assigns the provided DefinitionUnmarshaler
+	// signature to all definitions within the receiver. The provided
+	// function shall be executed during the unmarshal or unsafe
+	// stringification process.
+	SetUnmarshaler(DefinitionUnmarshaler)
 }
 
 /*
@@ -80,20 +80,21 @@ const (
 )
 
 /*
-AttributeType conforms to the specifications of RFC4512 Section 4.1.2. Boolean values, e.g: 'OBSOLETE', are supported internally and are not explicit fields.
+AttributeType conforms to the specifications of RFC4512 Section 4.1.2.
 */
 type AttributeType struct {
 	OID         OID
 	Name        Name
 	Description Description
+	Obsolete    bool
 	SuperType   SuperiorAttributeType
 	Equality    Equality
 	Ordering    Ordering
 	Substring   Substring
 	Syntax      *LDAPSyntax
 	Usage       Usage
-	Extensions  Extensions
-	flags       definitionFlags
+	Extensions  *Extensions
+	flags       atFlags
 	mub         uint
 	ufn         DefinitionUnmarshaler
 	spec        string
@@ -113,6 +114,20 @@ String is an unsafe convenience wrapper for Unmarshal(r). If an error is encount
 func (r *AttributeType) String() (def string) {
 	def, _ = r.unmarshal()
 	return
+}
+
+/*
+HumanReadable is a convenience wrapper for Extensions.HumanReadable(), which returns a boolean value indicative of human readability. If super typing is in effect, an attempt to determine human readability by recursive inheritance is made. Failing this, if the receiver is assigned an *LDAPSyntax value, it is evaluated similarly. A fallback of true is returned as a last recourse.
+*/
+func (r *AttributeType) HumanReadable() bool {
+	if !r.SuperType.IsZero() {
+		return r.SuperType.HumanReadable()
+	}
+	if !r.Syntax.IsZero() {
+		return r.Syntax.HumanReadable()
+	}
+
+	return true
 }
 
 /*
@@ -207,9 +222,9 @@ func (r *AttributeTypes) SetSpecifier(spec string) {
 SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
 */
 func (r *AttributeTypes) SetUnmarshaler(fn DefinitionUnmarshaler) {
-        for i := 0; i < r.Len(); i++ {
-                r.Index(i).SetUnmarshaler(fn)
-        }
+	for i := 0; i < r.Len(); i++ {
+		r.Index(i).SetUnmarshaler(fn)
+	}
 }
 
 /*
@@ -337,7 +352,7 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r *AttributeType) Equal(x interface{}) (equals bool) {
+func (r *AttributeType) Equal(x interface{}) (eq bool) {
 	var z *AttributeType
 	switch tv := x.(type) {
 	case *AttributeType:
@@ -349,7 +364,7 @@ func (r *AttributeType) Equal(x interface{}) (equals bool) {
 	}
 
 	if z.IsZero() && r.IsZero() {
-		equals = true
+		eq = true
 		return
 	} else if z.IsZero() || r.IsZero() {
 		return
@@ -393,9 +408,25 @@ func (r *AttributeType) Equal(x interface{}) (equals bool) {
 		return
 	}
 
-	equals = r.Extensions.Equal(z.Extensions)
+	noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
+	if !noexts {
+		eq = r.Extensions.Equal(z.Extensions)
+	} else {
+		eq = true
+	}
 
 	return
+}
+
+/*
+NewAttributeType returns a newly initialized, yet effectively nil, instance of *AttributeType.
+
+Users generally do not need to execute this function unless an instance of the returned type will be manually populated (as opposed to parsing a raw text definition).
+*/
+func NewAttributeType() *AttributeType {
+	at := new(AttributeType)
+	at.Extensions = NewExtensions()
+	return at
 }
 
 /*
@@ -525,13 +556,13 @@ func (r *AttributeType) setMUB(mub interface{}) {
 }
 
 /*
-is returns a boolean value indicative of whether the provided interface argument is either an enabled definitionFlags value, or an associated *MatchingRule or *LDAPSyntax.
+is returns a boolean value indicative of whether the provided interface argument is either an enabled atFlags value, or an associated *MatchingRule or *LDAPSyntax.
 
 In the case of an *LDAPSyntax argument, if the receiver is in fact a sub type of another *AttributeType instance, a reference to that super type is chased and analyzed accordingly.
 */
 func (r *AttributeType) is(b interface{}) bool {
 	switch tv := b.(type) {
-	case definitionFlags:
+	case atFlags:
 		return r.flags.is(tv)
 	case *MatchingRule:
 		switch {
@@ -769,12 +800,13 @@ func (r *AttributeType) Map() (def map[string][]string) {
 	}
 
 	if !r.Extensions.IsZero() {
-		for k, v := range r.Extensions {
-			def[k] = v
+		for i := 0; i < r.Extensions.Len(); i++ {
+			ext := r.Extensions.Index(i)
+			def[ext.Label] = ext.Value
 		}
 	}
 
-	if r.Obsolete() {
+	if r.Obsolete {
 		def[`OBSOLETE`] = []string{`TRUE`}
 	}
 
@@ -809,7 +841,7 @@ func AttributeTypeUnmarshaler(x interface{}) (def string, err error) {
 		r = tv
 	default:
 		err = raise(unexpectedType,
-                        "Bad type for unmarshal (%T)", tv)
+			"Bad type for unmarshal (%T)", tv)
 		return
 	}
 
@@ -836,8 +868,8 @@ func AttributeTypeUnmarshaler(x interface{}) (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.Obsolete() {
-		def += idnt + Obsolete.String()
+	if r.Obsolete {
+		def += idnt + `OBSOLETE`
 	}
 
 	if !r.SuperType.IsZero() {
@@ -885,9 +917,11 @@ func AttributeTypeUnmarshaler(x interface{}) (def string, err error) {
 		def += WHSP + r.Usage.String()
 	}
 
-	if !r.Extensions.IsZero() {
-		def += idnt + r.Extensions.String()
-	}
+        for i := 0 ; i < r.Extensions.Len(); i++ {
+                if ext := r.Extensions.Index(i); !ext.IsZero() {
+                        def += idnt + ext.String()
+                }
+        }
 
 	def += WHSP + tail
 
@@ -929,8 +963,8 @@ func (r *AttributeType) unmarshalBasic() (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.Obsolete() {
-		def += WHSP + Obsolete.String()
+	if r.Obsolete {
+		def += WHSP + `OBSOLETE`
 	}
 
 	if !r.SuperType.IsZero() {
@@ -985,4 +1019,183 @@ func (r *AttributeType) unmarshalBasic() (def string, err error) {
 	def += WHSP + tail
 
 	return
+}
+
+/*
+atFlags is an unsigned 8-bit integer that describes zero or more perceived values that only appear visually when TRUE. Such verisimilitude is revealed by the presence of the indicated atFlags value's "label" name, such as `SINGLE-VALUE`.  The actual value "TRUE" is never actually seen in textual format.
+*/
+type atFlags uint8
+
+const (
+        SingleValue        atFlags = 1 << iota // 1
+        Collective                             // 2
+        NoUserModification                     // 4
+)
+
+func (r atFlags) IsZero() bool {
+        return uint8(r) == 0
+}
+
+/*
+is returns a boolean value indicative of whether the specified value is enabled within the receiver instance.
+*/
+func (r atFlags) is(o atFlags) bool {
+        return r.enabled(o)
+}
+
+/*
+String is a stringer method that returns the name(s) atFlags receiver in question, whether it represents multiple boolean flags or only one.
+
+If only a specific atFlags string is desired (if enabled), use atFlags.<Name>() (e.g: atFlags.SingleValue()).
+*/
+func (r atFlags) String() (val string) {
+
+        // Look for so-called "pure"
+        // boolean values first ...
+        switch r {
+        case NoUserModification:
+                return `NO-USER-MODIFICATION`
+        case SingleValue:
+                return `SINGLE-VALUE`
+        case Collective:
+                return `COLLECTIVE`
+        }
+
+        // Assume multiple boolean bits
+        // are set concurrently ...
+        strs := []atFlags{
+                Collective,
+                SingleValue,
+                NoUserModification,
+        }
+
+        vals := make([]string, 0)
+        for _, v := range strs {
+                if r.enabled(v) {
+                        vals = append(vals, v.String())
+                }
+        }
+
+        if len(vals) != 0 {
+                val = join(vals, ` `)
+        }
+
+        return
+}
+
+/*
+SingleValue returns the `SINGLE-VALUE` flag if the appropriate bits are set within the receiver instance.
+*/
+func (r atFlags) SingleValue() string {
+        if r.enabled(SingleValue) {
+                return r.String()
+        }
+
+        return ``
+}
+
+/*
+Collective returns the `COLLECTIVE` flag if the appropriate bits are set within the receiver instance.
+*/
+func (r atFlags) Collective() string {
+        if r.enabled(Collective) {
+                return r.String()
+        }
+
+        return ``
+}
+
+/*
+NoUserModification returns the `NO-USER-MODIFICATION` flag if the appropriate bits are set within the receiver instance.
+*/
+func (r atFlags) NoUserModification() string {
+        if r.enabled(NoUserModification) {
+                return r.String()
+        }
+
+        return ``
+}
+
+/*
+Unset removes the specified atFlags bits from the receiver instance of atFlags, thereby "disabling" the provided option.
+*/
+func (r *atFlags) Unset(o atFlags) {
+        r.unset(o)
+}
+
+/*
+Set adds the specified atFlags bits to the receiver instance of atFlags, thereby "enabling" the provided option.
+*/
+func (r *atFlags) Set(o atFlags) {
+        r.set(o)
+}
+
+func (r *atFlags) set(o atFlags) {
+        *r = *r ^ o
+}
+
+func (b *atFlags) unset(o atFlags) {
+        *b = *b &^ o
+}
+
+func (r atFlags) enabled(o atFlags) bool {
+        return r&o != 0
+}
+
+/*
+setatFlags is a private method used by reflect to set boolean values.
+*/
+func (r *AttributeType) setATFlags(b atFlags) {
+        r.flags.set(b)
+}
+
+/*
+SetCollective marks the receiver as COLLECTIVE.
+*/
+func (r *AttributeType) SetCollective() {
+        r.flags.set(Collective)
+}
+
+/*
+Collective returns a boolean value indicative of whether the receiver describes a COLLECTIVE attribute type.
+*/
+func (r *AttributeType) Collective() bool {
+        return r.flags.is(Collective)
+}
+
+/*
+SetCollective marks the receiver as NO-USER-MODIFICATION.
+*/
+func (r *AttributeType) SetNoUserModification() {
+        r.flags.set(NoUserModification)
+}
+
+/*
+NoUserModification returns a boolean value indicative of whether the receiver describes a NO-USER-MODIFICATION attribute type.
+*/
+func (r *AttributeType) NoUserModification() bool {
+        return r.flags.is(NoUserModification)
+}
+
+/*
+SetSingleValue marks the receiver as SINGLE-VALUE.
+*/
+func (r *AttributeType) SetSingleValue() {
+        r.flags.set(SingleValue)
+}
+
+/*
+SingleValue returns a boolean value indicative of whether the receiver describes a SINGLE-VALUE attribute type.
+*/
+func (r *AttributeType) SingleValue() bool {
+        return r.flags.is(SingleValue)
+}
+
+func validateFlag(b atFlags) (err error) {
+        if b.is(Collective) && b.is(SingleValue) {
+                return raise(invalidFlag,
+                        "Cannot have single-valued collective attribute")
+        }
+
+        return
 }

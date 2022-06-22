@@ -103,7 +103,7 @@ func ExampleNewNameForms() {
 func ExampleNewExtensions() {
 	ext := NewExtensions()
 	fmt.Printf("%T is zero: %t", ext, ext.IsZero())
-	// Output: schemax.Extensions is zero: true
+	// Output: *schemax.Extensions is zero: true
 }
 
 func ExampleMatchingRule_Equal() {
@@ -346,37 +346,9 @@ func ExampleMarshal_newAttributeType() {
 		panic(err)
 	}
 
-	fmt.Printf("%T is obsolete: %t\n", x, x.Obsolete())
+	fmt.Printf("%T is obsolete: %t\n", x, x.Obsolete)
 	// Output: schemax.AttributeType is obsolete: true
 }
-
-/*
-func ExampleMarshal_newAttributeTypeWithFormatting() {
-        lsc := PopulateDefaultLDAPSyntaxes()
-        mrc := PopulateDefaultMatchingRules()
-
-        def := `( 1.3.6.1.4.1.56521.999.104.17.2.1.10
-                NAME ( 'jessesNewAttr' 'jesseAltName' )
-                DESC 'This is an example AttributeType definition'
-                OBSOLETE SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
-                EQUALITY caseIgnoreMatch X-ORIGIN 'Jesse Coretta' )`
-
-        var x AttributeType
-	x.SetUnmarshaler(x.AttributeTypeUnmarshalFunc)
-        err := Marshal(def, &x, nil, nil, lsc, mrc, nil, nil, nil, nil)
-        if err != nil {
-                panic(err)
-        }
-
-	var back string
-	if back, err = Unmarshal(&x); err != nil {
-                panic(err)
-        }
-
-        fmt.Printf("%T is obsolete: %t\n", x, x.Obsolete())
-        // Output: schemax.AttributeType is obsolete: true
-}
-*/
 
 func ExampleMarshal_newObjectClass() {
 	atc := PopulateDefaultAttributeTypes()
@@ -1254,6 +1226,366 @@ func ExampleProhibitedAttributeTypes_Label() {
 	lab := not.Label()
 	fmt.Printf("%T label: %s (len:%d)\n", not, lab, len(lab))
 	// Output: schemax.ProhibitedAttributeTypes label: NOT (len:3)
+}
+
+func ExampleMatchingRule_manualComposition() {
+	// This example demonstrates an ALTERNATIVE to
+	// raw definition parsing, instead allowing any
+	// given definition to be created from scratch
+	// in a more object oriented fashion.
+
+	// First, create a minimal subschema just to lookup
+	// dependencies such as an LDAPSyntax instance. Skip
+	// if you've already got your own subschema instance
+	// to use.
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+
+	// Get (and confirm) needed syntax
+	syn := sch.LSC.Get(`1.3.6.1.4.1.1466.115.121.1.15`)
+	if syn.IsZero() {
+		// handle your fatal error ...
+	}
+
+	// Create a new instance of *MatchingRule
+	// and populate as needed.
+	def := NewMatchingRule()
+	def.Name = NewName(`caseIgnoreMatch`)
+	def.OID = NewOID(`2.5.13.2`)
+	def.Syntax = syn
+	def.Extensions.Set(`X-ORIGIN`, `RFC4517`)
+
+	// Make sure validation checks return NO
+	// errors before using your definition!
+	if err := def.Validate(); err != nil {
+		// handle your fatal error
+	}
+
+	// All checks pass! Use your new definition as needed!
+}
+
+func ExampleMatchingRuleUse_manualComposition() {
+	// This example demonstrates an ALTERNATIVE to
+	// raw definition parsing, instead allowing any
+	// given definition to be created from scratch
+	// in a more object oriented fashion. Please note
+	// it is very unusual for matchingRuleUse instances
+	// to be created manually in this fashion.
+
+	// First, create a minimal subschema just to lookup
+	// dependencies such as an LDAPSyntax instance. Skip
+	// if you've already got your own subschema instance
+	// to use.
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+
+	// Create a new instance of *MatchingRule
+	// and populate as needed.
+	def := NewMatchingRuleUse()
+	def.Name = NewName(`objectIdentifierFirstComponentMatch`)
+	def.OID = NewOID(`2.5.13.30`)
+
+	// specify a list of attributetypes applicable to the
+	// matchingRule identified by 2.5.13.30.
+	applied := []string{
+		`objectClasses`,
+		`attributeTypes`,
+		`matchingRules`,
+		`matchingRuleUse`,
+		`ldapSyntaxes`,
+		`dITContentRules`,
+		`nameForms`,
+	}
+
+	// Cycle through the above list of applied
+	// *AttributeType names, looking-up and
+	// setting each one within the MRU.
+	for _, apply := range applied {
+		if at := sch.GetAttributeType(apply); !at.IsZero() {
+			def.Applies.Set(at)
+		}
+	}
+
+	// Make sure validation checks return NO
+	// errors before using your definition!
+	if err := def.Validate(); err != nil {
+		// handle your fatal error
+	}
+
+	// All checks pass! Use your new definition as needed!
+}
+
+func ExampleAttributeType_manualComposition() {
+	// This example demonstrates an ALTERNATIVE to
+	// raw definition parsing, instead allowing any
+	// given definition to be created from scratch
+	// in a more object oriented fashion.
+
+	// First, create a minimal subschema just to lookup
+	// dependencies such as an LDAPSyntax or Matching
+	// Rule. Skip if you've already got your own subschema
+	// instance to use.
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+
+	mr := sch.GetMatchingRule(`caseIgnoreMatch`)
+	syn := sch.GetLDAPSyntax(`1.3.6.1.4.1.1466.115.121.1.15`)
+
+	// Make sure we got both of the above
+	// dependency components.
+	if mr.IsZero() || syn.IsZero() {
+		// handle your fatal error ...
+	}
+
+	// Brand our matching rule as
+	// an EQUALITY matching rule.
+	eq := Equality{mr}
+
+	// Create a new instance of *AttributeType
+	// and populate as needed.
+	def := NewAttributeType()
+	def.OID = NewOID(`1.3.6.1.4.1.56521.999.1.2.3.1`)
+	def.Name = NewName(`genericExampleAttribute`, `attrAltName`)
+	def.Syntax = syn
+	def.Equality = eq
+	def.Description = Description(`Generic example attribute`)
+	def.SetSingleValue()
+
+	// Make sure validation checks return NO
+	// errors before using your definition!
+	if err := def.Validate(); err != nil {
+		// handle your fatal error
+	}
+
+	// All checks pass! Use your new definition as needed!
+}
+
+func ExampleObjectClass_manualComposition() {
+	// This example demonstrates an ALTERNATIVE to
+	// raw definition parsing, instead allowing any
+	// given definition to be created from scratch
+	// in a more object oriented fashion.
+
+	// First, create a minimal subschema just to lookup
+	// AttributeType instance required or permitted by
+	// a given ObjectClass. Skip if you've already got
+	// your own subschema instance to use.
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+
+	// Create a new instance of *ObjectClass
+	// and populate as needed.
+	def := NewObjectClass()
+	def.OID = NewOID(`1.3.6.1.4.1.56521.999.1.2.4.1`)
+	def.Name = NewName(`genericExampleClass`, `classAltName`)
+	def.Description = Description(`Generic example class`)
+	def.Kind = Auxiliary // REQUIRED: choose ONE of Auxiliary, Structural or Abstract
+
+	// Direct our new class to mandate the use of cn, o and mail
+	// attribute types. Alter as needed.
+	for _, must := range []string{`cn`, `o`, `mail`} {
+		if at := sch.GetAttributeType(must); !at.IsZero() {
+			def.Must.Set(at)
+		}
+	}
+
+	// Direct our new class to allow the OPTIONAL use of c, description
+	// givenName and sn attribute types. Alter as needed.
+	for _, may := range []string{`c`, `description`, `givenName`, `sn`} {
+		if at := sch.GetAttributeType(may); !at.IsZero() {
+			def.May.Set(at)
+		}
+	}
+
+	// Make sure validation checks return NO
+	// errors before using your definition!
+	if err := def.Validate(); err != nil {
+		// handle your fatal error
+	}
+
+	// All checks pass! Use your new definition as needed!
+}
+
+func ExampleDITContentRule_manualComposition() {
+	// This example demonstrates an ALTERNATIVE to
+	// raw definition parsing, instead allowing any
+	// given definition to be created from scratch
+	// in a more object oriented fashion.
+
+	// First, create a minimal subschema just to lookup
+	// ObjectClass or AttributeType instance required,
+	// permitted or forbidden by a given DITContentRule.
+	// Skip if you've already got your own subschema
+	// instance to use.
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+	sch.OCC = PopulateDefaultObjectClasses()
+
+	// Create a new instance of *DITContentRule
+	// and populate as needed.
+	def := NewDITContentRule()
+
+	// The OID MUST match the OID of the STRUCTURAL
+	// objectClass assigned to entries intended for
+	// governing by this rule! This example uses
+	// the 'account' objectClass OID from RFC4524:
+	def.OID = NewOID(`0.9.2342.19200300.100.4.5`)
+	def.Name = NewName(`genericExampleRule`, `ruleAltName`)
+	def.Description = Description(`Generic example content rule`)
+
+	// Direct our new class to mandate the use of cn, o and mail
+	// attribute types. Alter as needed.
+	for _, must := range []string{`cn`, `o`, `mail`} {
+		if at := sch.GetAttributeType(must); !at.IsZero() {
+			def.Must.Set(at)
+		}
+	}
+
+	// Direct our new class to allow the OPTIONAL use of c, description
+	// givenName and sn attribute types. Alter as needed.
+	for _, may := range []string{`c`, `description`, `givenName`, `sn`} {
+		if at := sch.GetAttributeType(may); !at.IsZero() {
+			def.May.Set(at)
+		}
+	}
+
+	// Direct our new class to DISALLOW the use of c, description
+	// givenName and sn attribute types. Alter as needed.
+	for _, not := range []string{`co`, `l`} {
+		if at := sch.GetAttributeType(not); !at.IsZero() {
+			def.Not.Set(at)
+		}
+	}
+
+	// Direct our new rule to allow the use of specific auxiliary
+	// objectClasses. Alter as needed.
+	for _, aux := range []string{`posixAccount`, `shadowAccount`} {
+		if at := sch.GetObjectClass(aux); !at.IsZero() {
+			def.Aux.Set(at)
+		}
+	}
+
+	// Make sure validation checks return NO
+	// errors before using your definition!
+	if err := def.Validate(); err != nil {
+		// handle your fatal error
+	}
+
+	// All checks pass! Use your new definition as needed!
+}
+
+func ExampleDITStructureRule_manualComposition() {
+	// This example demonstrates an ALTERNATIVE to
+	// raw definition parsing, instead allowing any
+	// given definition to be created from scratch
+	// in a more object oriented fashion.
+
+	// First, create a minimal subschema just to lookup
+	// ObjectClass or AttributeType instance required,
+	// permitted or forbidden by a given DITContentRule.
+	// Skip if you've already got your own subschema
+	// instance to use.
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+	sch.OCC = PopulateDefaultObjectClasses()
+
+	// Some things we'll need -- alter as desired.
+	person := sch.GetObjectClass(`person`)
+	cn := sch.GetAttributeType(`cn`)
+	ou := sch.GetAttributeType(`ou`)
+
+	// We need a nameform instance to enable
+	// this structure rule, so we'll create one here.
+	nf := NewNameForm()
+	nf.OID = NewOID(`1.3.6.1.4.1.56521.999.1.2.5.1`)
+	nf.Name = NewName(`genericNameForm`)
+	nf.Description = Description(`Generic test nameForm`)
+	nf.OC = StructuralObjectClass{person}
+	nf.Must.Set(cn)
+	nf.May.Set(ou)
+
+	// Create a new instance of *DITContentRule
+	// and populate as needed.
+	def := NewDITStructureRule()
+	def.ID = NewRuleID(0)
+	def.Name = NewName(`genericTestRule`, `ruleAltName`)
+	def.Description = Description(`Generic test rule`)
+	def.Form = nf
+
+	// Make sure validation checks return NO
+	// errors before using your definition!
+	if err := def.Validate(); err != nil {
+		// handle your fatal error
+	}
+
+	// All checks pass! Use your new definition as needed!
+}
+
+func ExampleNameForm_manualComposition() {
+	// This example demonstrates an ALTERNATIVE to
+	// raw definition parsing, instead allowing any
+	// given definition to be created from scratch
+	// in a more object oriented fashion.
+
+	// First, create a minimal subschema just to lookup
+	// dependencies as needed. Skip if you've already got
+	// your own subschema instance to use.
+	sch := NewSubschema()
+	sch.LSC = PopulateDefaultLDAPSyntaxes()
+	sch.MRC = PopulateDefaultMatchingRules()
+	sch.ATC = PopulateDefaultAttributeTypes()
+	sch.OCC = PopulateDefaultObjectClasses()
+
+	// Some things we'll need -- alter as desired.
+	person := sch.GetObjectClass(`person`)
+	cn := sch.GetAttributeType(`cn`)
+	ou := sch.GetAttributeType(`ou`)
+
+	def := NewNameForm()
+	def.OID = NewOID(`1.3.6.1.4.1.56521.999.1.2.5.1`)
+	def.Name = NewName(`genericExampleNameForm`)
+	def.Description = Description(`Generic test nameForm`)
+	def.OC = StructuralObjectClass{person}
+	def.Must.Set(cn)
+	def.May.Set(ou)
+
+	// Make sure validation checks return NO
+	// errors before using your definition!
+	if err := def.Validate(); err != nil {
+		// handle your fatal error
+	}
+
+	// All checks pass! Use your new definition as needed!
+}
+
+func ExampleLDAPSyntax_manualComposition() {
+	// This example demonstrates an ALTERNATIVE to
+	// raw definition parsing, instead allowing any
+	// given definition to be created from scratch
+	// in a more object oriented fashion.
+
+	def := NewLDAPSyntax()
+	def.OID = NewOID(`1.3.6.1.4.1.1466.115.121.1.4`)
+	def.Description = Description(`Audio`)
+	def.Extensions.Set(`X-NOT-HUMAN-READABLE`, `TRUE`)
+	def.Extensions.Set(`X-ORIGIN`, `RFC4517`)
+
+	// Make sure validation checks return NO
+	// errors before using your definition!
+	if err := def.Validate(); err != nil {
+		// handle your fatal error
+	}
+
+	// All checks pass! Use your new definition as needed!
 }
 
 func ExampleAttributeType_SingleValue() {

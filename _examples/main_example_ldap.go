@@ -28,8 +28,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/go-ldap/ldap/v3"
 	"github.com/JesseCoretta/go-schemax"
+	"github.com/go-ldap/ldap/v3"
 )
 
 func main() {
@@ -211,61 +211,61 @@ func main() {
 		fmt.Printf("%s\n", ls)
 	}
 
-        if mr, err := schemax.Unmarshal(subschema.MRC); err != nil {
-                fmt.Println(err)
-        } else {
-                fmt.Printf("\n############################################################\n")
+	if mr, err := schemax.Unmarshal(subschema.MRC); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("\n############################################################\n")
 		fmt.Printf("## Parsed matchingRules: %d\n\n", subschema.MRC.Len())
-                fmt.Printf("%s\n", mr)
-        }
+		fmt.Printf("%s\n", mr)
+	}
 
-        if at, err := schemax.Unmarshal(subschema.ATC); err != nil {
-                fmt.Println(err)
-        } else {
-                fmt.Printf("\n############################################################\n")
+	if at, err := schemax.Unmarshal(subschema.ATC); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("\n############################################################\n")
 		fmt.Printf("## Parsed attributeTypes: %d\n\n", subschema.ATC.Len())
-                fmt.Printf("%s\n", at)
-        }
+		fmt.Printf("%s\n", at)
+	}
 
-        if mru, err := schemax.Unmarshal(subschema.MRUC); err != nil {
-                fmt.Println(err)
-        } else {
-                fmt.Printf("\n############################################################\n")
+	if mru, err := schemax.Unmarshal(subschema.MRUC); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("\n############################################################\n")
 		fmt.Printf("## Parsed matchingRuleUses: %d\n\n", subschema.MRUC.Len())
-                fmt.Printf("%s\n", mru)
-        }
+		fmt.Printf("%s\n", mru)
+	}
 
-        if oc, err := schemax.Unmarshal(subschema.OCC); err != nil {
-                fmt.Println(err)
-        } else {
-                fmt.Printf("\n############################################################\n")
+	if oc, err := schemax.Unmarshal(subschema.OCC); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("\n############################################################\n")
 		fmt.Printf("## Parsed objectClasses: %d\n\n", subschema.OCC.Len())
-                fmt.Printf("%s\n", oc)
-        }
+		fmt.Printf("%s\n", oc)
+	}
 
-        if dcr, err := schemax.Unmarshal(subschema.DCRC); err != nil {
-                fmt.Println(err)
-        } else {
-                fmt.Printf("\n############################################################\n")
+	if dcr, err := schemax.Unmarshal(subschema.DCRC); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("\n############################################################\n")
 		fmt.Printf("## Parsed dITContentRules: %d\n\n", subschema.DCRC.Len())
-                fmt.Printf("%s\n", dcr)
-        }
+		fmt.Printf("%s\n", dcr)
+	}
 
-        if nf, err := schemax.Unmarshal(subschema.NFC); err != nil {
-                fmt.Println(err)
-        } else {
-                fmt.Printf("\n############################################################\n")
+	if nf, err := schemax.Unmarshal(subschema.NFC); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("\n############################################################\n")
 		fmt.Printf("## Parsed nameForms: %d\n\n", subschema.NFC.Len())
-                fmt.Printf("%s\n", nf)
-        }
+		fmt.Printf("%s\n", nf)
+	}
 
-        if dsr, err := schemax.Unmarshal(subschema.DSRC); err != nil {
-                fmt.Println(err)
-        } else {
-                fmt.Printf("\n############################################################\n")
+	if dsr, err := schemax.Unmarshal(subschema.DSRC); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("\n############################################################\n")
 		fmt.Printf("## Parsed dITStructureRules: %d\n\n", subschema.DSRC.Len())
-                fmt.Printf("%s\n", dsr)
-        }
+		fmt.Printf("%s\n", dsr)
+	}
 
 	fmt.Printf("\n## END SCHEMA\n")
 	fmt.Printf("##########################\n\n")

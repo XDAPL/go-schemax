@@ -124,6 +124,14 @@ func (r collection) equal(x collection) (equals bool) {
 			if !tv.Equal(assert) {
 				return
 			}
+		case *Extension:
+			assert, ok := x.index(i).(*Extension)
+			if !ok {
+				return
+			}
+			if !tv.Equal(assert) {
+				return
+			}
 		case string:
 			assert, ok := x.index(i).(string)
 			if !ok {
@@ -228,6 +236,8 @@ func (c collection) containsName(x string) (index int, found bool) {
 		}
 
 		switch tve := el.(type) {
+		case *Extension:
+			found = equalFold(tve.Label, x)
 		case *MatchingRule:
 			found = tve.Name.Equal(x)
 		case *AttributeType:
@@ -333,12 +343,34 @@ func (c collection) contains(x interface{}) (index int, found bool) {
 	return
 }
 
+func (c *collection) delete(idx int) {
+	if chk := c.index(idx); chk == nil {
+		return
+	}
+
+	if c.len() == 0 {
+		return
+	}
+
+	c2 := make(collection, c.len()-1)
+	for i := range *c {
+		if i == idx {
+			continue
+		}
+
+		c2.append((*c)[i])
+	}
+
+	*c = c2
+}
+
 /*
 append assigns the provided interface value to the receiver. An error is returned if there is a type-mismatch, or if an unsupported type is provided. This method is not thread-safe unto itself, and should only be called in situations where thread protection is provided at a higher level.
 */
 func (c *collection) append(x interface{}) error {
 	switch tv := x.(type) {
-	case *LDAPSyntax,
+	case *Extension,
+		*LDAPSyntax,
 		*MatchingRule,
 		*Equality,
 		*Substring,

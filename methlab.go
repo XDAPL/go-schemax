@@ -12,21 +12,9 @@ parseMeth is the first class function bearing a signature shared by all fundamen
 type parseMeth func(string) ([]string, string, bool)
 
 /*
-labelIsValid returns a boolean value indicative of whether the field name is valid in that it begins with an `X-`.
-*/
-func (r Extensions) labelIsValid(label string) (valid bool) {
-	if len(label) < 2 {
-		return
-	}
-	valid = label[:2] == `X-`
-
-	return
-}
-
-/*
 Label returns the known label for the receiver, if one exists.
 */
-func (r definitionFlags) Label() string {
+func (r atFlags) Label() string {
 	return `` // no visible label
 }
 
@@ -241,15 +229,16 @@ func (r AttributeType) labelMap() map[int]string {
 		0:  `OID`,                           // (OID)
 		1:  Name{}.Label(),                  // NAME
 		2:  Description(``).Label(),         // DESC
-		3:  SuperiorAttributeType{}.Label(), // SUP
-		4:  Equality{}.Label(),              // EQUALITY
-		5:  Ordering{}.Label(),              // ORDERING
-		6:  Substring{}.Label(),             // SUBSTR|SUBSTRING
-		7:  LDAPSyntax{}.Label(),            // SYNTAX
-		8:  Usage(0).Label(),                // USAGE
-		9:  `EXT`,                           // (EXT)
-		10: `BOOLS`,                         // [OBSOLETE,SINGLE-VALUE,NO-USER-MODIFICATION,COLLECTIVE]
-		11: `MUB`,                           // unsigned non-zero integer setting min. length
+		3: `OBSOLETE`,                      // [OBSOLETE]
+		4:  SuperiorAttributeType{}.Label(), // SUP
+		5:  Equality{}.Label(),              // EQUALITY
+		6:  Ordering{}.Label(),              // ORDERING
+		7:  Substring{}.Label(),             // SUBSTR|SUBSTRING
+		8:  LDAPSyntax{}.Label(),            // SYNTAX
+		9:  Usage(0).Label(),                // USAGE
+		10:  `EXT`,                           // (EXT)
+		11: `FLAGS`,                         // [OBSOLETE,SINGLE-VALUE,NO-USER-MODIFICATION,COLLECTIVE]
+		12: `MUB`,                           // unsigned non-zero integer
 	}
 }
 
@@ -261,12 +250,12 @@ func (r ObjectClass) labelMap() map[int]string {
 		0: `OID`,                             // (OID)
 		1: Name{}.Label(),                    // NAME
 		2: Description(``).Label(),           // DESC
-		3: SuperiorAttributeType{}.Label(),   // SUP
-		4: `KIND`,                            // [ABSTRACT|STRUCTURAL|AUXILIARY]
-		5: RequiredAttributeTypes{}.Label(),  // MUST
-		6: PermittedAttributeTypes{}.Label(), // MAY
-		7: `EXT`,                             // (EXT)
-		8: `BOOLS`,                           // [OBSOLETE]
+		3: `OBSOLETE`,                        // [OBSOLETE]
+		4: SuperiorAttributeType{}.Label(),   // SUP
+		5: `KIND`,                            // [ABSTRACT|STRUCTURAL|AUXILIARY]
+		6: RequiredAttributeTypes{}.Label(),  // MUST
+		7: PermittedAttributeTypes{}.Label(), // MAY
+		8: `EXT`,                             // (EXT)
 	}
 }
 
@@ -278,9 +267,9 @@ func (r MatchingRule) labelMap() map[int]string {
 		0: `OID`,                   // (OID)
 		1: Name{}.Label(),          // NAME
 		2: Description(``).Label(), // DESC
-		3: LDAPSyntax{}.Label(),    // SYNTAX
-		4: `EXT`,                   // (EXT)
-		5: `BOOLS`,                 // [OBSOLETE]
+		3: `OBSOLETE`,              // [OBSOLETE]
+		4: LDAPSyntax{}.Label(),    // SYNTAX
+		5: `EXT`,                   // (EXT)
 	}
 }
 
@@ -292,7 +281,6 @@ func (r LDAPSyntax) labelMap() map[int]string {
 		0: `OID`,                   // (OID)
 		1: Description(``).Label(), // DESC
 		2: `EXT`,                   // (EXT)
-		3: `BOOLS`,                 // [HUMAN-READABLE]
 	}
 }
 
@@ -304,9 +292,9 @@ func (r MatchingRuleUse) labelMap() map[int]string {
 		0: `OID`,                              // (OID)
 		1: Name{}.Label(),                     // NAME
 		2: Description(``).Label(),            // DESC
-		3: ApplicableAttributeTypes{}.Label(), // APPLIES
-		4: `EXT`,                              // (EXT)
-		5: `BOOLS`,                            // [OBSOLETE]
+		3: `OBSOLETE`,                         // [OBSOLETE]
+		4: ApplicableAttributeTypes{}.Label(), // APPLIES
+		5: `EXT`,                              // (EXT)
 	}
 }
 
@@ -318,12 +306,12 @@ func (r DITContentRule) labelMap() map[int]string {
 		0: `OID`,                              // (OID)
 		1: Name{}.Label(),                     // NAME
 		2: Description(``).Label(),            // DESC
-		3: AuxiliaryObjectClasses{}.Label(),   // AUX
-		4: RequiredAttributeTypes{}.Label(),   // MUST
-		5: PermittedAttributeTypes{}.Label(),  // MAY
-		6: ProhibitedAttributeTypes{}.Label(), // NOT
-		7: `EXT`,                              // (EXT)
-		8: `BOOLS`,                            // [OBSOLETE]
+		3: `OBSOLETE`,                         // [OBSOLETE]
+		4: AuxiliaryObjectClasses{}.Label(),   // AUX
+		5: RequiredAttributeTypes{}.Label(),   // MUST
+		6: PermittedAttributeTypes{}.Label(),  // MAY
+		7: ProhibitedAttributeTypes{}.Label(), // NOT
+		8: `EXT`,                              // (EXT)
 	}
 }
 
@@ -335,10 +323,10 @@ func (r DITStructureRule) labelMap() map[int]string {
 		0: `ID`,                                // (ID)
 		1: Name{}.Label(),                      // NAME
 		2: Description(``).Label(),             // DESC
-		3: NameForm{}.Label(),                  // FORM
-		4: SuperiorDITStructureRules{}.Label(), // SUP
-		5: `EXT`,                               // (EXT)
-		6: `BOOLS`,                             // [OBSOLETE]
+		3: `OBSOLETE`,                          // [OBSOLETE]
+		4: NameForm{}.Label(),                  // FORM
+		5: SuperiorDITStructureRules{}.Label(), // SUP
+		6: `EXT`,                               // (EXT)
 	}
 }
 
@@ -350,11 +338,11 @@ func (r NameForm) labelMap() map[int]string {
 		0: `OID`,                             // (OID)
 		1: Name{}.Label(),                    // NAME
 		2: Description(``).Label(),           // DESC
-		3: StructuralObjectClass{}.Label(),   // OC
-		4: RequiredAttributeTypes{}.Label(),  // MUST
-		5: PermittedAttributeTypes{}.Label(), // MAY
-		6: `EXT`,                             // (EXT)
-		7: `BOOLS`,                           // [OBSOLETE]
+		3: `OBSOLETE`,                        // [OBSOLETE]
+		4: StructuralObjectClass{}.Label(),   // OC
+		5: RequiredAttributeTypes{}.Label(),  // MUST
+		6: PermittedAttributeTypes{}.Label(), // MAY
+		7: `EXT`,                             // (EXT)
 	}
 }
 
@@ -366,15 +354,16 @@ func (r AttributeType) methMap() (mm map[int]parseMeth) {
 		0:  parse_numericoid, // (OID)
 		1:  parse_qdescrs,    // NAME
 		2:  parse_qdstring,   // DESC
-		3:  parse_numericoid, // SUP
-		4:  parse_numericoid, // EQUALITY
-		5:  parse_numericoid, // ORDERING
-		6:  parse_numericoid, // SUBSTR
-		7:  parse_numericoid, // SYNTAX
-		8:  parse_usage,      // USAGE
-		9:  parse_extensions, // (EXT)
-		10: parse_boolean,    // [SINGLE-VALUE, COLLECTIVE, NO-USER-MODIFICATION, OBSOLETE]
-		11: parse_mub,        // {SYNTAX "len"}
+		3:  parse_obsolete,   // [OBSOLETE]
+		4:  parse_numericoid, // SUP
+		5:  parse_numericoid, // EQUALITY
+		6:  parse_numericoid, // ORDERING
+		7:  parse_numericoid, // SUBSTR
+		8:  parse_numericoid, // SYNTAX
+		9:  parse_usage,      // USAGE
+		10: parse_extensions, // (EXT)
+		11: parse_atflags,    // [SINGLE-VALUE, COLLECTIVE, NO-USER-MODIFICATION]
+		12: parse_mub,        // {SYNTAX "len"}
 	}
 }
 
@@ -383,12 +372,12 @@ func (r ObjectClass) methMap() (mm map[int]parseMeth) {
 		0: parse_numericoid, // (OID)
 		1: parse_qdescrs,    // NAME
 		2: parse_qdstring,   // DESC
-		3: parse_oids_ids,   // SUP
-		4: parse_kind,       // [STRUCTURAL, AUXILIARY, ABSTRACT]
-		5: parse_oids_ids,   // MUST
-		6: parse_oids_ids,   // MAY
-		7: parse_extensions, // (EXT)
-		8: parse_boolean,    // [OBSOLETE]
+		3: parse_obsolete,   // [OBSOLETE]
+		4: parse_oids_ids,   // SUP
+		5: parse_kind,       // [STRUCTURAL, AUXILIARY, ABSTRACT]
+		6: parse_oids_ids,   // MUST
+		7: parse_oids_ids,   // MAY
+		8: parse_extensions, // (EXT)
 	}
 }
 
@@ -397,7 +386,6 @@ func (r LDAPSyntax) methMap() (mm map[int]parseMeth) {
 		0: parse_numericoid, // (OID)
 		1: parse_qdstring,   // DESC
 		2: parse_extensions, // (EXT)
-		3: parse_boolean,    // [HUMAN-READABLE]
 	}
 }
 
@@ -406,9 +394,9 @@ func (r MatchingRule) methMap() (mm map[int]parseMeth) {
 		0: parse_numericoid, // (OID)
 		1: parse_qdescrs,    // NAME
 		2: parse_qdstring,   // DESC
-		3: parse_numericoid, // SYNTAX
-		4: parse_extensions, // (EXT)
-		5: parse_boolean,    // [OBSOLETE]
+		3: parse_obsolete,   // [OBSOLETE]
+		4: parse_numericoid, // SYNTAX
+		5: parse_extensions, // (EXT)
 	}
 }
 
@@ -417,9 +405,9 @@ func (r MatchingRuleUse) methMap() (mm map[int]parseMeth) {
 		0: parse_numericoid, // (OID)
 		1: parse_qdescrs,    // NAME
 		2: parse_qdstring,   // DESC
-		3: parse_oids_ids,   // APPLIES
-		4: parse_extensions, // (EXT)
-		5: parse_boolean,    // [OBSOLETE]
+		3: parse_obsolete,   // [OBSOLETE]
+		4: parse_oids_ids,   // APPLIES
+		5: parse_extensions, // (EXT)
 	}
 }
 
@@ -428,12 +416,12 @@ func (r DITContentRule) methMap() (mm map[int]parseMeth) {
 		0: parse_numericoid, // (OID)
 		1: parse_qdescrs,    // NAME
 		2: parse_qdstring,   // DESC
-		3: parse_oids_ids,   // AUX
-		4: parse_oids_ids,   // MUST
-		5: parse_oids_ids,   // MAY
-		6: parse_oids_ids,   // NOT
-		7: parse_extensions, // (EXT)
-		8: parse_boolean,    // [OBSOLETE]
+		3: parse_obsolete,   // [OBSOLETE]
+		4: parse_oids_ids,   // AUX
+		5: parse_oids_ids,   // MUST
+		6: parse_oids_ids,   // MAY
+		7: parse_oids_ids,   // NOT
+		8: parse_extensions, // (EXT)
 	}
 }
 
@@ -442,10 +430,10 @@ func (r DITStructureRule) methMap() (mm map[int]parseMeth) {
 		0: parse_ruleid,     // (ID)
 		1: parse_qdescrs,    // NAME
 		2: parse_qdstring,   // DESC
-		3: parse_numericoid, // FORM
-		4: parse_oids_ids,   // SUP
-		5: parse_extensions, // (EXT)
-		6: parse_boolean,    // [OBSOLETE]
+		3: parse_obsolete,   // [OBSOLETE]
+		4: parse_numericoid, // FORM
+		5: parse_oids_ids,   // SUP
+		6: parse_extensions, // (EXT)
 	}
 }
 
@@ -454,10 +442,10 @@ func (r NameForm) methMap() (mm map[int]parseMeth) {
 		0: parse_numericoid, // (OID)
 		1: parse_qdescrs,    // NAME
 		2: parse_qdstring,   // DESC
-		3: parse_oids_ids,   // OC
-		4: parse_oids_ids,   // MUST
-		5: parse_oids_ids,   // MAY
-		6: parse_extensions, // (EXT)
-		7: parse_boolean,    // [OBSOLETE]
+		3: parse_obsolete,   // [OBSOLETE]
+		4: parse_oids_ids,   // OC
+		5: parse_oids_ids,   // MUST
+		6: parse_oids_ids,   // MAY
+		7: parse_extensions, // (EXT)
 	}
 }
