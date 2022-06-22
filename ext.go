@@ -278,7 +278,7 @@ func (r Extensions) HumanReadable() bool {
 }
 
 /*
-SetHumanReadable sets the X-NOT-HUMAN-READABLE extension to 'TRUE' if a boolean value of true is provided. If false, the extension is deleted if present.
+SetHumanReadable creates the X-NOT-HUMAN-READABLE extension with a value 'TRUE' if a boolean value of false is provided. If true, the extension is deleted if present.
 */
 func (r *Extensions) SetHumanReadable(x bool) {
 	r.delete(nhr)
