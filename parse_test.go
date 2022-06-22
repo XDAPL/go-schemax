@@ -11,7 +11,7 @@ func TestQdescrs(t *testing.T) {
 	sv2 := `( 'RFC4517' ) REST-OF-DEF )`
 	mv1 := `( 'RFC1234' 'RFC5678' ) REST-OF-DEF )`
 
-	for _, x := range []string{sv1,sv2,mv1} {
+	for _, x := range []string{sv1, sv2, mv1} {
 		_, _, ok := parse_qdescrs(x)
 		if !ok {
 			t.Errorf("%s failed", t.Name())
@@ -21,19 +21,19 @@ func TestQdescrs(t *testing.T) {
 }
 
 func TestOIDsIDs(t *testing.T) {
-        sv1 := "name ) REST-OF-DEF )"
-        sv2 := "0 REST-OF-DEF )" // dsr
-        sv3 := `( name ) REST-OF-DEF )`
-        mv1 := `( name $ l $ c ) REST-OF-DEF )`
-        mv2 := `( 0 $ 1 ) REST-OF-DEF )` // dsr
+	sv1 := "name ) REST-OF-DEF )"
+	sv2 := "0 REST-OF-DEF )" // dsr
+	sv3 := `( name ) REST-OF-DEF )`
+	mv1 := `( name $ l $ c ) REST-OF-DEF )`
+	mv2 := `( 0 $ 1 ) REST-OF-DEF )` // dsr
 
-        for _, x := range []string{sv1,sv2,sv3,mv1,mv2} {
-                _, _, ok := parse_oids_ids(x)
-                if !ok {
-                        t.Errorf("%s failed", t.Name())
-                        return
-                }
-        }
+	for _, x := range []string{sv1, sv2, sv3, mv1, mv2} {
+		_, _, ok := parse_oids_ids(x)
+		if !ok {
+			t.Errorf("%s failed", t.Name())
+			return
+		}
+	}
 }
 
 func TestStripTags(t *testing.T) {

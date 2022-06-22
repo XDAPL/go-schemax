@@ -16,16 +16,16 @@ func TestCollectionIndex001(t *testing.T) {
 	// type would do ...
 	c := collection{
 		&Extension{
-		        Label: `X-TEST1`,
-		        Value: []string{`VALUE1`, `VALUE2`},
+			Label: `X-TEST1`,
+			Value: []string{`VALUE1`, `VALUE2`},
 		},
 		&Extension{
-		        Label: `X-TEST2`,
-		        Value: []string{`VALUE1`, `VALUE2`},
+			Label: `X-TEST2`,
+			Value: []string{`VALUE1`, `VALUE2`},
 		},
 		&Extension{
-		        Label: `X-TEST3`,
-		        Value: []string{`VALUE1`, `VALUE2`},
+			Label: `X-TEST3`,
+			Value: []string{`VALUE1`, `VALUE2`},
 		},
 	}
 
@@ -33,11 +33,11 @@ func TestCollectionIndex001(t *testing.T) {
 	// intentionally absurd. Don't
 	// read into them too much ...
 	tests := map[string]string{
-		c.index(0).(*Extension).Label: `X-TEST1`,
-		c.index(1).(*Extension).Label: `X-TEST2`,
-		c.index(-1).(*Extension).Label: `X-TEST3`,
-		c.index(-2).(*Extension).Label: `X-TEST2`,
-		c.index(-3).(*Extension).Label: `X-TEST1`,
+		c.index(0).(*Extension).Label:   `X-TEST1`,
+		c.index(1).(*Extension).Label:   `X-TEST2`,
+		c.index(-1).(*Extension).Label:  `X-TEST3`,
+		c.index(-2).(*Extension).Label:  `X-TEST2`,
+		c.index(-3).(*Extension).Label:  `X-TEST1`,
 		c.index(-15).(*Extension).Label: `X-TEST1`,
 		c.index(101).(*Extension).Label: `X-TEST3`,
 	}

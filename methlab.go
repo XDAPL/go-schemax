@@ -229,14 +229,14 @@ func (r AttributeType) labelMap() map[int]string {
 		0:  `OID`,                           // (OID)
 		1:  Name{}.Label(),                  // NAME
 		2:  Description(``).Label(),         // DESC
-		3: `OBSOLETE`,                      // [OBSOLETE]
+		3:  `OBSOLETE`,                      // [OBSOLETE]
 		4:  SuperiorAttributeType{}.Label(), // SUP
 		5:  Equality{}.Label(),              // EQUALITY
 		6:  Ordering{}.Label(),              // ORDERING
 		7:  Substring{}.Label(),             // SUBSTR|SUBSTRING
 		8:  LDAPSyntax{}.Label(),            // SYNTAX
 		9:  Usage(0).Label(),                // USAGE
-		10:  `EXT`,                           // (EXT)
+		10: `EXT`,                           // (EXT)
 		11: `FLAGS`,                         // [OBSOLETE,SINGLE-VALUE,NO-USER-MODIFICATION,COLLECTIVE]
 		12: `MUB`,                           // unsigned non-zero integer
 	}

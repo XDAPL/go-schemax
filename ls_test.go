@@ -37,18 +37,18 @@ func TestCompositeLDAPSyntax001(t *testing.T) {
 func TestParseLDAPSyntax001(t *testing.T) {
 	def := `( 1.3.6.1.4.1.1455.115.121.1.4 DESC 'Audio' X-ORIGIN 'RFC4517' X-NOT-HUMAN-READABLE 'TRUE' )`
 
-        var x LDAPSyntax
-        err := Marshal(def, &x, nil, nil, nil, nil, nil, nil, nil, nil)
-        if err != nil {
+	var x LDAPSyntax
+	err := Marshal(def, &x, nil, nil, nil, nil, nil, nil, nil, nil)
+	if err != nil {
 		t.Errorf("%s failed: %s\n", t.Name(), err.Error())
 		return
-        }
+	}
 
 	var um string
-        if um, err = Unmarshal(&x); err != nil {
-                t.Errorf("%s failed: %s", t.Name(), err.Error())
-                return
-        }
+	if um, err = Unmarshal(&x); err != nil {
+		t.Errorf("%s failed: %s", t.Name(), err.Error())
+		return
+	}
 
 	// What went in should match
 	// what comes out.

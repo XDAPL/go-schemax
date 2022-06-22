@@ -60,33 +60,33 @@ func TestCompositeObjectClass001(t *testing.T) {
 }
 
 func TestParseObjectClass001(t *testing.T) {
-        def := `( 1.3.6.1.4.1.56521.999.100.2.2.37 NAME 'testClass' DESC 'Generic test class' SUP top STRUCTURAL MUST cn MAY ( l $ c $ o ) )`
+	def := `( 1.3.6.1.4.1.56521.999.100.2.2.37 NAME 'testClass' DESC 'Generic test class' SUP top STRUCTURAL MUST cn MAY ( l $ c $ o ) )`
 
-        var lsc LDAPSyntaxCollection = PopulateDefaultLDAPSyntaxes()
-        var mrc MatchingRuleCollection = PopulateDefaultMatchingRules()
-        var atc AttributeTypeCollection = PopulateDefaultAttributeTypes()
-        var occ ObjectClassCollection = PopulateDefaultObjectClasses()
+	var lsc LDAPSyntaxCollection = PopulateDefaultLDAPSyntaxes()
+	var mrc MatchingRuleCollection = PopulateDefaultMatchingRules()
+	var atc AttributeTypeCollection = PopulateDefaultAttributeTypes()
+	var occ ObjectClassCollection = PopulateDefaultObjectClasses()
 
-        var x ObjectClass
+	var x ObjectClass
 
-        err := Marshal(def, &x, atc, occ, lsc, mrc, nil, nil, nil, nil)
-        if err != nil {
-                t.Errorf("%s failed: %s\n", t.Name(), err.Error())
-                return
-        }
+	err := Marshal(def, &x, atc, occ, lsc, mrc, nil, nil, nil, nil)
+	if err != nil {
+		t.Errorf("%s failed: %s\n", t.Name(), err.Error())
+		return
+	}
 
-        var um string
-        if um, err = Unmarshal(&x); err != nil {
-                t.Errorf("%s failed: %s", t.Name(), err.Error())
-                return
-        }
+	var um string
+	if um, err = Unmarshal(&x); err != nil {
+		t.Errorf("%s failed: %s", t.Name(), err.Error())
+		return
+	}
 
-        // What went in should match
-        // what comes out.
-        want := len(def)
-        got := len(um)
+	// What went in should match
+	// what comes out.
+	want := len(def)
+	got := len(um)
 
-        if want != got {
-                t.Errorf("%s failed: unexpected raw length (want %d, got %d)", t.Name(), want, got)
-        }
+	if want != got {
+		t.Errorf("%s failed: unexpected raw length (want %d, got %d)", t.Name(), want, got)
+	}
 }

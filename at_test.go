@@ -8,40 +8,40 @@ import (
 Assemble an AttributeType manually (NO parsing) and evaluate collective misuse.
 */
 func TestNoUserModificationAttributeType001(t *testing.T) {
-        schema := testSubschema()
+	schema := testSubschema()
 
-        mr := schema.GetMatchingRule(`generalizedTimeMatch`)
+	mr := schema.GetMatchingRule(`generalizedTimeMatch`)
 	ord := schema.GetMatchingRule(`generalizedTimeOrderingMatch`)
-        syn := schema.GetLDAPSyntax(`1.3.6.1.4.1.1466.115.121.1.24`)
+	syn := schema.GetLDAPSyntax(`1.3.6.1.4.1.1466.115.121.1.24`)
 
-        if mr.IsZero() || syn.IsZero() {
-                t.Errorf("%s failed: lookup error for supporting LDAPSyntax and/or MatchingRule definition values", t.Name())
-                return
-        }
+	if mr.IsZero() || syn.IsZero() {
+		t.Errorf("%s failed: lookup error for supporting LDAPSyntax and/or MatchingRule definition values", t.Name())
+		return
+	}
 
-        def := NewAttributeType()
-        def.OID = NewOID(`2.5.18.2`)
-        def.Name = NewName(`modifyTimestamp`)
-        def.Syntax = syn
-        def.Equality = Equality{mr}
+	def := NewAttributeType()
+	def.OID = NewOID(`2.5.18.2`)
+	def.Name = NewName(`modifyTimestamp`)
+	def.Syntax = syn
+	def.Equality = Equality{mr}
 	def.Ordering = Ordering{ord}
 	def.SetSingleValue()
-        def.SetNoUserModification()
+	def.SetNoUserModification()
 	def.Usage = DirectoryOperation
 	def.Extensions.Set(`X-ORIGIN`, `RFC4512`)
 
-        um, err := Unmarshal(def)
-        if err != nil {
-                t.Errorf("%s failed: %s", t.Name(), err.Error())
-                return
-        }
+	um, err := Unmarshal(def)
+	if err != nil {
+		t.Errorf("%s failed: %s", t.Name(), err.Error())
+		return
+	}
 
-        want := 218
-        got := len(um)
+	want := 218
+	got := len(um)
 
-        if want != got {
-                t.Errorf("%s failed: unexpected raw length (want %d, got %d)", t.Name(), want, got)
-        }
+	if want != got {
+		t.Errorf("%s failed: unexpected raw length (want %d, got %d)", t.Name(), want, got)
+	}
 }
 
 /*
@@ -169,31 +169,31 @@ func TestAttributeTypeMUB001(t *testing.T) {
 }
 
 func TestParseAttributeType001(t *testing.T) {
-        def := `( 1.3.6.1.4.1.56521.999.100.2.1.13 NAME 'testAttr' DESC 'Generic test attribute' OBSOLETE SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 EQUALITY caseExactMatch )`
+	def := `( 1.3.6.1.4.1.56521.999.100.2.1.13 NAME 'testAttr' DESC 'Generic test attribute' OBSOLETE SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 EQUALITY caseExactMatch )`
 
-        var lsc LDAPSyntaxCollection = PopulateDefaultLDAPSyntaxes()
-        var mrc MatchingRuleCollection = PopulateDefaultMatchingRules()
+	var lsc LDAPSyntaxCollection = PopulateDefaultLDAPSyntaxes()
+	var mrc MatchingRuleCollection = PopulateDefaultMatchingRules()
 	var atc AttributeTypeCollection = NewAttributeTypes()
-        var x AttributeType
+	var x AttributeType
 
-        err := Marshal(def, &x, atc, nil, lsc, mrc, nil, nil, nil, nil)
-        if err != nil {
-                t.Errorf("%s failed: %s\n", t.Name(), err.Error())
-                return
-        }
+	err := Marshal(def, &x, atc, nil, lsc, mrc, nil, nil, nil, nil)
+	if err != nil {
+		t.Errorf("%s failed: %s\n", t.Name(), err.Error())
+		return
+	}
 
-        var um string
-        if um, err = Unmarshal(&x); err != nil {
-                t.Errorf("%s failed: %s", t.Name(), err.Error())
-                return
-        }
+	var um string
+	if um, err = Unmarshal(&x); err != nil {
+		t.Errorf("%s failed: %s", t.Name(), err.Error())
+		return
+	}
 
-        // What went in should match
-        // what comes out.
-        want := len(def)
-        got := len(um)
+	// What went in should match
+	// what comes out.
+	want := len(def)
+	got := len(um)
 
-        if want != got {
-                t.Errorf("%s failed: unexpected raw length (want %d, got %d)", t.Name(), want, got)
-        }
+	if want != got {
+		t.Errorf("%s failed: unexpected raw length (want %d, got %d)", t.Name(), want, got)
+	}
 }

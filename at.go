@@ -917,11 +917,11 @@ func AttributeTypeUnmarshaler(x interface{}) (def string, err error) {
 		def += WHSP + r.Usage.String()
 	}
 
-        for i := 0 ; i < r.Extensions.Len(); i++ {
-                if ext := r.Extensions.Index(i); !ext.IsZero() {
-                        def += idnt + ext.String()
-                }
-        }
+	for i := 0; i < r.Extensions.Len(); i++ {
+		if ext := r.Extensions.Index(i); !ext.IsZero() {
+			def += idnt + ext.String()
+		}
+	}
 
 	def += WHSP + tail
 
@@ -1027,20 +1027,20 @@ atFlags is an unsigned 8-bit integer that describes zero or more perceived value
 type atFlags uint8
 
 const (
-        SingleValue        atFlags = 1 << iota // 1
-        Collective                             // 2
-        NoUserModification                     // 4
+	SingleValue        atFlags = 1 << iota // 1
+	Collective                             // 2
+	NoUserModification                     // 4
 )
 
 func (r atFlags) IsZero() bool {
-        return uint8(r) == 0
+	return uint8(r) == 0
 }
 
 /*
 is returns a boolean value indicative of whether the specified value is enabled within the receiver instance.
 */
 func (r atFlags) is(o atFlags) bool {
-        return r.enabled(o)
+	return r.enabled(o)
 }
 
 /*
@@ -1050,152 +1050,152 @@ If only a specific atFlags string is desired (if enabled), use atFlags.<Name>() 
 */
 func (r atFlags) String() (val string) {
 
-        // Look for so-called "pure"
-        // boolean values first ...
-        switch r {
-        case NoUserModification:
-                return `NO-USER-MODIFICATION`
-        case SingleValue:
-                return `SINGLE-VALUE`
-        case Collective:
-                return `COLLECTIVE`
-        }
+	// Look for so-called "pure"
+	// boolean values first ...
+	switch r {
+	case NoUserModification:
+		return `NO-USER-MODIFICATION`
+	case SingleValue:
+		return `SINGLE-VALUE`
+	case Collective:
+		return `COLLECTIVE`
+	}
 
-        // Assume multiple boolean bits
-        // are set concurrently ...
-        strs := []atFlags{
-                Collective,
-                SingleValue,
-                NoUserModification,
-        }
+	// Assume multiple boolean bits
+	// are set concurrently ...
+	strs := []atFlags{
+		Collective,
+		SingleValue,
+		NoUserModification,
+	}
 
-        vals := make([]string, 0)
-        for _, v := range strs {
-                if r.enabled(v) {
-                        vals = append(vals, v.String())
-                }
-        }
+	vals := make([]string, 0)
+	for _, v := range strs {
+		if r.enabled(v) {
+			vals = append(vals, v.String())
+		}
+	}
 
-        if len(vals) != 0 {
-                val = join(vals, ` `)
-        }
+	if len(vals) != 0 {
+		val = join(vals, ` `)
+	}
 
-        return
+	return
 }
 
 /*
 SingleValue returns the `SINGLE-VALUE` flag if the appropriate bits are set within the receiver instance.
 */
 func (r atFlags) SingleValue() string {
-        if r.enabled(SingleValue) {
-                return r.String()
-        }
+	if r.enabled(SingleValue) {
+		return r.String()
+	}
 
-        return ``
+	return ``
 }
 
 /*
 Collective returns the `COLLECTIVE` flag if the appropriate bits are set within the receiver instance.
 */
 func (r atFlags) Collective() string {
-        if r.enabled(Collective) {
-                return r.String()
-        }
+	if r.enabled(Collective) {
+		return r.String()
+	}
 
-        return ``
+	return ``
 }
 
 /*
 NoUserModification returns the `NO-USER-MODIFICATION` flag if the appropriate bits are set within the receiver instance.
 */
 func (r atFlags) NoUserModification() string {
-        if r.enabled(NoUserModification) {
-                return r.String()
-        }
+	if r.enabled(NoUserModification) {
+		return r.String()
+	}
 
-        return ``
+	return ``
 }
 
 /*
 Unset removes the specified atFlags bits from the receiver instance of atFlags, thereby "disabling" the provided option.
 */
 func (r *atFlags) Unset(o atFlags) {
-        r.unset(o)
+	r.unset(o)
 }
 
 /*
 Set adds the specified atFlags bits to the receiver instance of atFlags, thereby "enabling" the provided option.
 */
 func (r *atFlags) Set(o atFlags) {
-        r.set(o)
+	r.set(o)
 }
 
 func (r *atFlags) set(o atFlags) {
-        *r = *r ^ o
+	*r = *r ^ o
 }
 
 func (b *atFlags) unset(o atFlags) {
-        *b = *b &^ o
+	*b = *b &^ o
 }
 
 func (r atFlags) enabled(o atFlags) bool {
-        return r&o != 0
+	return r&o != 0
 }
 
 /*
 setatFlags is a private method used by reflect to set boolean values.
 */
 func (r *AttributeType) setATFlags(b atFlags) {
-        r.flags.set(b)
+	r.flags.set(b)
 }
 
 /*
 SetCollective marks the receiver as COLLECTIVE.
 */
 func (r *AttributeType) SetCollective() {
-        r.flags.set(Collective)
+	r.flags.set(Collective)
 }
 
 /*
 Collective returns a boolean value indicative of whether the receiver describes a COLLECTIVE attribute type.
 */
 func (r *AttributeType) Collective() bool {
-        return r.flags.is(Collective)
+	return r.flags.is(Collective)
 }
 
 /*
 SetCollective marks the receiver as NO-USER-MODIFICATION.
 */
 func (r *AttributeType) SetNoUserModification() {
-        r.flags.set(NoUserModification)
+	r.flags.set(NoUserModification)
 }
 
 /*
 NoUserModification returns a boolean value indicative of whether the receiver describes a NO-USER-MODIFICATION attribute type.
 */
 func (r *AttributeType) NoUserModification() bool {
-        return r.flags.is(NoUserModification)
+	return r.flags.is(NoUserModification)
 }
 
 /*
 SetSingleValue marks the receiver as SINGLE-VALUE.
 */
 func (r *AttributeType) SetSingleValue() {
-        r.flags.set(SingleValue)
+	r.flags.set(SingleValue)
 }
 
 /*
 SingleValue returns a boolean value indicative of whether the receiver describes a SINGLE-VALUE attribute type.
 */
 func (r *AttributeType) SingleValue() bool {
-        return r.flags.is(SingleValue)
+	return r.flags.is(SingleValue)
 }
 
 func validateFlag(b atFlags) (err error) {
-        if b.is(Collective) && b.is(SingleValue) {
-                return raise(invalidFlag,
-                        "Cannot have single-valued collective attribute")
-        }
+	if b.is(Collective) && b.is(SingleValue) {
+		return raise(invalidFlag,
+			"Cannot have single-valued collective attribute")
+	}
 
-        return
+	return
 }

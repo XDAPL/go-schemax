@@ -658,11 +658,11 @@ func ObjectClassUnmarshaler(x interface{}) (def string, err error) {
 		def += WHSP + r.May.String()
 	}
 
-        for i := 0 ; i < r.Extensions.Len(); i++ {
-                if ext := r.Extensions.Index(i); !ext.IsZero() {
-                        def += idnt + ext.String()
-                }
-        }
+	for i := 0; i < r.Extensions.Len(); i++ {
+		if ext := r.Extensions.Index(i); !ext.IsZero() {
+			def += idnt + ext.String()
+		}
+	}
 
 	def += WHSP + tail
 

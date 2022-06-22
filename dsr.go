@@ -334,12 +334,12 @@ func (r *DITStructureRule) Equal(x interface{}) (eq bool) {
 		}
 	}
 
-        noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
-        if !noexts {
-                eq = r.Extensions.Equal(z.Extensions)
-        } else {
-                eq = true
-        }
+	noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
+	if !noexts {
+		eq = r.Extensions.Equal(z.Extensions)
+	} else {
+		eq = true
+	}
 
 	return
 }
@@ -535,11 +535,11 @@ func DITStructureRuleUnmarshaler(x interface{}) (def string, err error) {
 		def += WHSP + r.SuperiorRules.String()
 	}
 
-        for i := 0 ; i < r.Extensions.Len(); i++ {
-                if ext := r.Extensions.Index(i); !ext.IsZero() {
-                        def += idnt + ext.String()
-                }
-        }
+	for i := 0; i < r.Extensions.Len(); i++ {
+		if ext := r.Extensions.Index(i); !ext.IsZero() {
+			def += idnt + ext.String()
+		}
+	}
 
 	def += WHSP + tail
 

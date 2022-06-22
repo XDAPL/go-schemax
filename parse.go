@@ -47,7 +47,7 @@ func lfindex(term string, def definition) (idx int) {
 			}
 		} else if def.labels[idx] == `FLAGS` {
 			switch term {
-			case SingleValue.String(), NoUserModification.String(),	Collective.String():
+			case SingleValue.String(), NoUserModification.String(), Collective.String():
 				return idx
 			}
 		} else {

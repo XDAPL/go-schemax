@@ -288,12 +288,12 @@ func (r *LDAPSyntax) Equal(x interface{}) (eq bool) {
 		return
 	}
 
-        noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
-        if !noexts {
-                eq = r.Extensions.Equal(z.Extensions)
-        } else {
-                eq = true
-        }
+	noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
+	if !noexts {
+		eq = r.Extensions.Equal(z.Extensions)
+	} else {
+		eq = true
+	}
 
 	return
 }
@@ -367,7 +367,7 @@ func LDAPSyntaxUnmarshaler(x interface{}) (def string, err error) {
 	def += WHSP + r.Description.String()
 
 	if !r.Extensions.IsZero() {
-		for i := 0 ; i < r.Extensions.Len(); i++ {
+		for i := 0; i < r.Extensions.Len(); i++ {
 			if ext := r.Extensions.Index(i); !ext.IsZero() {
 				def += idnt + ext.String()
 			}

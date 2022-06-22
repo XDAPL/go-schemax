@@ -278,12 +278,12 @@ func (r *NameForm) Equal(x interface{}) (eq bool) {
 		return
 	}
 
-        noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
-        if !noexts {
-                eq = r.Extensions.Equal(z.Extensions)
-        } else {
-                eq = true
-        }
+	noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
+	if !noexts {
+		eq = r.Extensions.Equal(z.Extensions)
+	} else {
+		eq = true
+	}
 
 	return
 }
