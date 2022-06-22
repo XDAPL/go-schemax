@@ -27,38 +27,38 @@ type ObjectClassCollection interface {
 	// the provided *ObjectClass instance to the receiver.
 	Set(*ObjectClass) error
 
-        // Contains returns the index number and presence boolean that
-        // reflects the result of a term search within the receiver.
-        Contains(interface{}) (int, bool)
+	// Contains returns the index number and presence boolean that
+	// reflects the result of a term search within the receiver.
+	Contains(interface{}) (int, bool)
 
-        // String returns a properly-delimited sequence of string
-        // values, either as a Name or OID, for the receiver type.
-        String() string
+	// String returns a properly-delimited sequence of string
+	// values, either as a Name or OID, for the receiver type.
+	String() string
 
-        // Label returns the field name associated with the interface
-        // types, or a zero string if no label is appropriate.
-        Label() string
+	// Label returns the field name associated with the interface
+	// types, or a zero string if no label is appropriate.
+	Label() string
 
-        // IsZero returns a boolean value indicative of whether the
-        // receiver is considered zero, or undefined.
-        IsZero() bool
+	// IsZero returns a boolean value indicative of whether the
+	// receiver is considered zero, or undefined.
+	IsZero() bool
 
-        // Len returns an integer value indicative of the current
-        // number of elements stored within the receiver.
-        Len() int
+	// Len returns an integer value indicative of the current
+	// number of elements stored within the receiver.
+	Len() int
 
-        // SetSpecifier assigns a string value to all definitions within
-        // the receiver. This value is used in cases where a definition
-        // type name (e.g.: attributetype, objectclass, etc.) is required.
-        // This value will be displayed at the beginning of the definition
-        // value during the unmarshal or unsafe stringification process.
-        SetSpecifier(string)
+	// SetSpecifier assigns a string value to all definitions within
+	// the receiver. This value is used in cases where a definition
+	// type name (e.g.: attributetype, objectclass, etc.) is required.
+	// This value will be displayed at the beginning of the definition
+	// value during the unmarshal or unsafe stringification process.
+	SetSpecifier(string)
 
-        // SetUnmarshaler assigns the provided DefinitionUnmarshaler
-        // signature to all definitions within the receiver. The provided
-        // function shall be executed during the unmarshal or unsafe
-        // stringification process.
-        SetUnmarshaler(DefinitionUnmarshaler)
+	// SetUnmarshaler assigns the provided DefinitionUnmarshaler
+	// signature to all definitions within the receiver. The provided
+	// function shall be executed during the unmarshal or unsafe
+	// stringification process.
+	SetUnmarshaler(DefinitionUnmarshaler)
 }
 
 /*
@@ -81,18 +81,18 @@ func (r Kind) IsZero() bool {
 }
 
 /*
-ObjectClass conforms to the specifications of RFC4512 Section 4.1.1. Boolean values, e.g: 'OBSOLETE', are supported internally and are not explicit fields.
+ObjectClass conforms to the specifications of RFC4512 Section 4.1.1.
 */
 type ObjectClass struct {
 	OID         OID
 	Name        Name
 	Description Description
+	Obsolete    bool
 	SuperClass  ObjectClassCollection
 	Kind        Kind
 	Must        AttributeTypeCollection
 	May         AttributeTypeCollection
-	Extensions  Extensions
-	flags       definitionFlags
+	Extensions  *Extensions
 	ufn         DefinitionUnmarshaler
 	spec        string
 	info        []byte
@@ -146,18 +146,18 @@ func (r *ObjectClasses) SetMacros(macros *Macros) {
 SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
 */
 func (r *ObjectClasses) SetSpecifier(spec string) {
-        for i := 0; i < r.Len(); i++ {
-                r.Index(i).SetSpecifier(spec)
-        }
+	for i := 0; i < r.Len(); i++ {
+		r.Index(i).SetSpecifier(spec)
+	}
 }
 
 /*
 SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
 */
 func (r *ObjectClasses) SetUnmarshaler(fn DefinitionUnmarshaler) {
-        for i := 0; i < r.Len(); i++ {
-                r.Index(i).SetUnmarshaler(fn)
-        }
+	for i := 0; i < r.Len(); i++ {
+		r.Index(i).SetUnmarshaler(fn)
+	}
 }
 
 /*
@@ -300,7 +300,7 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r *ObjectClass) Equal(x interface{}) (equals bool) {
+func (r *ObjectClass) Equal(x interface{}) (eq bool) {
 	var z *ObjectClass
 	switch tv := x.(type) {
 	case *ObjectClass:
@@ -312,7 +312,7 @@ func (r *ObjectClass) Equal(x interface{}) (equals bool) {
 	}
 
 	if z.IsZero() && r.IsZero() {
-		equals = true
+		eq = true
 		return
 	} else if z.IsZero() || r.IsZero() {
 		return
@@ -323,10 +323,6 @@ func (r *ObjectClass) Equal(x interface{}) (equals bool) {
 	}
 
 	if r.Kind != z.Kind {
-		return
-	}
-
-	if r.flags != z.flags {
 		return
 	}
 
@@ -344,9 +340,28 @@ func (r *ObjectClass) Equal(x interface{}) (equals bool) {
 		}
 	}
 
-	equals = r.Extensions.Equal(z.Extensions)
+	noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
+	if !noexts {
+		eq = r.Extensions.Equal(z.Extensions)
+	} else {
+		eq = true
+	}
 
 	return
+}
+
+/*
+NewObjectClass returns a newly initialized, yet effectively nil, instance of *ObjectClass.
+
+Users generally do not need to execute this function unless an instance of the returned type will be manually populated (as opposed to parsing a raw text definition).
+*/
+func NewObjectClass() *ObjectClass {
+	oc := new(ObjectClass)
+	oc.SuperClass = NewSuperiorObjectClasses()
+	oc.Must = NewRequiredAttributeTypes()
+	oc.May = NewPermittedAttributeTypes()
+	oc.Extensions = NewExtensions()
+	return oc
 }
 
 /*
@@ -420,12 +435,10 @@ func (r Kind) is(x Kind) bool {
 }
 
 /*
-is returns a boolean value indicative of whether the provided interface value is either a Kind or a definitionFlags AND is enabled within the receiver.
+is returns a boolean value indicative of whether the provided interface value is particular Kind that matches the configured Kind of the receiver.
 */
 func (r ObjectClass) is(b interface{}) bool {
 	switch tv := b.(type) {
-	case definitionFlags:
-		return r.flags.is(tv)
 	case Kind:
 		return r.Kind.is(tv)
 	}
@@ -453,10 +466,6 @@ func (r *ObjectClass) validate() (err error) {
 		return raise(isZero, "%T.validate", r)
 	}
 
-	if err = validateFlag(r.flags); err != nil {
-		return
-	}
-
 	if err = r.validateKind(); err != nil {
 		return
 	}
@@ -467,80 +476,6 @@ func (r *ObjectClass) validate() (err error) {
 
 	if err = validateDesc(r.Description); err != nil {
 		return
-	}
-
-	return
-}
-
-func (r *ObjectClass) getMay(m AttributeTypeCollection) (ok PermittedAttributeTypes) {
-	for _, atr := range m.(*AttributeTypes).slice {
-		at, assert := atr.(*AttributeType)
-		if !assert {
-			return
-		}
-		ok.Set(at)
-	}
-
-	if !r.SuperClass.IsZero() {
-		for i := 0; i < r.SuperClass.Len(); i++ {
-			oc := r.SuperClass.Index(0)
-			if oc.IsZero() {
-				continue
-			}
-			for j := 0; j < oc.May.Len(); j++ {
-				may := oc.May.Index(j)
-				if may.IsZero() {
-					ok.Set(may)
-				}
-			}
-		}
-	}
-
-	if !r.May.IsZero() {
-		for i := 0; i < r.May.Len(); i++ {
-			may := r.May.Index(0)
-			if may.IsZero() {
-				continue
-			}
-			ok.Set(may)
-		}
-	}
-
-	return
-}
-
-func (r *ObjectClass) getMust(m RequiredAttributeTypes) (req RequiredAttributeTypes) {
-	for _, atr := range m.slice {
-		at, ok := atr.(*AttributeType)
-		if !ok {
-			return
-		}
-		req.Set(at)
-	}
-
-	if !r.SuperClass.IsZero() {
-		for i := 0; i < r.SuperClass.Len(); i++ {
-			oc := r.SuperClass.Index(0)
-			if oc.IsZero() {
-				continue
-			}
-			for j := 0; j < oc.Must.Len(); j++ {
-				must := oc.Must.Index(j)
-				if must.IsZero() {
-					req.Set(must)
-				}
-			}
-		}
-	}
-
-	if !r.Must.IsZero() {
-		for i := 0; i < r.Must.Len(); i++ {
-			must := r.Must.Index(0)
-			if must.IsZero() {
-				continue
-			}
-			req.Set(must)
-		}
 	}
 
 	return
@@ -645,12 +580,13 @@ func (r *ObjectClass) Map() (def map[string][]string) {
 	}
 
 	if !r.Extensions.IsZero() {
-		for k, v := range r.Extensions {
-			def[k] = v
+		for i := 0; i < r.Extensions.Len(); i++ {
+			ext := r.Extensions.Index(i)
+			def[ext.Label] = ext.Value
 		}
 	}
 
-	if r.Obsolete() {
+	if r.Obsolete {
 		def[`OBSOLETE`] = []string{`TRUE`}
 	}
 
@@ -663,19 +599,19 @@ ObjectClassUnmarshaler is a package-included function that honors the signature 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
 func ObjectClassUnmarshaler(x interface{}) (def string, err error) {
-        var r *ObjectClass
-        switch tv := x.(type) {
-        case *ObjectClass:
-                if tv.IsZero() {
-                        err = raise(isZero, "%T is nil", tv)
-                        return
-                }
-                r = tv
-        default:
-                err = raise(unexpectedType,
-                        "Bad type for unmarshal (%T)", tv)
-                return
-        }
+	var r *ObjectClass
+	switch tv := x.(type) {
+	case *ObjectClass:
+		if tv.IsZero() {
+			err = raise(isZero, "%T is nil", tv)
+			return
+		}
+		r = tv
+	default:
+		err = raise(unexpectedType,
+			"Bad type for unmarshal (%T)", tv)
+		return
+	}
 
 	var (
 		WHSP string = ` `
@@ -700,8 +636,8 @@ func ObjectClassUnmarshaler(x interface{}) (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.Obsolete() {
-		def += idnt + Obsolete.String()
+	if r.Obsolete {
+		def += idnt + `OBSOLETE`
 	}
 
 	if !r.SuperClass.IsZero() {
@@ -722,8 +658,10 @@ func ObjectClassUnmarshaler(x interface{}) (def string, err error) {
 		def += WHSP + r.May.String()
 	}
 
-	if !r.Extensions.IsZero() {
-		def += idnt + r.Extensions.String()
+	for i := 0; i < r.Extensions.Len(); i++ {
+		if ext := r.Extensions.Index(i); !ext.IsZero() {
+			def += idnt + ext.String()
+		}
 	}
 
 	def += WHSP + tail
@@ -754,8 +692,8 @@ func (r *ObjectClass) unmarshalBasic() (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.Obsolete() {
-		def += WHSP + Obsolete.String()
+	if r.Obsolete {
+		def += WHSP + `OBSOLETE`
 	}
 
 	if !r.SuperClass.IsZero() {

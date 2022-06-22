@@ -8,7 +8,7 @@ var (
 )
 
 var (
-	EntryUUID		  RFC4530AttributeType
+	EntryUUID RFC4530AttributeType
 )
 
 func init() {

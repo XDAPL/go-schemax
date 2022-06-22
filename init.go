@@ -17,6 +17,19 @@ import (
 	"github.com/JesseCoretta/go-schemax/rfc4530"
 )
 
+/*
+for internal go test runs only!
+*/
+func testSubschema() (x *Subschema) {
+	x = NewSubschema()
+	x.LSC = PopulateDefaultLDAPSyntaxes()
+	x.MRC = PopulateDefaultMatchingRules()
+	x.ATC = NewAttributeTypes()
+	x.OCC = NewObjectClasses()
+
+	return
+}
+
 ////////////////
 // LDAP Syntaxes
 
@@ -94,13 +107,13 @@ PopulateRFC4530Syntaxes only populates the provided LDAPSyntaxes (lsc) with LDAP
 Definitions are imported from go-schemax/rfc4530.
 */
 func PopulateRFC4530Syntaxes(lsc LDAPSyntaxCollection) {
-        for _, ls := range rfc4530.AllLDAPSyntaxes {
-                var nls LDAPSyntax
-                if err := Marshal(string(ls), &nls, nil, nil, nil, nil, nil, nil, nil, nil); err != nil {
-                        panic(sprintf("%s: %s", err.Error(), string(ls)))
-                }
-                lsc.Set(&nls)
-        }
+	for _, ls := range rfc4530.AllLDAPSyntaxes {
+		var nls LDAPSyntax
+		if err := Marshal(string(ls), &nls, nil, nil, nil, nil, nil, nil, nil, nil); err != nil {
+			panic(sprintf("%s: %s", err.Error(), string(ls)))
+		}
+		lsc.Set(&nls)
+	}
 }
 
 /////////////////
@@ -169,13 +182,13 @@ Definitions are imported from go-schemax/rfc4530.
 A valid instance of LDAPSyntaxes that contains all referenced LDAPSyntax instances must be provided as the lsc argument.
 */
 func PopulateRFC4530MatchingRules(lsc LDAPSyntaxCollection, mrc MatchingRuleCollection) {
-        for _, mr := range rfc4530.AllMatchingRules {
-                var nmr MatchingRule
-                if err := Marshal(string(mr), &nmr, nil, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
-                        panic(sprintf("%s: %s", err.Error(), string(mr)))
-                }
-                mrc.Set(&nmr)
-        }
+	for _, mr := range rfc4530.AllMatchingRules {
+		var nmr MatchingRule
+		if err := Marshal(string(mr), &nmr, nil, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
+			panic(sprintf("%s: %s", err.Error(), string(mr)))
+		}
+		mrc.Set(&nmr)
+	}
 }
 
 /*
@@ -681,22 +694,22 @@ Definitions are imported from go-schemax/rfc4530.
 Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
 */
 func PopulateRFC4530AttributeTypes(
-        atc AttributeTypeCollection,
-        lsc LDAPSyntaxCollection,
-        mrc MatchingRuleCollection) {
+	atc AttributeTypeCollection,
+	lsc LDAPSyntaxCollection,
+	mrc MatchingRuleCollection) {
 
-        for _, at := range rfc4530.AllAttributeTypes {
-                var nat AttributeType
-                if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
-                        panic(sprintf("%s: %s", err.Error(), string(at)))
-                }
-                atc.Set(&nat)
-        }
+	for _, at := range rfc4530.AllAttributeTypes {
+		var nat AttributeType
+		if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
+			panic(sprintf("%s: %s", err.Error(), string(at)))
+		}
+		atc.Set(&nat)
+	}
 }
 
 func init() {
 
-	// default manifests
+	// default collections
 	DefaultLDAPSyntaxes = PopulateDefaultLDAPSyntaxes()
 	DefaultMatchingRules = PopulateDefaultMatchingRules()
 	DefaultAttributeTypes = PopulateDefaultAttributeTypes()

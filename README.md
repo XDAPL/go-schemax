@@ -6,6 +6,8 @@ Abstract directory schema constructs and methods based on RFC4512 Section 4.1.
 
 Contributions and bug reports are most welcome.
 
+Requires Go version 1.17 or higher.
+
 ## Overview
 
 Package schemax provides methods, types and bidirectional marshaling functionality intended for use in the area of X.501/LDAP directory schema abstraction.

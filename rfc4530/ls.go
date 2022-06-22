@@ -16,7 +16,7 @@ LDAPSyntaxes contains slices of all instances of RFC4530LDAPSyntax defined in th
 var AllLDAPSyntaxes RFC4530LDAPSyntaxes
 
 var (
-	UUID			      RFC4530LDAPSyntax
+	UUID RFC4530LDAPSyntax
 )
 
 func init() {

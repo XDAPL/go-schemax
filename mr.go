@@ -23,50 +23,50 @@ type MatchingRuleCollection interface {
 	// the provided *MatchingRule instance to the receiver.
 	Set(*MatchingRule) error
 
-        // Contains returns the index number and presence boolean that
-        // reflects the result of a term search within the receiver.
-        Contains(interface{}) (int, bool)
+	// Contains returns the index number and presence boolean that
+	// reflects the result of a term search within the receiver.
+	Contains(interface{}) (int, bool)
 
-        // String returns a properly-delimited sequence of string
-        // values, either as a Name or OID, for the receiver type.
-        String() string
+	// String returns a properly-delimited sequence of string
+	// values, either as a Name or OID, for the receiver type.
+	String() string
 
-        // Label returns the field name associated with the interface
-        // types, or a zero string if no label is appropriate.
-        Label() string
+	// Label returns the field name associated with the interface
+	// types, or a zero string if no label is appropriate.
+	Label() string
 
-        // IsZero returns a boolean value indicative of whether the
-        // receiver is considered zero, or undefined.
-        IsZero() bool
+	// IsZero returns a boolean value indicative of whether the
+	// receiver is considered zero, or undefined.
+	IsZero() bool
 
-        // Len returns an integer value indicative of the current
-        // number of elements stored within the receiver.
-        Len() int
+	// Len returns an integer value indicative of the current
+	// number of elements stored within the receiver.
+	Len() int
 
-        // SetSpecifier assigns a string value to all definitions within
-        // the receiver. This value is used in cases where a definition
-        // type name (e.g.: attributetype, objectclass, etc.) is required.
-        // This value will be displayed at the beginning of the definition
-        // value during the unmarshal or unsafe stringification process.
-        SetSpecifier(string)
+	// SetSpecifier assigns a string value to all definitions within
+	// the receiver. This value is used in cases where a definition
+	// type name (e.g.: attributetype, objectclass, etc.) is required.
+	// This value will be displayed at the beginning of the definition
+	// value during the unmarshal or unsafe stringification process.
+	SetSpecifier(string)
 
-        // SetUnmarshaler assigns the provided DefinitionUnmarshaler
-        // signature to all definitions within the receiver. The provided
-        // function shall be executed during the unmarshal or unsafe
-        // stringification process.
-        SetUnmarshaler(DefinitionUnmarshaler)
+	// SetUnmarshaler assigns the provided DefinitionUnmarshaler
+	// signature to all definitions within the receiver. The provided
+	// function shall be executed during the unmarshal or unsafe
+	// stringification process.
+	SetUnmarshaler(DefinitionUnmarshaler)
 }
 
 /*
-MatchingRule conforms to the specifications of RFC4512 Section 4.1.3. Boolean values, e.g: 'OBSOLETE', are supported internally and are not explicit fields.
+MatchingRule conforms to the specifications of RFC4512 Section 4.1.3.
 */
 type MatchingRule struct {
 	OID         OID
 	Name        Name
 	Description Description
+	Obsolete    bool
 	Syntax      *LDAPSyntax
-	Extensions  Extensions
-	flags       definitionFlags
+	Extensions  *Extensions
 	ufn         DefinitionUnmarshaler
 	spec        string
 	info        []byte
@@ -105,7 +105,7 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r *MatchingRule) Equal(x interface{}) (equals bool) {
+func (r *MatchingRule) Equal(x interface{}) (eq bool) {
 	var z *MatchingRule
 	switch tv := x.(type) {
 	case *MatchingRule:
@@ -121,7 +121,7 @@ func (r *MatchingRule) Equal(x interface{}) (equals bool) {
 	}
 
 	if z.IsZero() && r.IsZero() {
-		equals = true
+		eq = true
 		return
 	} else if z.IsZero() || r.IsZero() {
 		return
@@ -139,11 +139,12 @@ func (r *MatchingRule) Equal(x interface{}) (equals bool) {
 		return
 	}
 
-	if z.flags != r.flags {
-		return
+	noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
+	if !noexts {
+		eq = r.Extensions.Equal(z.Extensions)
+	} else {
+		eq = true
 	}
-
-	equals = r.Extensions.Equal(z.Extensions)
 
 	return
 }
@@ -175,18 +176,18 @@ func (r *MatchingRules) SetMacros(macros *Macros) {
 SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
 */
 func (r *MatchingRules) SetSpecifier(spec string) {
-        for i := 0; i < r.Len(); i++ {
-                r.Index(i).SetSpecifier(spec)
-        }
+	for i := 0; i < r.Len(); i++ {
+		r.Index(i).SetSpecifier(spec)
+	}
 }
 
 /*
 SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
 */
 func (r *MatchingRules) SetUnmarshaler(fn DefinitionUnmarshaler) {
-        for i := 0; i < r.Len(); i++ {
-                r.Index(i).SetUnmarshaler(fn)
-        }
+	for i := 0; i < r.Len(); i++ {
+		r.Index(i).SetUnmarshaler(fn)
+	}
 }
 
 /*
@@ -307,6 +308,17 @@ func (r *MatchingRule) SetUnmarshaler(fn DefinitionUnmarshaler) {
 }
 
 /*
+NewMatchingRule returns a newly initialized, yet effectively nil, instance of *MatchingRule.
+
+Users generally do not need to execute this function unless an instance of the returned type will be manually populated (as opposed to parsing a raw text definition).
+*/
+func NewMatchingRule() *MatchingRule {
+	mr := new(MatchingRule)
+	mr.Extensions = NewExtensions()
+	return mr
+}
+
+/*
 NewMatchingRules initializes and returns a new MatchingRulesCollection interface object.
 */
 func NewMatchingRules() MatchingRuleCollection {
@@ -318,12 +330,10 @@ func NewMatchingRules() MatchingRuleCollection {
 }
 
 /*
-is returns a boolean value indicative of whether the provided interface argument is an enabled definitionFlags option.
+is returns a boolean value indicative of whether the provided interface argument matches an LDAPSyntax associated with the receiver.
 */
 func (r *MatchingRule) is(b interface{}) bool {
 	switch tv := b.(type) {
-	case definitionFlags:
-		return r.flags.is(tv)
 	case *LDAPSyntax:
 		return r.OID.Equal(tv.OID)
 	}
@@ -357,10 +367,6 @@ func (r *MatchingRule) validate() (err error) {
 	}
 
 	if err = r.validateSyntax(); err != nil {
-		return
-	}
-
-	if err = validateFlag(r.flags); err != nil {
 		return
 	}
 
@@ -420,12 +426,13 @@ func (r *MatchingRule) Map() (def map[string][]string) {
 	}
 
 	if !r.Extensions.IsZero() {
-		for k, v := range r.Extensions {
-			def[k] = v
+		for i := 0; i < r.Extensions.Len(); i++ {
+			ext := r.Extensions.Index(i)
+			def[ext.Label] = ext.Value
 		}
 	}
 
-	if r.Obsolete() {
+	if r.Obsolete {
 		def[`OBSOLETE`] = []string{`TRUE`}
 	}
 
@@ -438,19 +445,19 @@ MatchingRuleUnmarshaler is a package-included function that honors the signature
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
 func MatchingRuleUnmarshaler(x interface{}) (def string, err error) {
-        var r *MatchingRule
-        switch tv := x.(type) {
-        case *MatchingRule:
-                if tv.IsZero() {
-                        err = raise(isZero, "%T is nil", tv)
-                        return
-                }
-                r = tv
-        default:
-                err = raise(unexpectedType,
-                        "Bad type for unmarshal (%T)", tv)
-                return
-        }
+	var r *MatchingRule
+	switch tv := x.(type) {
+	case *MatchingRule:
+		if tv.IsZero() {
+			err = raise(isZero, "%T is nil", tv)
+			return
+		}
+		r = tv
+	default:
+		err = raise(unexpectedType,
+			"Bad type for unmarshal (%T)", tv)
+		return
+	}
 
 	var (
 		WHSP string = ` `
@@ -475,16 +482,18 @@ func MatchingRuleUnmarshaler(x interface{}) (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.Obsolete() {
-		def += idnt + Obsolete.String()
+	if r.Obsolete {
+		def += idnt + `OBSOLETE`
 	}
 
 	// Syntax will never be zero
 	def += idnt + r.Syntax.Label()
 	def += WHSP + r.Syntax.OID.String()
 
-	if !r.Extensions.IsZero() {
-		def += idnt + r.Extensions.String()
+	for i := 0; i < r.Extensions.Len(); i++ {
+		if ext := r.Extensions.Index(i); !ext.IsZero() {
+			def += idnt + ext.String()
+		}
 	}
 
 	def += WHSP + tail
@@ -515,8 +524,8 @@ func (r *MatchingRule) unmarshalBasic() (def string, err error) {
 		def += WHSP + r.Description.String()
 	}
 
-	if r.Obsolete() {
-		def += WHSP + Obsolete.String()
+	if r.Obsolete {
+		def += WHSP + `OBSOLETE`
 	}
 
 	// Syntax will never be zero

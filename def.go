@@ -22,13 +22,6 @@ Definition provides methods common to all discrete definition types:
 - *DITStructureRule
 */
 type Definition interface {
-	// SetObsolete assigns the OBSOLETE bit to the receiver field value,
-	// indicating definition obsolescence within the subschema subentry.
-	SetObsolete()
-
-	// Obsolete returns a boolean value indicative of whether the definition
-	// is set with the OBSOLETE bit value.
-	Obsolete() bool
 
 	// Equal performs a deep-equal between the receiver and the provided
 	// interface type, if applicable. A boolean value indicative of value
@@ -81,7 +74,7 @@ type Definition interface {
 
 	// SetSpecifier assigns a string value to the receiver, useful for placement
 	// into configurations that require a type name (e.g.: attributetype). This
-	// will be displayed at the beginning of the definition value during the 
+	// will be displayed at the beginning of the definition value during the
 	// unmarshal or unsafe stringification process.
 	SetSpecifier(string)
 
@@ -201,7 +194,7 @@ func (r OID) Equal(x interface{}) bool {
 }
 
 /*
-Description manifests as a single text value intended to describe the nature and purpose of the definition bearing this type in human readable format.
+Description is a single text value intended to describe the nature and purpose of the definition bearing this type in human readable format. All discrete definition types allow values of this type.
 */
 type Description string
 
@@ -370,78 +363,33 @@ func (def *definition) setKind(value string, idx int) (err error) {
 	return
 }
 
-func (def *definition) setdefinitionFlags(label string, x interface{}) (err error) {
+func (def *definition) setATFlags(label string, x interface{}) (err error) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		switch label {
 		case SingleValue.String():
-			tv.setdefinitionFlags(SingleValue)
+			tv.setATFlags(SingleValue)
 			return
 		case Collective.String():
-			tv.setdefinitionFlags(Collective)
-			return
-		case Obsolete.String():
-			tv.setdefinitionFlags(Obsolete)
+			tv.setATFlags(Collective)
 			return
 		case NoUserModification.String():
-			tv.setdefinitionFlags(NoUserModification)
-			return
-		case HumanReadable.String():
-			tv.setdefinitionFlags(HumanReadable)
+			tv.setATFlags(NoUserModification)
 			return
 		}
-	case *ObjectClass:
-		switch label {
-		case Obsolete.String():
-			tv.setdefinitionFlags(Obsolete)
-			return
-		}
-	case *LDAPSyntax:
-		switch label {
-		case HumanReadable.String():
-			tv.setdefinitionFlags(HumanReadable)
-			return
-		}
-	case *MatchingRule:
-		switch label {
-		case Obsolete.String():
-			tv.setdefinitionFlags(Obsolete)
-			return
-		}
-	case *MatchingRuleUse:
-		switch label {
-		case Obsolete.String():
-			tv.setdefinitionFlags(Obsolete)
-			return
-		}
-	case *DITContentRule:
-		switch label {
-		case Obsolete.String():
-			tv.setdefinitionFlags(Obsolete)
-			return
-		}
-	case *DITStructureRule:
-		switch label {
-		case Obsolete.String():
-			tv.setdefinitionFlags(Obsolete)
-			return
-		}
-	case *NameForm:
-		switch label {
-		case Obsolete.String():
-			tv.setdefinitionFlags(Obsolete)
-			return
-		}
+	default:
+		return raise(invalidMarshal,
+			"setATFlags: unexpected type '%T'", x)
 	}
 	err = raise(invalidFlag,
-		"setdefinitionFlags: unable to resolve '%T' type (label:'%s')",
+		"setATFlags: unable to resolve '%T' type (label:'%s')",
 		x, label)
 
 	return
 }
 
 func (def *definition) setExtensions(label string, value []string, idx int) (err error) {
-	z, ok := def.values[idx].Interface().(Extensions)
+	z, ok := def.values[idx].Interface().(*Extensions)
 	if !ok {
 		return raise(unknownDefinition,
 			"setExtensions: unexpected type '%T'",
@@ -450,7 +398,7 @@ func (def *definition) setExtensions(label string, value []string, idx int) (err
 		z = NewExtensions()
 	}
 
-	z.Set(label, value)
+	z.Set(&Extension{Label: label, Value: value})
 	def.values[idx].Set(valueOf(z))
 
 	return nil
@@ -754,7 +702,7 @@ func (def *definition) setSuperiorAttributeType(
 }
 
 /*
-setSuperiorDITStructureRules sets the SUP value of argument x, given the string value argument. This process fails if the manifest lookup fails.
+setSuperiorDITStructureRules sets the SUP value of argument x, given the string value argument. This process fails if the collection lookup fails.
 */
 func (def *definition) setSuperiorDITStructureRules(
 	dsrc DITStructureRuleCollection,
@@ -782,7 +730,7 @@ func (def *definition) setSuperiorDITStructureRules(
 }
 
 /*
-setEqSubOrd sets the SUBSTR, ORDERING or EQUALITY value of argument x, given the string value argument. This process fails if the manifest lookup fails.
+setEqSubOrd sets the SUBSTR, ORDERING or EQUALITY value of argument x, given the string value argument. This process fails if the collection lookup fails.
 */
 func (def *definition) setEqSubOrd(
 	mrc MatchingRuleCollection,
@@ -863,7 +811,7 @@ func (def *definition) alreadySet(idx int) (isSet bool) {
 		isSet = !tv.IsZero()
 	case Name:
 		isSet = !tv.IsZero()
-	case definitionFlags:
+	case atFlags:
 		isSet = !tv.IsZero()
 	case Description:
 		isSet = !tv.IsZero()

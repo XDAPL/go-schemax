@@ -17,7 +17,7 @@ var AllMatchingRules RFC4530MatchingRules
 
 var (
 	UUIDMatch,
-	UUIDOrderingMatch	  RFC4530MatchingRule
+	UUIDOrderingMatch RFC4530MatchingRule
 )
 
 func init() {

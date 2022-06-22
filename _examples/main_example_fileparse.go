@@ -62,7 +62,7 @@ func sanitize(data []byte) []string {
 			}
 		case '\n':
 			if !activeComment {
-				if last == ')' && ( next != ' ' && next != '\t' ) {
+				if last == ')' && (next != ' ' && next != '\t') {
 					clean += "<SPLITHERE>"
 				}
 			} else {
@@ -180,7 +180,6 @@ func main() {
 		chkerr(err)
 	}
 
-
 	// Use the pretty package-provided unmarshaler
 	// funcs to print with nice indenting and linebreaks,
 	// and set our desired specifier for each collection.
@@ -214,7 +213,7 @@ func main() {
 		fmt.Printf("## Parsed [%d] AttributeType definitions\n%s\n", sch.ATC.Len(), raw)
 
 		// OPTIONAL: Now that all ATs are loaded, refresh the
-		// manifest of applied MatchingRuleUses ...
+		// collection of applied MatchingRuleUses ...
 		sch.MRUC.Refresh(sch.ATC)
 	} else {
 		fmt.Printf("## No AttributeType definitions parsed\n")
