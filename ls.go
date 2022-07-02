@@ -159,12 +159,12 @@ func (r LDAPSyntaxes) Get(x interface{}) *LDAPSyntax {
 Len is a thread-safe method that returns the effective length of the receiver slice collection.
 */
 func (r LDAPSyntaxes) Len() int {
-        if &r == nil {
-                return 0
-        }
+	if &r == nil {
+		return 0
+	}
 
-        r.mutex.Lock()
-        defer r.mutex.Unlock()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
 	return r.slice.len()
 }
@@ -404,9 +404,11 @@ func (r *LDAPSyntax) Map() (def map[string][]string) {
 		def[`DESC`] = []string{r.Description.String()}
 	}
 
-	for i := 0; i < r.Extensions.Len(); i++ {
-		ext := r.Extensions.Index(i)
-		def[ext.Label] = ext.Value
+	if !r.Extensions.IsZero() {
+		for i := 0; i < r.Extensions.Len(); i++ {
+			ext := r.Extensions.Index(i)
+			def[ext.Label] = ext.Value
+		}
 	}
 
 	return def
