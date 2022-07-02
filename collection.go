@@ -5,8 +5,8 @@ type collection []interface{}
 /*
 len returns the length of the receiver as an int.
 */
-func (c *collection) len() int {
-	return len(*c)
+func (r collection) len() int {
+	return len(r)
 }
 
 /*

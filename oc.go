@@ -233,6 +233,13 @@ func (r ObjectClasses) Get(x interface{}) *ObjectClass {
 Len is a thread-safe method that returns the effective length of the receiver slice collection.
 */
 func (r ObjectClasses) Len() int {
+        if &r == nil {
+                return 0
+        }
+
+        r.mutex.Lock()
+        defer r.mutex.Unlock()
+
 	return r.slice.len()
 }
 

@@ -180,6 +180,13 @@ func (r DITStructureRules) Get(x interface{}) *DITStructureRule {
 Len is a thread-safe method that returns the effective length of the receiver slice collection.
 */
 func (r DITStructureRules) Len() int {
+        if &r == nil {
+                return 0
+        }
+
+        r.mutex.Lock()
+        defer r.mutex.Unlock()
+
 	return r.slice.len()
 }
 

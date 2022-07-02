@@ -284,7 +284,14 @@ func (r *AttributeTypes) Get(x interface{}) *AttributeType {
 /*
 Len is a thread-safe method that returns the effective length of the receiver slice collection.
 */
-func (r *AttributeTypes) Len() int {
+func (r AttributeTypes) Len() int {
+	if &r == nil {
+		return 0
+	}
+
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	return r.slice.len()
 }
 

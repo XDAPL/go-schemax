@@ -156,7 +156,14 @@ func (r *Extensions) IsZero() bool {
 	return r == nil
 }
 
-func (r *Extensions) Len() int {
+func (r Extensions) Len() int {
+	if &r == nil {
+		return 0
+	}
+
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	return r.slice.len()
 }
 
@@ -166,7 +173,7 @@ Set assigns the provided label and value(s) to the receiver instance. The interf
 All subsequent values (strings or slices of strings) are interpreted as values to be assigned to said label.
 */
 func (r *Extensions) Set(x ...interface{}) {
-	var ext *Extension = new(Extension)
+	var ext *Extension
 	switch tv := x[0].(type) {
 	case string:
 		if len(x) < 2 {
@@ -180,6 +187,8 @@ func (r *Extensions) Set(x ...interface{}) {
 			}
 			vals = append(vals, val)
 		}
+
+		ext = new(Extension)
 		ext.Label = tv
 		ext.Value = vals
 	case *Extension:
