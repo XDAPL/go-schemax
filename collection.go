@@ -43,101 +43,42 @@ func (r collection) isZero() bool {
 	return r.len() == 0
 }
 
-/*
-Equal returns a boolean value indicative of the test result involving the receiver instance and x.  This test is meant to ascertain if the two instances represent the same type and have the same effective values.
-*/
-func (r collection) equal(x collection) (equals bool) {
+func (r collection) chkBasic(x collection) (eq bool) {
 	if r.len() != x.len() {
 		return
 	}
 
 	if x.isZero() && r.isZero() {
-		equals = true
+		eq = true
 		return
 	} else if x.isZero() || r.isZero() {
 		return
 	}
 
+	eq = true
+	return
+}
+
+/*
+Equal returns a boolean value indicative of the test result involving the receiver instance and x.  This test is meant to ascertain if the two instances represent the same type and have the same effective values.
+*/
+func (r collection) equal(x collection) (equals bool) {
+	if eq := r.chkBasic(x); !eq {
+		return
+	}
+
 	for i := 0; i < r.len(); i++ {
 		switch tv := r.index(i).(type) {
-		case *LDAPSyntax:
-			assert, ok := x.index(i).(*LDAPSyntax)
-			if !ok {
-				return
-			}
-			if !tv.Equal(assert) {
-				return
-			}
-		case *MatchingRule:
-			assert, ok := x.index(i).(*MatchingRule)
-			if !ok {
-				return
-			}
-			if !tv.Equal(assert) {
-				return
-			}
-		case *MatchingRuleUse:
-			assert, ok := x.index(i).(*MatchingRuleUse)
-			if !ok {
-				return
-			}
-			if !tv.Equal(assert) {
-				return
-			}
-		case *AttributeType:
-			assert, ok := x.index(i).(*AttributeType)
-			if !ok {
-				return
-			}
-			if !tv.Equal(assert) {
-				return
-			}
-		case *ObjectClass:
-			assert, ok := x.index(i).(*ObjectClass)
-			if !ok {
-				return
-			}
-			if !tv.Equal(assert) {
-				return
-			}
-		case *NameForm:
-			assert, ok := x.index(i).(*NameForm)
-			if !ok {
-				return
-			}
-			if !tv.Equal(assert) {
-				return
-			}
-		case *DITContentRule:
-			assert, ok := x.index(i).(*DITContentRule)
-			if !ok {
-				return
-			}
-			if !tv.Equal(assert) {
-				return
-			}
-		case *DITStructureRule:
-			assert, ok := x.index(i).(*DITStructureRule)
-			if !ok {
-				return
-			}
-			if !tv.Equal(assert) {
+		case Definition:
+			if assert, _ := x.index(i).(Definition); !tv.Equal(assert) {
 				return
 			}
 		case *Extension:
-			assert, ok := x.index(i).(*Extension)
-			if !ok {
-				return
-			}
-			if !tv.Equal(assert) {
+			if assert, _ := x.index(i).(*Extension); !tv.Equal(assert) {
 				return
 			}
 		case string:
-			assert, ok := x.index(i).(string)
-			if !ok {
-				return
-			}
-			if tv != assert {
+			if assert, _ := x.index(i).(string); tv != assert {
 				return
 			}
 		default:
@@ -369,20 +310,13 @@ append assigns the provided interface value to the receiver. An error is returne
 */
 func (c *collection) append(x interface{}) error {
 	switch tv := x.(type) {
-	case *Extension,
-		*LDAPSyntax,
-		*MatchingRule,
+	case Definition,
+		*Extension,
 		*Equality,
 		*Substring,
 		*Ordering,
-		*AttributeType,
 		*SuperiorAttributeType,
-		*MatchingRuleUse,
-		*ObjectClass,
-		*StructuralObjectClass,
-		*DITContentRule,
-		*NameForm,
-		*DITStructureRule:
+		*StructuralObjectClass:
 		// ok
 	default:
 		return raise(unexpectedType, "Unsupported type (%T) for collection append", tv)
