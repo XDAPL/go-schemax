@@ -518,9 +518,9 @@ func NameFormUnmarshaler(x interface{}) (def string, err error) {
 
 	if !r.Extensions.IsZero() {
 		for i := 0; i < r.Extensions.Len(); i++ {
-                        if ext := r.Extensions.Index(i); !ext.IsZero() {
-                                def += idnt + ext.String()
-                        }
+			if ext := r.Extensions.Index(i); !ext.IsZero() {
+				def += idnt + ext.String()
+			}
 		}
 	}
 
