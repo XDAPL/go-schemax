@@ -232,6 +232,10 @@ func (r MatchingRules) Get(x interface{}) *MatchingRule {
 Len is a thread-safe method that returns the effective length of the receiver slice collection.
 */
 func (r MatchingRules) Len() int {
+	if &r == nil {
+		return 0
+	}
+
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -490,9 +494,11 @@ func MatchingRuleUnmarshaler(x interface{}) (def string, err error) {
 	def += idnt + r.Syntax.Label()
 	def += WHSP + r.Syntax.OID.String()
 
-	for i := 0; i < r.Extensions.Len(); i++ {
-		if ext := r.Extensions.Index(i); !ext.IsZero() {
-			def += idnt + ext.String()
+	if !r.Extensions.IsZero() {
+		for i := 0; i < r.Extensions.Len(); i++ {
+			if ext := r.Extensions.Index(i); !ext.IsZero() {
+				def += idnt + ext.String()
+			}
 		}
 	}
 

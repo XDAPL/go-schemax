@@ -391,17 +391,24 @@ func (def *definition) setATFlags(label string, x interface{}) (err error) {
 func (def *definition) setExtensions(label string, value []string, idx int) (err error) {
 	z, ok := def.values[idx].Interface().(*Extensions)
 	if !ok {
-		return raise(unknownDefinition,
+		err = raise(unknownDefinition,
 			"setExtensions: unexpected type '%T'",
 			def.values[idx].Interface())
-	} else if z.IsZero() {
+		return
+	}
+
+	if z.IsZero() {
 		z = NewExtensions()
 	}
 
-	z.Set(&Extension{Label: label, Value: value})
+	z.Set(&Extension{
+		Label: label,
+		Value: value,
+	})
+
 	def.values[idx].Set(valueOf(z))
 
-	return nil
+	return
 }
 
 func (def *definition) setUsage(value string, idx int) (err error) {
