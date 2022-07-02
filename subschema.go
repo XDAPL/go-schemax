@@ -31,7 +31,7 @@ The user must initialize these map-based fields before use, whether they do so t
 
 The purpose of this type is to centralize all of the relevant slices that the user would otherwise have to manage individually.  This is useful for portability reasons, and allows an entire library of X.501 schema definitions to be stored within a single object.
 
-This type also provides high-level oversight of what would otherwise be isolated low-level operations that may or may not be invalid.  For example, when operating in a purely low-level fashion (without the use of *Subschema), there is nothing stopping a user from adding a so-called "RequiredAttributeTypes" slice member to a "ProhibitedAttributeTypes" slice.  Each of those slices is throughly unaware of the other.   However, when conducting this operation via a convenient method extended by *Subschema, additional correlative checks can (and will!) be conducted to avoid such invalid actions.
+This type also provides high-level oversight of what would otherwise be isolated low-level operations that may or may not be invalid.  For example, when operating in a purely low-level fashion (without the use of *Subschema), there is nothing stopping a user from adding a so-called "RequiredAttributeTypes" slice member to a "ProhibitedAttributeTypes" slice.  Each of those slices is thoroughly unaware of the other.   However, when conducting this operation via a convenient method extended by *Subschema, additional correlative checks can (and will!) be conducted to avoid such invalid actions.
 
 Overall, use of *Subschema makes generalized use of this package slightly easier but is NOT necessarily required in all situations.
 */
