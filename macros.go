@@ -63,7 +63,7 @@ func isAnAlias(key string) (alias, rest string, is, ok bool) {
 /*
 Set assigns the provided key and oid to the receiver instance.  The arguments must both be strings.  The first argument must be the alias name, while the second must be its ASN.1 dotted object identifier.  Subsequent values are ignored.
 */
-func (r *Macros) Set(als ...interface{}) {
+func (r *Macros) Set(als ...any) {
 	if r.IsZero() {
 		*r = NewMacros()
 	}
@@ -105,7 +105,7 @@ func (r *Macros) Set(als ...interface{}) {
 /*
 Resolve returns a registered OID and a boolean value indicative of a successful lookup. A search is conducted using the provided alias key name, with or without the colon:number suffix included.
 */
-func (r Macros) Resolve(x interface{}) (oid OID, ok bool) {
+func (r Macros) Resolve(x any) (oid OID, ok bool) {
 	// If its already an OID, don't bother
 	// doing a lookup, just return it as-is.
 	if oid, ok = x.(OID); ok {

@@ -13,7 +13,7 @@ type DITStructureRuleCollection interface {
 	// Get returns the *DITStructureRule instance retrieved as a result
 	// of a term search, based on Name or ID. If no match is found,
 	// nil is returned.
-	Get(interface{}) *DITStructureRule
+	Get(any) *DITStructureRule
 
 	// Index returns the *DITStructureRule instance stored at the nth
 	// index within the receiver, or nil.
@@ -29,7 +29,7 @@ type DITStructureRuleCollection interface {
 
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
+	Contains(any) (int, bool)
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
@@ -139,7 +139,7 @@ func (r RuleID) String() string {
 /*
 Equal returns a boolean value indicative of whether the provided value is numerically equal to the receiver.
 */
-func (r RuleID) Equal(x interface{}) bool {
+func (r RuleID) Equal(x any) bool {
 	rule := NewRuleID(x)
 	return r.String() == rule.String()
 }
@@ -147,7 +147,7 @@ func (r RuleID) Equal(x interface{}) bool {
 /*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
-func (r DITStructureRules) Contains(x interface{}) (int, bool) {
+func (r DITStructureRules) Contains(x any) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	return r.slice.contains(x)
@@ -167,7 +167,7 @@ func (r DITStructureRules) Index(idx int) *DITStructureRule {
 /*
 Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
 */
-func (r DITStructureRules) Get(x interface{}) *DITStructureRule {
+func (r DITStructureRules) Get(x any) *DITStructureRule {
 	idx, found := r.Contains(x)
 	if !found {
 		return nil
@@ -285,7 +285,7 @@ func NewDITStructureRule() *DITStructureRule {
 NewDITStructureRules initializes and returns a new DITStructureRuleCollection interface object.
 */
 func NewDITStructureRules() DITStructureRuleCollection {
-	var x interface{} = &DITStructureRules{
+	var x any = &DITStructureRules{
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
@@ -300,7 +300,7 @@ func NewSuperiorDITStructureRules() DITStructureRuleCollection {
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
-	var x interface{} = &SuperiorDITStructureRules{z}
+	var x any = &SuperiorDITStructureRules{z}
 	return x.(DITStructureRuleCollection)
 }
 
@@ -309,7 +309,7 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r *DITStructureRule) Equal(x interface{}) (eq bool) {
+func (r *DITStructureRule) Equal(x any) (eq bool) {
 
 	z, ok := x.(*DITStructureRule)
 	if !ok {
@@ -354,7 +354,7 @@ func (r *DITStructureRule) Equal(x interface{}) (eq bool) {
 /*
 NewRuleID returns a new instance of *RuleID, intended for assignment to an instance of *DITStructureRule.
 */
-func NewRuleID(x interface{}) (rid RuleID) {
+func NewRuleID(x any) (rid RuleID) {
 	switch tv := x.(type) {
 	case int:
 		if tv < 0 {
@@ -489,7 +489,7 @@ DITStructureRuleUnmarshaler is a package-included function that honors the signa
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func DITStructureRuleUnmarshaler(x interface{}) (def string, err error) {
+func DITStructureRuleUnmarshaler(x any) (def string, err error) {
 	var r *DITStructureRule
 	switch tv := x.(type) {
 	case *DITStructureRule:

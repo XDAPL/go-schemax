@@ -13,7 +13,7 @@ type ObjectClassCollection interface {
 	// Get returns the *ObjectClass instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-	Get(interface{}) *ObjectClass
+	Get(any) *ObjectClass
 
 	// Index returns the *ObjectClass instance stored at the nth
 	// index within the receiver, or nil.
@@ -29,7 +29,7 @@ type ObjectClassCollection interface {
 
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
+	Contains(any) (int, bool)
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
@@ -194,7 +194,7 @@ func (r Kind) String() string {
 /*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
-func (r ObjectClasses) Contains(x interface{}) (int, bool) {
+func (r ObjectClasses) Contains(x any) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -220,7 +220,7 @@ func (r ObjectClasses) Index(idx int) *ObjectClass {
 /*
 Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
 */
-func (r ObjectClasses) Get(x interface{}) *ObjectClass {
+func (r ObjectClasses) Get(x any) *ObjectClass {
 	idx, found := r.Contains(x)
 	if !found {
 		return nil
@@ -307,7 +307,7 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r *ObjectClass) Equal(x interface{}) (eq bool) {
+func (r *ObjectClass) Equal(x any) (eq bool) {
 	var z *ObjectClass
 	switch tv := x.(type) {
 	case *ObjectClass:
@@ -375,7 +375,7 @@ func NewObjectClass() *ObjectClass {
 NewObjectClasses returns an initialized instance of ObjectClasses cast as an ObjectClassCollection.
 */
 func NewObjectClasses() ObjectClassCollection {
-	var x interface{} = &ObjectClasses{
+	var x any = &ObjectClasses{
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
@@ -390,7 +390,7 @@ func NewSuperiorObjectClasses() ObjectClassCollection {
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
-	var x interface{} = &SuperiorObjectClasses{z}
+	var x any = &SuperiorObjectClasses{z}
 	return x.(ObjectClassCollection)
 }
 
@@ -402,11 +402,11 @@ func NewAuxiliaryObjectClasses() ObjectClassCollection {
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
-	var x interface{} = &AuxiliaryObjectClasses{z}
+	var x any = &AuxiliaryObjectClasses{z}
 	return x.(ObjectClassCollection)
 }
 
-func newKind(x interface{}) Kind {
+func newKind(x any) Kind {
 	switch tv := x.(type) {
 	case Kind:
 		return newKind(tv.String())
@@ -444,7 +444,7 @@ func (r Kind) is(x Kind) bool {
 /*
 is returns a boolean value indicative of whether the provided interface value is particular Kind that matches the configured Kind of the receiver.
 */
-func (r ObjectClass) is(b interface{}) bool {
+func (r ObjectClass) is(b any) bool {
 	switch tv := b.(type) {
 	case Kind:
 		return r.Kind.is(tv)
@@ -605,7 +605,7 @@ ObjectClassUnmarshaler is a package-included function that honors the signature 
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func ObjectClassUnmarshaler(x interface{}) (def string, err error) {
+func ObjectClassUnmarshaler(x any) (def string, err error) {
 	var r *ObjectClass
 	switch tv := x.(type) {
 	case *ObjectClass:
@@ -705,22 +705,28 @@ func (r *ObjectClass) unmarshalBasic() (def string, err error) {
 		def += WHSP + `OBSOLETE`
 	}
 
-	if !r.SuperClass.IsZero() {
-		def += WHSP + r.SuperClass.Label()
-		def += WHSP + r.SuperClass.String()
+	if r.SuperClass != nil {
+		if r.SuperClass.Len() > 0 {
+			def += WHSP + r.SuperClass.Label()
+			def += WHSP + r.SuperClass.String()
+		}
 	}
 
 	// Kind will never be zero
 	def += WHSP + r.Kind.String()
 
-	if !r.Must.IsZero() {
-		def += WHSP + r.Must.Label()
-		def += WHSP + r.Must.String()
+	if r.Must != nil {
+		if r.Must.Len() > 0 {
+			def += WHSP + r.Must.Label()
+			def += WHSP + r.Must.String()
+		}
 	}
 
-	if !r.May.IsZero() {
-		def += WHSP + r.May.Label()
-		def += WHSP + r.May.String()
+	if r.May != nil {
+		if r.May.Len() > 0 {
+			def += WHSP + r.May.Label()
+			def += WHSP + r.May.String()
+		}
 	}
 
 	if !r.Extensions.IsZero() {

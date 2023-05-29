@@ -30,9 +30,9 @@ var (
 	runeIsLetter func(rune) bool                           = unicode.IsLetter
 	runeIsDigit  func(rune) bool                           = unicode.IsDigit
 	isUTF8       func([]byte) bool                         = utf8.Valid
-	valueOf      func(interface{}) reflect.Value           = reflect.ValueOf
-	printf       func(string, ...interface{}) (int, error) = fmt.Printf
-	sprintf      func(string, ...interface{}) string       = fmt.Sprintf
+	valueOf      func(any) reflect.Value           = reflect.ValueOf
+	printf       func(string, ...any) (int, error) = fmt.Printf
+	sprintf      func(string, ...any) string       = fmt.Sprintf
 	newErr       func(string) error                        = errors.New
 )
 

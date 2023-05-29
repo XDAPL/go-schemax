@@ -9,7 +9,7 @@ type DITContentRuleCollection interface {
 	// Get returns the *DITContentRule instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-	Get(interface{}) *DITContentRule
+	Get(any) *DITContentRule
 
 	// Index returns the *DITContentRule instance stored at the nth
 	// index within the receiver, or nil.
@@ -25,7 +25,7 @@ type DITContentRuleCollection interface {
 
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
+	Contains(any) (int, bool)
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
@@ -149,7 +149,7 @@ func (r *DITContentRule) SetUnmarshaler(fn DefinitionUnmarshaler) {
 /*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
-func (r DITContentRules) Contains(x interface{}) (int, bool) {
+func (r DITContentRules) Contains(x any) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -175,7 +175,7 @@ func (r DITContentRules) Index(idx int) *DITContentRule {
 /*
 Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
 */
-func (r DITContentRules) Get(x interface{}) *DITContentRule {
+func (r DITContentRules) Get(x any) *DITContentRule {
 	idx, found := r.Contains(x)
 	if !found {
 		return nil
@@ -262,7 +262,7 @@ func (r *DITContentRule) Belongs(aux *ObjectClass) (belongs bool) {
 /*
 Requires returns a boolean value indicative of whether the provided value is required per the receiver.
 */
-func (r *DITContentRule) Requires(x interface{}) (required bool) {
+func (r *DITContentRule) Requires(x any) (required bool) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		_, required = r.Must.Contains(tv)
@@ -274,7 +274,7 @@ func (r *DITContentRule) Requires(x interface{}) (required bool) {
 /*
 Permits returns a boolean value indicative of whether the provided value is allowed from use per the receiver.
 */
-func (r *DITContentRule) Permits(x interface{}) (permitted bool) {
+func (r *DITContentRule) Permits(x any) (permitted bool) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		_, permitted = r.May.Contains(tv)
@@ -286,7 +286,7 @@ func (r *DITContentRule) Permits(x interface{}) (permitted bool) {
 /*
 Prohibits returns a boolean value indicative of whether the provided value is prohibited from use per the receiver.
 */
-func (r *DITContentRule) Prohibits(x interface{}) (prohibited bool) {
+func (r *DITContentRule) Prohibits(x any) (prohibited bool) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		_, prohibited = r.Not.Contains(tv)
@@ -300,7 +300,7 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r *DITContentRule) Equal(x interface{}) (eq bool) {
+func (r *DITContentRule) Equal(x any) (eq bool) {
 
 	z, ok := x.(*DITContentRule)
 	if !ok {
@@ -367,7 +367,7 @@ func NewDITContentRule() *DITContentRule {
 NewDITContentRules initializes and returns a new DITContentRuleCollection interface object.
 */
 func NewDITContentRules() DITContentRuleCollection {
-	var x interface{} = &DITContentRules{
+	var x any = &DITContentRules{
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
@@ -501,7 +501,7 @@ DITContentRuleUnmarshaler is a package-included function that honors the signatu
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func DITContentRuleUnmarshaler(x interface{}) (def string, err error) {
+func DITContentRuleUnmarshaler(x any) (def string, err error) {
 	var r *DITContentRule
 	switch tv := x.(type) {
 	case *DITContentRule:

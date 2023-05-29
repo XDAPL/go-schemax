@@ -108,7 +108,7 @@ func (r Extensions) Index(idx int) *Extension {
 /*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
-func (r Extensions) Contains(x interface{}) (int, bool) {
+func (r Extensions) Contains(x any) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	return r.slice.contains(x)
@@ -168,11 +168,11 @@ func (r Extensions) Len() int {
 }
 
 /*
-Set assigns the provided label and value(s) to the receiver instance. The interface{} input argument can be a pre-crafted *Extension instance, or two or more string slices. In the case of strings, the first argument must be a valid extension label (e.g.: X-ORIGIN). All subsequent values are considered values.
+Set assigns the provided label and value(s) to the receiver instance. The any input argument can be a pre-crafted *Extension instance, or two or more string slices. In the case of strings, the first argument must be a valid extension label (e.g.: X-ORIGIN). All subsequent values are considered values.
 
 All subsequent values (strings or slices of strings) are interpreted as values to be assigned to said label.
 */
-func (r *Extensions) Set(x ...interface{}) {
+func (r *Extensions) Set(x ...any) {
 	var ext *Extension
 	switch tv := x[0].(type) {
 	case string:
@@ -211,7 +211,7 @@ func (r *Extensions) Set(x ...interface{}) {
 	return
 }
 
-func (r *Extensions) delete(x interface{}) {
+func (r *Extensions) delete(x any) {
 	var idx int = -1
 	var found bool
 	switch tv := x.(type) {
@@ -240,7 +240,7 @@ func (r *Extensions) delete(x interface{}) {
 /*
 Equal compares the receiver to the provided interface value (which must be of the same effective type).  A comparison is performed, and an equality-indicative boolean value is returned.
 */
-func (r Extensions) Equal(x interface{}) (eq bool) {
+func (r Extensions) Equal(x any) (eq bool) {
 	assert, ok := x.(*Extensions)
 	if !ok {
 		return

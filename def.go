@@ -26,7 +26,7 @@ type Definition interface {
 	// Equal performs a deep-equal between the receiver and the provided
 	// interface type, if applicable. A boolean value indicative of value
 	// equality is returned.
-	Equal(interface{}) bool
+	Equal(any) bool
 
 	// IsZero returns a boolean value indicative of whether the receiver
 	// is considered zero, or undefined.
@@ -100,7 +100,7 @@ During the unmarshaling or unsafe stringifaction processes, users may choose to:
 
 By default, NO special formatting is performed during unmarshaling or unsafe stringification of definitions.
 */
-type DefinitionUnmarshaler func(interface{}) (string, error)
+type DefinitionUnmarshaler func(any) (string, error)
 
 /*
 OID is a type alias for []int that describes an ASN.1 Object Identifier.
@@ -110,7 +110,7 @@ type OID []int
 /*
 NewOID returns an instance of OID based on the provided input variable x. Supported OID input types are []string, []int or string.
 */
-func NewOID(x interface{}) (oid OID) {
+func NewOID(x any) (oid OID) {
 	switch tv := x.(type) {
 	case string:
 		return NewOID(split(tv, `.`))
@@ -178,7 +178,7 @@ func (r OID) Len() int {
 /*
 Equal returns a boolean value indicative of whether the receiver and x are equal.
 */
-func (r OID) Equal(x interface{}) bool {
+func (r OID) Equal(x any) bool {
 	o := NewOID(x)
 	if r.Len() != o.Len() {
 		return false
@@ -272,7 +272,7 @@ func definitionType(def definition) (n string) {
 /*
 newDefinition will parse the provided interface (x) into an instance of *definition, which is returned along with a success-indicative boolean value.  If values are present within the provided interface, they are preserved.
 */
-func newDefinition(z interface{}, alm *Macros) (def *definition, ok bool) {
+func newDefinition(z any, alm *Macros) (def *definition, ok bool) {
 	def = new(definition)
 	def.alm = alm
 
@@ -363,7 +363,7 @@ func (def *definition) setKind(value string, idx int) (err error) {
 	return
 }
 
-func (def *definition) setATFlags(label string, x interface{}) (err error) {
+func (def *definition) setATFlags(label string, x any) (err error) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		switch label {
@@ -440,7 +440,7 @@ func (def *definition) setName(idx int, value ...string) (err error) {
 
 func (def *definition) setStructuralObjectClass(
 	occ ObjectClassCollection,
-	x interface{},
+	x any,
 	value string,
 	idx int) (err error) {
 
@@ -466,7 +466,7 @@ func (def *definition) setStructuralObjectClass(
 
 func (def *definition) setSyntax(
 	lsc LDAPSyntaxCollection,
-	x interface{},
+	x any,
 	value string,
 	idx int) (err error) {
 
@@ -488,7 +488,7 @@ func (def *definition) setSyntax(
 
 func (def *definition) setAttrTypeSyntax(
 	lsc LDAPSyntaxCollection,
-	x interface{},
+	x any,
 	value string, idx int) (err error) {
 
 	assert, ok := x.(*AttributeType)
@@ -524,7 +524,7 @@ func (def *definition) setAttrTypeSyntax(
 
 func (def *definition) setNameForm(
 	nfc NameFormCollection,
-	x interface{},
+	x any,
 	value string, idx int) (err error) {
 
 	nf := nfc.Get(value)
@@ -540,7 +540,7 @@ func (def *definition) setNameForm(
 
 func (def *definition) setSuperiorObjectClasses(
 	occ ObjectClassCollection,
-	x interface{},
+	x any,
 	value []string,
 	idx int) (err error) {
 
@@ -565,7 +565,7 @@ func (def *definition) setSuperiorObjectClasses(
 
 func (def *definition) setAuxiliaryObjectClasses(
 	occ ObjectClassCollection,
-	x interface{},
+	x any,
 	value []string,
 	idx int) (err error) {
 
@@ -590,7 +590,7 @@ func (def *definition) setAuxiliaryObjectClasses(
 
 func (def *definition) setApplicableAttributeTypes(
 	atc AttributeTypeCollection,
-	x interface{},
+	x any,
 	value []string,
 	idx int) (err error) {
 
@@ -615,7 +615,7 @@ func (def *definition) setApplicableAttributeTypes(
 
 func (def *definition) setRequiredAttributeTypes(
 	atc AttributeTypeCollection,
-	x interface{},
+	x any,
 	value []string,
 	idx int) (err error) {
 
@@ -640,7 +640,7 @@ func (def *definition) setRequiredAttributeTypes(
 
 func (def *definition) setPermittedAttributeTypes(
 	atc AttributeTypeCollection,
-	x interface{},
+	x any,
 	value []string,
 	idx int) (err error) {
 
@@ -665,7 +665,7 @@ func (def *definition) setPermittedAttributeTypes(
 
 func (def *definition) setProhibitedAttributeTypes(
 	atc AttributeTypeCollection,
-	x interface{},
+	x any,
 	value []string,
 	idx int) (err error) {
 
@@ -690,7 +690,7 @@ func (def *definition) setProhibitedAttributeTypes(
 
 func (def *definition) setSuperiorAttributeType(
 	atc AttributeTypeCollection,
-	x interface{},
+	x any,
 	value string,
 	idx int) (err error) {
 
@@ -713,7 +713,7 @@ setSuperiorDITStructureRules sets the SUP value of argument x, given the string 
 */
 func (def *definition) setSuperiorDITStructureRules(
 	dsrc DITStructureRuleCollection,
-	x interface{},
+	x any,
 	value []string,
 	idx int) (err error) {
 
@@ -741,7 +741,7 @@ setEqSubOrd sets the SUBSTR, ORDERING or EQUALITY value of argument x, given the
 */
 func (def *definition) setEqSubOrd(
 	mrc MatchingRuleCollection,
-	x interface{},
+	x any,
 	value string,
 	idx int) (err error) {
 
@@ -881,7 +881,7 @@ func (r Name) Len() int {
 /*
 Equal returns a boolean indicative of whether the value(s) provided match the receiver.
 */
-func (r Name) Equal(x interface{}) bool {
+func (r Name) Equal(x any) bool {
 	//return collection(r).equal(collection(n))
 	if r.IsZero() {
 		return false
@@ -951,7 +951,7 @@ func (r *Name) Set(x ...string) {
 /*
 Contains returns the index number and presence boolean that reflects the result of a term search.
 */
-func (r Name) Contains(x interface{}) (idx int, has bool) {
+func (r Name) Contains(x any) (idx int, has bool) {
 	var term string
 	idx = -1
 
@@ -966,7 +966,7 @@ func (r Name) Contains(x interface{}) (idx int, has bool) {
 		return
 	}
 
-	var n interface{}
+	var n any
 	for idx, n = range r {
 		if has = term == n.(string); has {
 			break
@@ -1081,7 +1081,7 @@ func validateName(value string) (err error) {
 	return
 }
 
-func validateDesc(x interface{}) (err error) {
+func validateDesc(x any) (err error) {
 	var value string
 	switch tv := x.(type) {
 	case Description:

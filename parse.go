@@ -435,7 +435,7 @@ func sanitize(def string) (processed string) {
 	return
 }
 
-func isNumericalOID(x interface{}) (is bool) {
+func isNumericalOID(x any) (is bool) {
 	var val string
 	switch tv := x.(type) {
 	case string:

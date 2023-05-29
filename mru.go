@@ -9,7 +9,7 @@ type MatchingRuleUseCollection interface {
 	// Get returns the *MatchingRuleUse instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-	Get(interface{}) *MatchingRuleUse
+	Get(any) *MatchingRuleUse
 
 	// Index returns the *MatchingRuleUse instance stored at the nth
 	// index within the receiver, or nil.
@@ -30,7 +30,7 @@ type MatchingRuleUseCollection interface {
 
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
+	Contains(any) (int, bool)
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
@@ -120,7 +120,7 @@ func (r *MatchingRuleUses) SetUnmarshaler(fn DefinitionUnmarshaler) {
 /*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
-func (r MatchingRuleUses) Contains(x interface{}) (int, bool) {
+func (r MatchingRuleUses) Contains(x any) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	return r.slice.contains(x)
@@ -140,7 +140,7 @@ func (r MatchingRuleUses) Index(idx int) *MatchingRuleUse {
 /*
 Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
 */
-func (r MatchingRuleUses) Get(x interface{}) *MatchingRuleUse {
+func (r MatchingRuleUses) Get(x any) *MatchingRuleUse {
 	idx, found := r.Contains(x)
 	if !found {
 		return nil
@@ -308,7 +308,7 @@ Equal performs a deep-equal between the receiver and the provided collection typ
 
 Description text is ignored.
 */
-func (r *MatchingRuleUse) Equal(x interface{}) (eq bool) {
+func (r *MatchingRuleUse) Equal(x any) (eq bool) {
 	z, ok := x.(MatchingRuleUse)
 	if !ok {
 		return
@@ -359,14 +359,14 @@ func NewMatchingRuleUse() *MatchingRuleUse {
 NewMatchingRuleUses initializes and returns a new MatchingRuleUsesCollection interface object.
 */
 func NewMatchingRuleUses() MatchingRuleUseCollection {
-	var x interface{} = &MatchingRuleUses{
+	var x any = &MatchingRuleUses{
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
 	return x.(MatchingRuleUseCollection)
 }
 
-func (r *MatchingRuleUse) is(b interface{}) bool {
+func (r *MatchingRuleUse) is(b any) bool {
 	switch tv := b.(type) {
 	case *AttributeType:
 		if _, x := r.Applies.Contains(tv); !x {
@@ -481,7 +481,7 @@ MatchingRuleUseUnmarshaler is a package-included function that honors the signat
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func MatchingRuleUseUnmarshaler(x interface{}) (def string, err error) {
+func MatchingRuleUseUnmarshaler(x any) (def string, err error) {
 	var r *MatchingRuleUse
 	switch tv := x.(type) {
 	case *MatchingRuleUse:

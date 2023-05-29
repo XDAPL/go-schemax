@@ -9,7 +9,7 @@ type NameFormCollection interface {
 	// Get returns the *NameForm instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-	Get(interface{}) *NameForm
+	Get(any) *NameForm
 
 	// Index returns the *NameForm instance stored at the nth
 	// index within the receiver, or nil.
@@ -25,7 +25,7 @@ type NameFormCollection interface {
 
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
+	Contains(any) (int, bool)
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
@@ -146,7 +146,7 @@ func (r *NameForm) SetUnmarshaler(fn DefinitionUnmarshaler) {
 /*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
-func (r NameForms) Contains(x interface{}) (int, bool) {
+func (r NameForms) Contains(x any) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -172,7 +172,7 @@ func (r NameForms) Index(idx int) *NameForm {
 /*
 Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
 */
-func (r NameForms) Get(x interface{}) *NameForm {
+func (r NameForms) Get(x any) *NameForm {
 	idx, found := r.Contains(x)
 	if !found {
 		return nil
@@ -248,7 +248,7 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r *NameForm) Equal(x interface{}) (eq bool) {
+func (r *NameForm) Equal(x any) (eq bool) {
 
 	z, ok := x.(*NameForm)
 	if !ok {
@@ -309,7 +309,7 @@ func NewNameForm() *NameForm {
 NewNameForms initializes and returns a new NameFormCollection interface object.
 */
 func NewNameForms() NameFormCollection {
-	var x interface{} = &NameForms{
+	var x any = &NameForms{
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
@@ -461,7 +461,7 @@ NameFormUnmarshaler is a package-included function that honors the signature of 
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func NameFormUnmarshaler(x interface{}) (def string, err error) {
+func NameFormUnmarshaler(x any) (def string, err error) {
 	var r *NameForm
 	switch tv := x.(type) {
 	case *NameForm:

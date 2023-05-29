@@ -48,11 +48,11 @@ type Subschema struct {
 }
 
 /*
-Set will take the assigned interface{} x and attempt to store (register) it within the appropriate slice member within the receiver instance of the receiver.  A boolean value is returned indicative of success.
+Set will take the assigned any x and attempt to store (register) it within the appropriate slice member within the receiver instance of the receiver.  A boolean value is returned indicative of success.
 
 This method is only useful when NOT marshaling raw definitions into type instances (e.g.: if one is manually crafting a specific definition manually).
 */
-func (r *Subschema) set(x interface{}) (ok bool) {
+func (r *Subschema) set(x any) (ok bool) {
 	switch tv := x.(type) {
 	case *AttributeType:
 		if z := r.ATC.Get(tv.OID.String()); z == nil {

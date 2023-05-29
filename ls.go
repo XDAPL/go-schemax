@@ -9,7 +9,7 @@ type LDAPSyntaxCollection interface {
 	// Get returns the *LDAPSyntax instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-	Get(interface{}) *LDAPSyntax
+	Get(any) *LDAPSyntax
 
 	// Index returns the *LDAPSyntax instance stored at the nth
 	// index within the receiver, or nil.
@@ -25,7 +25,7 @@ type LDAPSyntaxCollection interface {
 
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
+	Contains(any) (int, bool)
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
@@ -120,7 +120,7 @@ func (r *LDAPSyntaxes) SetUnmarshaler(fn DefinitionUnmarshaler) {
 /*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
-func (r LDAPSyntaxes) Contains(x interface{}) (int, bool) {
+func (r LDAPSyntaxes) Contains(x any) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -146,7 +146,7 @@ func (r LDAPSyntaxes) Index(idx int) *LDAPSyntax {
 /*
 Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
 */
-func (r LDAPSyntaxes) Get(x interface{}) *LDAPSyntax {
+func (r LDAPSyntaxes) Get(x any) *LDAPSyntax {
 	idx, found := r.Contains(x)
 	if !found {
 		return nil
@@ -253,7 +253,7 @@ func NewLDAPSyntax() *LDAPSyntax {
 NewLDAPSyntaxes initializes and returns a new LDAPSyntaxesCollection interface object.
 */
 func NewLDAPSyntaxes() LDAPSyntaxCollection {
-	var x interface{} = &LDAPSyntaxes{
+	var x any = &LDAPSyntaxes{
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
@@ -282,7 +282,7 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r *LDAPSyntax) Equal(x interface{}) (eq bool) {
+func (r *LDAPSyntax) Equal(x any) (eq bool) {
 	z, ok := x.(*LDAPSyntax)
 	if !ok {
 		return
@@ -338,7 +338,7 @@ LDAPSyntaxUnmarshaler is a package-included function that honors the signature o
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func LDAPSyntaxUnmarshaler(x interface{}) (def string, err error) {
+func LDAPSyntaxUnmarshaler(x any) (def string, err error) {
 	var r *LDAPSyntax
 	switch tv := x.(type) {
 	case *LDAPSyntax:

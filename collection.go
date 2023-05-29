@@ -1,6 +1,6 @@
 package schemax
 
-type collection []interface{}
+type collection []any
 
 /*
 len returns the length of the receiver as an int.
@@ -14,7 +14,7 @@ index is a panic-proof slice indexer that returns an interface member based on t
 
 A negative index integer returns the element at index 'length+-idx'. A positive integer returns the nth slice member. If the provided integer is larger than the total length, the final element is returned.
 */
-func (c collection) index(idx int) interface{} {
+func (c collection) index(idx int) any {
 	L := c.len()
 	if L == 0 {
 		return nil
@@ -32,8 +32,6 @@ func (c collection) index(idx int) interface{} {
 	} else {
 		return c[idx]
 	}
-
-	return nil
 }
 
 func (r collection) isZero() bool {
@@ -137,7 +135,7 @@ containsID returns an element index number and a boolean value indicative of the
 
 collections of dITStructureRules are the only types that will have any meaningful use for this method.
 */
-func (c collection) containsID(x interface{}) (index int, found bool) {
+func (c collection) containsID(x any) (index int, found bool) {
 	index = -1
 
 	for i := 0; i < c.len(); i++ {
@@ -250,7 +248,7 @@ Possible search terms are:
   - Actual OID, or string representation of OID (does not apply to collections of dITStructureRule definitions)
   - Rule ID, as an int or uint (only applies to collections of dITStructureRule definitions)
 */
-func (c collection) contains(x interface{}) (index int, found bool) {
+func (c collection) contains(x any) (index int, found bool) {
 	index = -1
 	if c.len() == 0 {
 		return
@@ -308,7 +306,7 @@ func (c *collection) delete(idx int) {
 /*
 append assigns the provided interface value to the receiver. An error is returned if there is a type-mismatch, or if an unsupported type is provided. This method is not thread-safe unto itself, and should only be called in situations where thread protection is provided at a higher level.
 */
-func (c *collection) append(x interface{}) error {
+func (c *collection) append(x any) error {
 	switch tv := x.(type) {
 	case Definition,
 		*Extension,

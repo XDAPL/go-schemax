@@ -93,12 +93,12 @@ In the above example, the definition would unmarshal as a standard RFC4512 schem
 
 User-authored functions MUST honor the following function signature (see the DefinitionUnmarshaler type for details).
 
-  func(interface{}) (string, error)
+  func(any) (string, error)
 
 The structure of a given user-authored unmarshaler function will vary, but should generally reflect the example below.
 
  // Example attributeType unmarshaler
- func myCustomAttributeUnmarshaler(x interface{}) (def string, err error) {
+ func myCustomAttributeUnmarshaler(x any) (def string, err error) {
 
 	// We'll use this variable to store the
 	// value once we verify it's copacetic.

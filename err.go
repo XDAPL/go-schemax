@@ -30,7 +30,7 @@ var invalidMatchingRule error = newErr("No matchingRule derived from definition"
 var invalidMatchingRuleUse error = newErr("No matchingRuleUses derived from definition")
 var invalidUsage error = newErr("Invalid Usage value")
 
-func raise(err error, text string, m ...interface{}) error {
+func raise(err error, text string, m ...any) error {
 	if err == nil {
 		if len(text) == 0 {
 			return newErr("unspecified/unhandled exception")
@@ -44,7 +44,7 @@ func raise(err error, text string, m ...interface{}) error {
 	return newErr(sprintf(err.Error()+`: `+text, m...))
 }
 
-func raiseUnknownElement(funcname string, fobj interface{}, fman interface{}, val string, dest interface{}) error {
+func raiseUnknownElement(funcname string, fobj any, fman any, val string, dest any) error {
 	return raise(unknownElement, "%s: no such %T was found in %T for value '%s' (type: %T)",
 		funcname, fobj, fman, val, dest)
 }

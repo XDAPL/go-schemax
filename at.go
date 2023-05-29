@@ -19,7 +19,7 @@ type AttributeTypeCollection interface {
 	// Get returns the *AttributeType instance retrieved as a result
 	// of a term search, based on Name or OID. If no match is found,
 	// nil is returned.
-	Get(interface{}) *AttributeType
+	Get(any) *AttributeType
 
 	// Index returns the *AttributeType instance stored at the nth
 	// index within the receiver, or nil.
@@ -35,7 +35,7 @@ type AttributeTypeCollection interface {
 
 	// Contains returns the index number and presence boolean that
 	// reflects the result of a term search within the receiver.
-	Contains(interface{}) (int, bool)
+	Contains(any) (int, bool)
 
 	// String returns a properly-delimited sequence of string
 	// values, either as a Name or OID, for the receiver type.
@@ -246,7 +246,7 @@ func (r Usage) String() string {
 /*
 Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
 */
-func (r *AttributeTypes) Contains(x interface{}) (int, bool) {
+func (r *AttributeTypes) Contains(x any) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -272,7 +272,7 @@ func (r *AttributeTypes) Index(idx int) *AttributeType {
 /*
 Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
 */
-func (r *AttributeTypes) Get(x interface{}) *AttributeType {
+func (r *AttributeTypes) Get(x any) *AttributeType {
 	idx, found := r.Contains(x)
 	if !found {
 		return nil
@@ -359,7 +359,7 @@ Equal performs a deep-equal between the receiver and the provided definition typ
 
 Description text is ignored.
 */
-func (r *AttributeType) Equal(x interface{}) (eq bool) {
+func (r *AttributeType) Equal(x any) (eq bool) {
 	var z *AttributeType
 	switch tv := x.(type) {
 	case *AttributeType:
@@ -440,7 +440,7 @@ func NewAttributeType() *AttributeType {
 NewAttributeTypes initializes and returns a new AttributeTypeCollection interface object.
 */
 func NewAttributeTypes() AttributeTypeCollection {
-	var x interface{} = &AttributeTypes{
+	var x any = &AttributeTypes{
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
@@ -455,7 +455,7 @@ func NewApplicableAttributeTypes() AttributeTypeCollection {
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
-	var x interface{} = &ApplicableAttributeTypes{z}
+	var x any = &ApplicableAttributeTypes{z}
 	return x.(AttributeTypeCollection)
 }
 
@@ -467,7 +467,7 @@ func NewRequiredAttributeTypes() AttributeTypeCollection {
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
-	var x interface{} = &RequiredAttributeTypes{z}
+	var x any = &RequiredAttributeTypes{z}
 	return x.(AttributeTypeCollection)
 }
 
@@ -479,7 +479,7 @@ func NewPermittedAttributeTypes() AttributeTypeCollection {
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
-	var x interface{} = &PermittedAttributeTypes{z}
+	var x any = &PermittedAttributeTypes{z}
 	return x.(AttributeTypeCollection)
 }
 
@@ -491,11 +491,11 @@ func NewProhibitedAttributeTypes() AttributeTypeCollection {
 		mutex: &sync.Mutex{},
 		slice: make(collection, 0, 0),
 	}
-	var x interface{} = &ProhibitedAttributeTypes{z}
+	var x any = &ProhibitedAttributeTypes{z}
 	return x.(AttributeTypeCollection)
 }
 
-func newUsage(x interface{}) Usage {
+func newUsage(x any) Usage {
 	switch tv := x.(type) {
 	case string:
 		switch toLower(tv) {
@@ -543,7 +543,7 @@ func (r *AttributeType) SetMaxLength(max int) {
 /*
 setMUB assigns the number (or string) as the minimum upper bounds value for the receiver.
 */
-func (r *AttributeType) setMUB(mub interface{}) {
+func (r *AttributeType) setMUB(mub any) {
 
 	switch tv := mub.(type) {
 	case string:
@@ -567,7 +567,7 @@ is returns a boolean value indicative of whether the provided interface argument
 
 In the case of an *LDAPSyntax argument, if the receiver is in fact a sub type of another *AttributeType instance, a reference to that super type is chased and analyzed accordingly.
 */
-func (r *AttributeType) is(b interface{}) bool {
+func (r *AttributeType) is(b any) bool {
 	switch tv := b.(type) {
 	case atFlags:
 		return r.flags.is(tv)
@@ -837,7 +837,7 @@ AttributeTypeUnmarshaler is a package-included function that honors the signatur
 
 The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
 */
-func AttributeTypeUnmarshaler(x interface{}) (def string, err error) {
+func AttributeTypeUnmarshaler(x any) (def string, err error) {
 	var r *AttributeType
 	switch tv := x.(type) {
 	case *AttributeType:

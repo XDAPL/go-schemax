@@ -23,7 +23,7 @@ Should any validation errors occur, a non-nil instance of error is returned.
 
 Note that it is far more convenient to use the Subschema.Marshal wrapper, as it only requires a single argument (the raw definition).
 */
-func Marshal(raw string, x interface{},
+func Marshal(raw string, x any,
 	atc AttributeTypeCollection,
 	occ ObjectClassCollection,
 	lsc LDAPSyntaxCollection,
@@ -200,7 +200,7 @@ Unmarshal takes an instance of one (1) of the following types and (if valid) and
 
 Should any validation errors occur, a non-nil instance of error is returned.
 */
-func Unmarshal(x interface{}) (string, error) {
+func Unmarshal(x any) (string, error) {
 	var err error
 	var defs string
 	switch tv := x.(type) {
