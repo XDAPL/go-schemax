@@ -8,6 +8,7 @@ import (
 	"github.com/JesseCoretta/go-schemax/rfc2079"
 	"github.com/JesseCoretta/go-schemax/rfc2307"
 	"github.com/JesseCoretta/go-schemax/rfc2798"
+	"github.com/JesseCoretta/go-schemax/rfc3045"
 	"github.com/JesseCoretta/go-schemax/rfc3672"
 	"github.com/JesseCoretta/go-schemax/rfc4512"
 	"github.com/JesseCoretta/go-schemax/rfc4517"
@@ -464,6 +465,8 @@ PopulateDefaultAttributeTypes returns a new auto-populated instance of Attribute
 
 • Attribute types from RFC2798 (imported from go-schemax/rfc2798)
 
+• Attribute types from RFC3045 (imported from go-schemax/rfc3045)
+
 • Attribute types from RFC4512 (imported from go-schemax/rfc4512)
 
 • Attribute types from RFC4519 (imported from go-schemax/rfc4519)
@@ -515,6 +518,10 @@ func PopulateDefaultAttributeTypes() (atc AttributeTypeCollection) {
 		DefaultLDAPSyntaxes,
 		DefaultMatchingRules)
 
+        PopulateRFC3045AttributeTypes(atc,
+                DefaultLDAPSyntaxes,
+                DefaultMatchingRules)
+
 	return
 }
 
@@ -558,6 +565,27 @@ func PopulateRFC2079AttributeTypes(
 		}
 		atc.Set(&nat)
 	}
+}
+
+/*
+PopulateRFC3045AttributeTypes only populates the provided AttributeTypes (atc) with AttributeType definitions defined in this RFC.
+
+Definitions are imported from go-schemax/rfc3045.
+
+Valid instances of LDAPSyntaxes (containing all referenced LDAPSyntax definitions) and MatchingRules (containing all referenced MatchingRules definitions), must be provided as the lsc and mrc arguments respectively.
+*/
+func PopulateRFC3045AttributeTypes(
+        atc AttributeTypeCollection,
+        lsc LDAPSyntaxCollection,
+        mrc MatchingRuleCollection) {
+
+        for _, at := range rfc3045.AllAttributeTypes {
+                var nat AttributeType
+                if err := Marshal(string(at), &nat, atc, nil, lsc, mrc, nil, nil, nil, nil); err != nil {
+                        panic(sprintf("%s: %s", err.Error(), string(at)))
+                }
+                atc.Set(&nat)
+        }
 }
 
 /*
