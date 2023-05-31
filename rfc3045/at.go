@@ -9,8 +9,8 @@ var (
 
 // Operational AttributeTypes
 var (
-	VendorName	RFC3045AttributeType
-	VendorVersion   RFC3045AttributeType
+	VendorName    RFC3045AttributeType
+	VendorVersion RFC3045AttributeType
 )
 
 func init() {
