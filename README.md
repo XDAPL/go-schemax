@@ -1,6 +1,6 @@
 # go-schemax
 
-[![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-schemax)](https://goreportcard.com/report/github.com/JesseCoretta/go-schemax) [![GoDoc](https://godoc.org/github.com/JesseCoretta/go-schemax?status.svg)](https://godoc.org/github.com/JesseCoretta/go-schemax) ![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)
+[![Deprecated](https://img.shields.io/badge/Deprecated-orange?style=flat&label=%E2%9A%A0%EF%B8%8F&labelColor=black)](https://github.com/JesseCoretta/go-schemax/discussions/15) [![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-schemax)](https://goreportcard.com/report/github.com/JesseCoretta/go-schemax) [![GoDoc](https://godoc.org/github.com/JesseCoretta/go-schemax?status.svg)](https://godoc.org/github.com/JesseCoretta/go-schemax) [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-schemax/blob/main/LICENSE)
 
 Abstract directory schema constructs and methods based on RFC4512 Section 4.1.
 
