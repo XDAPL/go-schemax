@@ -6,19 +6,26 @@ Package schemax implements a powerful [RFC4512](https://www.rfc-editor.org/rfc/r
 
 Requires Go version 1.18 or higher.
 
-[![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-schemax)](https://goreportcard.com/report/github.com/JesseCoretta/go-schemax) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-schemax.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-schemax) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-schemax/blob/main/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-schemax)](https://goreportcard.com/report/github.com/JesseCoretta/go-schemax) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-schemax.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-schemax) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-schemax/blob/main/LICENSE) [![Help Animals](https://img.shields.io/badge/help_animals-gray?label=%F0%9F%90%BE%20%F0%9F%98%BC%20%F0%9F%90%B6&labelColor=yellow)](https://github.com/JesseCoretta/JesseCoretta/blob/main/DONATIONS.md)
 
 ## License
 
-The schemax package -- from [`go-schemax`](http://github.com/JesseCoretta/go-schemax) -- is available under the terms of the MIT license.
-
-For further details, see the [LICENSE](/LICENSE) file within the root of the linked repository.
+The schemax package is available under the terms of the MIT license.  For further details, see the LICENSE file within the root of the repository.
 
 ## Schema Manifest
 
 Definitions from select RFCs -- denoted by the RFC badges above -- are available for initialization within instances of `Schema`.
 
 Users may introduce definitions from other sources -- official or not -- using the various `Parse<...>` methods extended through various types within this package.
+
+## Releases
+
+Two (2) releases are available for end-users:
+
+| Version | Notes |
+| :-----: | :---: |
+| < 2.0.0 | Legacy, custom parser |
+| >= 2.0.0 | Current, ANTLR parser |
 
 ## History of schemax
 

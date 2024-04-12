@@ -1,8 +1,0 @@
-github.com/JesseCoretta/go-rfc4512-antlr v0.0.0-20240408235351-7e2a20bb7df5 h1:51njp3nstdFDdYu8/V7XFA8HNnUneZeHHH2et3Em1NQ=
-github.com/JesseCoretta/go-rfc4512-antlr v0.0.0-20240408235351-7e2a20bb7df5/go.mod h1:zhMD978gth3j7XI9gbJrZmyYVLMdmRfkXoWpwXIKVOY=
-github.com/JesseCoretta/go-stackage v1.0.3 h1:NhLG5LaRo8uFYjpWW/36Rpg2RVJS50KCgkmo5yenk5U=
-github.com/JesseCoretta/go-stackage v1.0.3/go.mod h1:QnPSyIRAMp4VWZNwBOOF7IcBGu+rWVUMDcAeATlRikI=
-github.com/antlr4-go/antlr/v4 v4.13.0 h1:lxCg3LAv+EUK6t1i0y1V6/SLeUi0eKEKdhQAlS8TVTI=
-github.com/antlr4-go/antlr/v4 v4.13.0/go.mod h1:pfChB/xh/Unjila75QW7+VU4TSnWnnk9UTnmpPaOR2g=
-golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 h1:985EYyeCOxTpcgOTJpflJUwOeEz0CQOdPt73OzpE9F8=
-golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0/go.mod h1:/lliqkxwWAhPjf5oSOIJup2XcqJaw8RGS6k3TGEc7GI=
