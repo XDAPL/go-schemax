@@ -4,7 +4,7 @@
 
 Package schemax implements a powerful [RFC4512](https://www.rfc-editor.org/rfc/rfc4512.txt) parser.
 
-Requires Go version 1.21 or higher.
+Requires Go version 1.18 or higher.
 
 [![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-schemax)](https://goreportcard.com/report/github.com/JesseCoretta/go-schemax) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-schemax.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-schemax) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-schemax/blob/main/LICENSE)
 
@@ -51,9 +51,7 @@ The "v2" release branches introduce proper `ParseFile` and `ParseDirectory` meth
 
 ```
 func main() {
-	// Assume we've already initialized an
-	// instance of Schema (r) using one of
-	// the New<...> package functions.
+	r := NewSchema()
 
 	// Let's parse a directory into our
 	// receiver instance of Schema (r).
