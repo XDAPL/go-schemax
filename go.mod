@@ -55,4 +55,4 @@ require (
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
 )
 
-go 1.21.5
+go 1.21
