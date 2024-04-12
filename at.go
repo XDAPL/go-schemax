@@ -1,1209 +1,1093 @@
 package schemax
 
-import "sync"
+import (
+	"internal/rfc2079"
+	"internal/rfc2798"
+	"internal/rfc3045"
+	"internal/rfc3671"
+	"internal/rfc3672"
+	"internal/rfc4512"
+	"internal/rfc4519"
+	"internal/rfc4523"
+	"internal/rfc4524"
+	"internal/rfc4530"
 
-/*
-AttributeTypeCollection describes all of the following types:
+	antlr4512 "github.com/JesseCoretta/go-rfc4512-antlr"
+)
 
-• AttributeTypes
-
-• RequiredAttributeTypes
-
-• PermittedAttributeTypes
-
-• ProhibitedAttributeTypes
-
-• ApplicableAttributeTypes
-*/
-type AttributeTypeCollection interface {
-	// Get returns the *AttributeType instance retrieved as a result
-	// of a term search, based on Name or OID. If no match is found,
-	// nil is returned.
-	Get(any) *AttributeType
-
-	// Index returns the *AttributeType instance stored at the nth
-	// index within the receiver, or nil.
-	Index(int) *AttributeType
-
-	// Equal performs a deep-equal between the receiver and the
-	// interface AttributeTypeCollection provided.
-	Equal(AttributeTypeCollection) bool
-
-	// Set returns an error instance based on an attempt to add
-	// the provided *AttributeType instance to the receiver.
-	Set(*AttributeType) error
-
-	// Contains returns the index number and presence boolean that
-	// reflects the result of a term search within the receiver.
-	Contains(any) (int, bool)
-
-	// String returns a properly-delimited sequence of string
-	// values, either as a Name or OID, for the receiver type.
-	String() string
-
-	// Label returns the field name associated with the interface
-	// types, or a zero string if no label is appropriate.
-	Label() string
-
-	// IsZero returns a boolean value indicative of whether the
-	// receiver is considered zero, or undefined.
-	IsZero() bool
-
-	// Len returns an integer value indicative of the current
-	// number of elements stored within the receiver.
-	Len() int
-
-	// SetSpecifier assigns a string value to all definitions within
-	// the receiver. This value is used in cases where a definition
-	// type name (e.g.: attributetype, objectclass, etc.) is required.
-	// This value will be displayed at the beginning of the definition
-	// value during the unmarshal or unsafe stringification process.
-	SetSpecifier(string)
-
-	// SetUnmarshaler assigns the provided DefinitionUnmarshaler
-	// signature to all definitions within the receiver. The provided
-	// function shall be executed during the unmarshal or unsafe
-	// stringification process.
-	SetUnmarshaler(DefinitionUnmarshaler)
-}
-
-/*
-Usage describes the intended usage of an AttributeType definition as a single text value.  This can be one of four constant values, the first of which (userApplication) is implied in the absence of any other value and is not necessary to reveal in such a case.
-*/
-type Usage uint8
-
-const (
-	UserApplication Usage = iota
-	DirectoryOperation
-	DistributedOperation
-	DSAOperation
+var (
+	rfc2079AttributeTypes rfc2079.AttributeTypeDefinitions = rfc2079.AllAttributeTypes
+	rfc2798AttributeTypes rfc2798.AttributeTypeDefinitions = rfc2798.AllAttributeTypes
+	rfc3045AttributeTypes rfc3045.AttributeTypeDefinitions = rfc3045.AllAttributeTypes
+	rfc3671AttributeTypes rfc3671.AttributeTypeDefinitions = rfc3671.AllAttributeTypes
+	rfc3672AttributeTypes rfc3672.AttributeTypeDefinitions = rfc3672.AllAttributeTypes
+	rfc4512AttributeTypes rfc4512.AttributeTypeDefinitions = rfc4512.AllAttributeTypes
+	rfc4519AttributeTypes rfc4519.AttributeTypeDefinitions = rfc4519.AllAttributeTypes
+	rfc4523AttributeTypes rfc4523.AttributeTypeDefinitions = rfc4523.AllAttributeTypes
+	rfc4524AttributeTypes rfc4524.AttributeTypeDefinitions = rfc4524.AllAttributeTypes
+	rfc4530AttributeTypes rfc4530.AttributeTypeDefinitions = rfc4530.AllAttributeTypes
 )
 
 /*
-AttributeType conforms to the specifications of RFC4512 Section 4.1.2.
+ParseAttributeType parses an individual textual attribute type (raw) and
+returns an error instance.
+
+When no error occurs, the newly formed [AttributeType] instance -- based on
+the parsed contents of raw -- is added to the receiver [AttributeTypes]
+slice instance.
 */
-type AttributeType struct {
-	OID         OID
-	Name        Name
-	Description Description
-	Obsolete    bool
-	SuperType   SuperiorAttributeType
-	Equality    Equality
-	Ordering    Ordering
-	Substring   Substring
-	Syntax      *LDAPSyntax
-	Usage       Usage
-	Extensions  *Extensions
-	flags       atFlags
-	mub         uint
-	ufn         DefinitionUnmarshaler
-	spec        string
-	info        []byte
-}
-
-/*
-Type returns the formal name of the receiver in order to satisfy signature requirements of the Definition interface type.
-*/
-func (r *AttributeType) Type() string {
-	return `AttributeType`
-}
-
-/*
-String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
-*/
-func (r *AttributeType) String() (def string) {
-	def, _ = r.unmarshal()
-	return
-}
-
-/*
-HumanReadable is a convenience wrapper for Extensions.HumanReadable(), which returns a boolean value indicative of human readability. If super typing is in effect, an attempt to determine human readability by recursive inheritance is made. Failing this, if the receiver is assigned an *LDAPSyntax value, it is evaluated similarly. A fallback of true is returned as a last recourse.
-*/
-func (r *AttributeType) HumanReadable() bool {
-	if !r.SuperType.IsZero() {
-		return r.SuperType.HumanReadable()
-	}
-	if !r.Syntax.IsZero() {
-		return r.Syntax.HumanReadable()
-	}
-
-	return true
-}
-
-/*
-SuperiorAttributeType contains an embedded instance of *AttributeType. This alias type reflects the SUP field of an attributeType definition.
-*/
-type SuperiorAttributeType struct {
-	*AttributeType
-}
-
-/*
-AttributeTypes is a thread-safe collection of *AttributeType slice instances.
-*/
-type AttributeTypes struct {
-	mutex  *sync.Mutex
-	slice  collection
-	macros *Macros
-}
-
-/*
-ApplicableAttributeTypes contains an embedded instance of *AttributeTypes. This alias type reflects the APPLIES field of a matchingRuleUse definition.
-*/
-type ApplicableAttributeTypes struct {
-	*AttributeTypes
-}
-
-/*
-String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
-*/
-func (r ApplicableAttributeTypes) String() string {
-	return r.slice.attrs_oids_string()
-}
-
-/*
-RequiredAttributeTypes contains an embedded instance of *AttributeTypes. This alias type reflects the MUST fields of a dITContentRule or objectClass definitions.
-*/
-type RequiredAttributeTypes struct {
-	*AttributeTypes
-}
-
-/*
-String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
-*/
-func (r RequiredAttributeTypes) String() string {
-	return r.slice.attrs_oids_string()
-}
-
-/*
-PermittedAttributeTypes contains an embedded instance of *AttributeTypes. This alias type reflects the MAY fields of a dITContentRule or objectClass definitions.
-*/
-type PermittedAttributeTypes struct {
-	*AttributeTypes
-}
-
-/*
-String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
-*/
-func (r PermittedAttributeTypes) String() string {
-	return r.slice.attrs_oids_string()
-}
-
-/*
-ProhibitedAttributeTypes contains an embedded instance of *AttributeTypes. This alias type reflects the NOT field of a dITContentRule definition.
-*/
-type ProhibitedAttributeTypes struct {
-	*AttributeTypes
-}
-
-/*
-String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
-*/
-func (r ProhibitedAttributeTypes) String() string {
-	return r.slice.attrs_oids_string()
-}
-
-/*
-SetMacros assigns the *Macros instance to the receiver, allowing subsequent OID resolution capabilities during the addition of new slice elements.
-*/
-func (r *AttributeTypes) SetMacros(macros *Macros) {
-	r.macros = macros
-}
-
-/*
-SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
-*/
-func (r *AttributeTypes) SetSpecifier(spec string) {
-	for i := 0; i < r.Len(); i++ {
-		r.Index(i).SetSpecifier(spec)
-	}
-}
-
-/*
-SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
-*/
-func (r *AttributeTypes) SetUnmarshaler(fn DefinitionUnmarshaler) {
-	for i := 0; i < r.Len(); i++ {
-		r.Index(i).SetUnmarshaler(fn)
-	}
-}
-
-/*
-String is a stringer method that returns the string-form of the receiver instance.
-*/
-func (r Usage) String() string {
-	switch r {
-	case DirectoryOperation:
-		return `directoryOperation`
-	case DistributedOperation:
-		return `distributedOperation`
-	case DSAOperation:
-		return `dSAOperation`
-	}
-
-	return `` // default is userApplication, but it need not be stated literally
-}
-
-/*
-Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
-*/
-func (r *AttributeTypes) Contains(x any) (int, bool) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	if !r.macros.IsZero() {
-		if oid, resolved := r.macros.Resolve(x); resolved {
-			return r.slice.contains(oid)
-		}
-	}
-	return r.slice.contains(x)
-}
-
-/*
-Index is a thread-safe method that returns the nth collection slice element if defined, else nil. This method supports use of negative indices which should be used with special care.
-*/
-func (r *AttributeTypes) Index(idx int) *AttributeType {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	assert, _ := r.slice.index(idx).(*AttributeType)
-	return assert
-}
-
-/*
-Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
-*/
-func (r *AttributeTypes) Get(x any) *AttributeType {
-	idx, found := r.Contains(x)
-	if !found {
-		return nil
-	}
-
-	return r.Index(idx)
-}
-
-/*
-Len is a thread-safe method that returns the effective length of the receiver slice collection.
-*/
-func (r AttributeTypes) Len() int {
-	if &r == nil {
-		return 0
-	}
-
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	return r.slice.len()
-}
-
-/*
-String is a non-functional stringer method needed to satisfy interface type requirements and should not be used. See the String() method for ApplicableAttributeTypes, RequiredAttributeTypes, PermittedAttributeTypes and ProhibitedAttributeTypes instead.
-*/
-func (r *AttributeTypes) String() string {
-	return ``
-}
-
-/*
-IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
-*/
-func (r *AttributeTypes) IsZero() bool {
-	if r != nil {
-		return r.slice.isZero()
-	}
-	return r == nil
-}
-
-/*
-IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
-*/
-func (r *AttributeType) IsZero() bool {
-	return r == nil
-}
-
-/*
-IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
-*/
-func (r SuperiorAttributeType) IsZero() bool {
-	return r.AttributeType.IsZero()
-}
-
-/*
-Set is a thread-safe append method that returns an error instance indicative of whether the append operation failed in some manner. Uniqueness is enforced for new elements based on Object Identifier and not the effective Name of the definition, if defined.
-*/
-func (r *AttributeTypes) Set(x *AttributeType) error {
-	if _, exists := r.Contains(x.OID); exists {
-		return nil //silent
-	}
-
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	return r.slice.append(x)
-}
-
-/*
-SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: attributetype). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
-*/
-func (r *AttributeType) SetSpecifier(spec string) {
-	r.spec = spec
-}
-
-/*
-Equal performs a deep-equal between the receiver and the provided collection type.
-*/
-func (r *AttributeTypes) Equal(x AttributeTypeCollection) bool {
-	return r.slice.equal(x.(*AttributeTypes).slice)
-}
-
-/*
-Equal performs a deep-equal between the receiver and the provided definition type.
-
-Description text is ignored.
-*/
-func (r *AttributeType) Equal(x any) (eq bool) {
-	var z *AttributeType
-	switch tv := x.(type) {
-	case *AttributeType:
-		z = tv
-	case SuperiorAttributeType:
-		z = tv.AttributeType
-	default:
-		return
-	}
-
-	if z.IsZero() && r.IsZero() {
-		eq = true
-		return
-	} else if z.IsZero() || r.IsZero() {
-		return
-	}
-
-	if !z.Name.Equal(r.Name) {
-		return
-	}
-
-	if !r.OID.Equal(z.OID) {
-		return
-	}
-
-	if z.Usage != r.Usage {
-		return
-	}
-
-	if z.flags != r.flags {
-		return
-	}
-
-	if !z.SuperType.IsZero() && !r.SuperType.IsZero() {
-		if !z.SuperType.OID.Equal(r.SuperType.OID) {
-			return
+func (r Schema) ParseAttributeType(raw string) error {
+	i, err := parseI(raw)
+	if err == nil {
+		var a AttributeType
+		a, err = r.processAttributeType(i.P.AttributeTypeDescription())
+		if err == nil {
+			err = r.AttributeTypes().push(a)
 		}
 	}
 
-	if !r.Syntax.Equal(z.Syntax) {
+	return err
+}
+
+/*
+newAttributeType initializes a new instance of the private (embedded)
+type *attributeType.
+*/
+func newAttributeType() *attributeType {
+	return &attributeType{
+		Extensions: NewExtensions(),
+	}
+}
+
+func (r AttributeType) Map() (def map[string][]string) {
+	if r.IsZero() {
 		return
 	}
 
-	if !r.Equality.Equal(z.Equality) {
-		return
+	def = make(map[string][]string, 0)
+	def[`NUMERICOID`]           = []string{r.NumericOID()}
+	def[`NAME`]	            = r.Names().List()
+	def[`DESC`]	            = []string{r.Description()}
+	def[`OBSOLETE`]             = []string{bool2str(r.IsObsolete())}
+	def[`SUP`]	            = []string{r.SuperType().OID()}
+	def[`EQUALITY`]             = []string{r.Equality().OID()}
+	def[`SUBSTR`]	            = []string{r.Substring().OID()}
+	def[`ORDERING`]             = []string{r.Ordering().OID()}
+	def[`SYNTAX`]	            = []string{r.Syntax()}
+	def[`SINGLE-VALUE`]         = []string{bool2str(r.IsSingleValued())}
+	def[`COLLECTIVE`]	    = []string{bool2str(r.IsCollective())}
+	def[`NO-USER-MODIFICATION`] = []string{bool2str(r.IsImmutable())}
+	def[`USAGE`]	            = []string{r.Usage()} // is always numeric OID
+
+	exts := r.Extensions()
+	for _, k := range exts.Keys() {
+		if ext, found := exts.get(k); found {
+			def[k] = ext.List()
+		}
 	}
 
-	if !r.Ordering.Equal(z.Ordering) {
-		return
-	}
-
-	if !r.Substring.Equal(z.Substring) {
-		return
-	}
-
-	noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
-	if !noexts {
-		eq = r.Extensions.Equal(z.Extensions)
-	} else {
-		eq = true
+	// Clean up any empty fields
+	for k, v := range def {
+		if len(v) == 0 {
+			delete(def, k)
+		} else if len(v[0]) == 0 {
+			delete(def, k)
+		}
 	}
 
 	return
 }
 
 /*
-NewAttributeType returns a newly initialized, yet effectively nil, instance of *AttributeType.
-
-Users generally do not need to execute this function unless an instance of the returned type will be manually populated (as opposed to parsing a raw text definition).
+IsIdentifiedAs returns a Boolean value indicative of whether id matches
+either the numericOID or descriptor of the receiver instance.  Case is
+not significant in the matching process.
 */
-func NewAttributeType() *AttributeType {
-	at := new(AttributeType)
-	at.Extensions = NewExtensions()
-	return at
+func (r AttributeType) IsIdentifiedAs(id string) (ident bool) {
+	if !r.IsZero() {
+		ident = id == r.NumericOID() || r.attributeType.Name.contains(id)
+	}
+
+	return
 }
 
 /*
-NewAttributeTypes initializes and returns a new AttributeTypeCollection interface object.
+IsImmutable returns a Boolean value indicative of whether the receiver
+instance has its NO-USER-MODIFICATIONS option enabled. As such, only a
+DSA may manage values of this type when a value of true is in effect.
 */
-func NewAttributeTypes() AttributeTypeCollection {
-	var x any = &AttributeTypes{
-		mutex: &sync.Mutex{},
-		slice: make(collection, 0, 0),
+func (r AttributeType) IsImmutable() (o bool) {
+	if !r.IsZero() {
+		o = r.attributeType.NoUserMod
 	}
-	return x.(AttributeTypeCollection)
+
+	return
 }
 
 /*
-NewApplicableAttributeTypes initializes an embedded instance of *AttributeTypes within the return value.
+IsCollective returns a Boolean value indicative of whether the receiver
+is COLLECTIVE.  A value of true is mutually exclusive of SINGLE-VALUE'd
+[AttributeType] instances.
 */
-func NewApplicableAttributeTypes() AttributeTypeCollection {
-	var z *AttributeTypes = &AttributeTypes{
-		mutex: &sync.Mutex{},
-		slice: make(collection, 0, 0),
+func (r AttributeType) IsCollective() (o bool) {
+	if !r.IsZero() {
+		o = r.attributeType.Collective
 	}
-	var x any = &ApplicableAttributeTypes{z}
-	return x.(AttributeTypeCollection)
+
+	return
 }
 
 /*
-NewRequiredAttributeTypes initializes an embedded instance of *AttributeTypes within the return value.
+IsSingleValued returns a Boolean value indicative of whether the receiver
+is set to only allow one (1) value to be assigned to an entry using this
+type.  A value of true is mutually exclusive of COLLECTIVE [AttributeType]
+instances.
 */
-func NewRequiredAttributeTypes() AttributeTypeCollection {
-	var z *AttributeTypes = &AttributeTypes{
-		mutex: &sync.Mutex{},
-		slice: make(collection, 0, 0),
+func (r AttributeType) IsSingleValued() (o bool) {
+	if !r.IsZero() {
+		o = r.attributeType.SingleVal
 	}
-	var x any = &RequiredAttributeTypes{z}
-	return x.(AttributeTypeCollection)
+
+	return
 }
 
 /*
-NewPermittedAttributeTypes initializes an embedded instance of *AttributeTypes within the return value.
+SetObsolete will declare the receiver instance as OBSOLETE.  Calls to
+this method will not operate in a toggling manner in that there is no
+way to "unset" a state of obsolescence.
+
+This is a fluent method.
 */
-func NewPermittedAttributeTypes() AttributeTypeCollection {
-	var z *AttributeTypes = &AttributeTypes{
-		mutex: &sync.Mutex{},
-		slice: make(collection, 0, 0),
+func (r *AttributeType) SetObsolete() AttributeType {
+	if r.attributeType == nil {
+		r.attributeType = newAttributeType()
 	}
-	var x any = &PermittedAttributeTypes{z}
-	return x.(AttributeTypeCollection)
+
+	if !r.IsZero() {
+		if !r.attributeType.Obsolete {
+			r.attributeType.Obsolete = true
+		}
+	}
+
+	return *r
 }
 
 /*
-NewProhibitedAttributeTypes initializes an embedded instance of *AttributeTypes within the return value.
+IsObsolete returns a Boolean value indicative of definition obsolescence.
 */
-func NewProhibitedAttributeTypes() AttributeTypeCollection {
-	var z *AttributeTypes = &AttributeTypes{
-		mutex: &sync.Mutex{},
-		slice: make(collection, 0, 0),
+func (r AttributeType) IsObsolete() (o bool) {
+	if !r.IsZero() {
+		o = r.attributeType.Obsolete
 	}
-	var x any = &ProhibitedAttributeTypes{z}
-	return x.(AttributeTypeCollection)
+
+	return
 }
 
-func newUsage(x any) Usage {
+/*
+Extensions returns the [Extensions] instance -- if set -- within
+the receiver.
+*/
+func (r AttributeType) Extensions() (e Extensions) {
+	if !r.IsZero() {
+		e = r.attributeType.Extensions
+	}
+
+	return
+}
+
+/*
+Name returns the string form of the principal name of the receiver instance, if set.
+*/
+func (r AttributeType) Name() (id string) {
+	if !r.IsZero() {
+		id = r.attributeType.Name.index(0)
+	}
+
+	return
+}
+
+/*
+Names returns the underlying instance of [DefinitionName] from within
+the receiver.
+*/
+func (r AttributeType) Names() (names DefinitionName) {
+	return r.attributeType.Name
+}
+
+/*
+NewAttributeTypes initializes and returns a new [AttributeTypes] instance,
+configured to allow the storage of all [AttributeType] instances.
+*/
+func NewAttributeTypes() AttributeTypes {
+	r := AttributeTypes(newCollection(``))
+	r.cast().SetPushPolicy(r.canPush)
+
+	return r
+}
+
+/*
+NewAttributeTypeOIDList initializes and returns a new [AttributeTypes] that has
+been cast from an instance of [OIDList] and configured to allow the storage of
+arbitrary [AttributeType] instances.
+*/
+func NewAttributeTypeOIDList() AttributeTypes {
+	r := AttributeTypes(newOIDList(``))
+	r.cast().
+		SetPushPolicy(r.canPush).
+		SetPresentationPolicy(r.oIDsStringer)
+
+	return r
+}
+
+/*
+OID returns the string representation of an OID -- which is either a
+numeric OID or descriptor -- that is held by the receiver instance.
+*/
+func (r AttributeType) OID() (oid string) {
+	if !r.IsZero() {
+		oid = r.NumericOID() // default
+		if r.attributeType.Name.len() > 0 {
+			oid = r.attributeType.Name.index(0)
+		}
+	}
+
+	return
+}
+
+/*
+SetNumericOID allows the manual assignment of a numeric OID to the
+receiver instance if the following are all true:
+
+  - The input id value is a syntactically valid numeric OID
+  - The receiver does not already possess a numeric OID
+
+This is a fluent method.
+*/
+func (r *AttributeType) SetNumericOID(id string) AttributeType {
+	if r.attributeType == nil {
+		r.attributeType = newAttributeType()
+	}
+
+	if isNumericOID(id) {
+		if len(r.attributeType.OID) == 0 {
+			r.attributeType.OID = id
+		}
+	}
+
+	return *r
+}
+
+/*
+NumericOID returns the string representation of the numeric OID
+held by the receiver instance.
+*/
+func (r AttributeType) NumericOID() (noid string) {
+	if !r.IsZero() {
+		noid = r.attributeType.OID
+	}
+
+	return
+}
+
+/*
+Description returns the underlying (optional) descriptive text
+assigned to the receiver instance.
+*/
+func (r AttributeType) Description() (desc string) {
+	if !r.IsZero() {
+		desc = r.attributeType.Desc
+	}
+
+	return
+}
+
+/*
+SetDescription parses desc into the underlying Desc field within the
+receiver instance.  Although a RFC 4512-compliant QuotedString is
+required, the outer single-quotes need not be specified literally.
+*/
+func (r *AttributeType) SetDescription(desc string) AttributeType {
+	if len(desc) < 3 {
+		return *r
+	}
+
+	if r.attributeType == nil {
+		r.attributeType = new(attributeType)
+	}
+
+	if !(rune(desc[0]) == rune(39) && rune(desc[len(desc)-1]) == rune(39)) {
+		desc = `'` + desc + `'`
+		if !r.IsZero() && isValidDescription(desc) {
+			r.attributeType.Desc = desc
+		}
+	}
+
+	return *r
+}
+
+func (r AttributeType) schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.attributeType.schema
+	}
+
+	return
+}
+
+/*
+String is a stringer method that returns the string representation
+of the receiver instance.
+*/
+func (r AttributeType) String() (at string) {
+	if !r.IsZero() {
+		at = r.attributeType.s
+	}
+
+	return
+}
+
+func (r *attributeType) prepareString() (err error) {
+	buf := newBuf()
+	r.t = newTemplate(`attributeType`).
+		Funcs(funcMap(map[string]any{
+			`ExtensionSet`: r.Extensions.tmplFunc,
+			`IsObsolete`:   func() bool { return r.Obsolete },
+			`Usage`:        func() string { return AttributeType{r}.Usage() },
+		}))
+
+	if r.t, err = r.t.Parse(attributeTypeTmpl); err == nil {
+		if err = r.t.Execute(buf, r); err == nil {
+			r.s = buf.String()
+		}
+	}
+
+	return
+}
+
+/*
+Syntax returns the string representation of the [LDAPSyntax] numeric if
+set within the receiver instance. If unset, a zero string is returned.
+*/
+func (r AttributeType) Syntax() (syn string) {
+	if !r.IsZero() {
+		if !r.attributeType.Syntax.IsZero() {
+			syn = r.attributeType.Syntax.NumericOID()
+		}
+	}
+
+	return
+}
+
+/*
+Equality returns the underlying instance of [MatchingRule] if set within
+the receiver instance. If unset, a zero instance is returned.
+*/
+func (r AttributeType) Equality() (eql MatchingRule) {
+	if !r.IsZero() {
+		eql = r.attributeType.Equality
+	}
+
+	return
+}
+
+/*
+Substring returns the underlying instance of [MatchingRule] if set within
+the receiver instance. If unset, a zero instance is returned.
+*/
+func (r AttributeType) Substring() (sub MatchingRule) {
+	if !r.IsZero() {
+		sub = r.attributeType.Substring
+	}
+
+	return
+}
+
+/*
+Ordering returns the underlying instance of [MatchingRule] if set within
+the receiver instance. If unset, a zero instance is returned.
+*/
+func (r AttributeType) Ordering() (ord MatchingRule) {
+	if !r.IsZero() {
+		ord = r.attributeType.Ordering
+	}
+
+	return
+}
+
+/*
+SuperType returns the underlying instance of [AttributeType] if set within
+the receiver instance as its super type. If unset, a zero instance is returned.
+*/
+func (r AttributeType) SuperType() (sup AttributeType) {
+	if !r.IsZero() {
+		sup = r.attributeType.SuperType
+	}
+
+	return
+}
+
+/*
+SetSuperType sets the super type of the receiver to the value provided. Valid
+input types are string, to represent an RFC 4512 OID residing in the underlying
+Schema instance, or an actual [AttributeType] instance already obtained or crafted.
+
+This is a fluent method.
+*/
+func (r AttributeType) SetSuperType(x any) AttributeType {
+	if r.IsZero() {
+		return r
+	} else if r.schema().IsZero() {
+		return r
+	}
+
+	var sup AttributeType
 	switch tv := x.(type) {
 	case string:
-		switch toLower(tv) {
-		case toLower(DirectoryOperation.String()):
-			return DirectoryOperation
-		case toLower(DistributedOperation.String()):
-			return DistributedOperation
-		case toLower(DSAOperation.String()):
-			return DSAOperation
-		}
-	case uint:
-		switch tv {
-		case 0x1:
-			return DirectoryOperation
-		case 0x2:
-			return DistributedOperation
-		case 0x3:
-			return DSAOperation
-		}
-	case int:
-		if tv >= 0 {
-			return newUsage(uint(tv))
-		}
+		sup = r.schema().AttributeTypes().get(tv)
+	case AttributeType:
+		sup = tv
 	}
 
-	return UserApplication
+	if err := r.attributeType.verifySuperType(sup.attributeType); err == nil && !sup.IsZero() {
+		r.attributeType.SuperType = sup
+	}
+
+	return r
 }
 
 /*
-MaxLength returns the integer value, if one was specified, that defines the maximum acceptable value size supported by this *AttributeType per its associated *LDAPSyntax.  If not applicable, a 0 is returned.
+Usage returns the string representation of the underlying USAGE if set
+within the receiver instance. If unset, a zero string -- which implies
+use of the "userApplication" [AttributeType] USAGE value by default --
+is returned.
 */
-func (r *AttributeType) MaxLength() int {
-	return int(r.mub)
-}
-
-/*
-SetMaxLength sets the minimum upper bounds, or maximum length, of the receiver instance. The argument must be a positive, non-zero integer.
-
-This will only apply to *AttributeTypes that use a human-readable syntax.
-*/
-func (r *AttributeType) SetMaxLength(max int) {
-	r.setMUB(max)
-}
-
-/*
-setMUB assigns the number (or string) as the minimum upper bounds value for the receiver.
-*/
-func (r *AttributeType) setMUB(mub any) {
-
-	switch tv := mub.(type) {
-	case string:
-		n, err := atoi(tv)
-		if err != nil || n < 0 {
-			return
-		}
-		r.mub = uint(n)
-	case int:
-		if tv > 0 {
-			r.mub = uint(tv)
-		}
-	case uint:
-		r.mub = tv
-	}
-
-}
-
-/*
-is returns a boolean value indicative of whether the provided interface argument is either an enabled atFlags value, or an associated *MatchingRule or *LDAPSyntax.
-
-In the case of an *LDAPSyntax argument, if the receiver is in fact a sub type of another *AttributeType instance, a reference to that super type is chased and analyzed accordingly.
-*/
-func (r *AttributeType) is(b any) bool {
-	switch tv := b.(type) {
-	case atFlags:
-		return r.flags.is(tv)
-	case *MatchingRule:
-		switch {
-		case tv.Equal(r.Equality.OID):
-			return true
-		case tv.Equal(r.Ordering.OID):
-			return true
-		case tv.Equal(r.Substring.OID):
-			return true
-		}
-	case *LDAPSyntax:
-		if r.Syntax != nil {
-			return r.Syntax.OID.Equal(tv.OID)
-		} else if !r.SuperType.IsZero() {
-			return r.SuperType.is(tv)
-		}
-	}
-
-	return false
-}
-
-/*
-getSyntax will traverse the supertype chain upwards until it finds an explicit SYNTAX definition
-*/
-func (r *AttributeType) getSyntax() *LDAPSyntax {
-	if r.IsZero() {
-		return nil
-	}
-	if r.Syntax.IsZero() {
-		return r.SuperType.getSyntax()
-	}
-
-	return r.Syntax
-}
-
-/*
-Validate returns an error that reflects any fatal condition observed regarding the receiver configuration.
-*/
-func (r *AttributeType) Validate() (err error) {
-	return r.validate()
-}
-
-func (r *AttributeType) validate() (err error) {
-	if r.IsZero() {
-		return raise(isZero, "%T.validate", r)
-	}
-
-	if err = validateFlag(r.flags); err != nil {
-		return
-	}
-
-	var ls *LDAPSyntax
-	if ls, err = r.validateSyntax(); err != nil {
-		return
-	}
-
-	if err = r.validateMatchingRules(ls); err != nil {
-		return
-	}
-
-	if err = validateNames(r.Name.strings()...); err != nil {
-		return
-	}
-
-	if err = validateDesc(r.Description); err != nil {
-		return
-	}
-
-	if !r.SuperType.IsZero() {
-		err = r.SuperType.Validate()
-	} else {
-		if r.Syntax.IsZero() {
-			err = raise(invalidUnmarshal, "%T.unmarshal: %T.%T: %s (not sub-typed)",
-				r, r, r.Syntax, isZero.Error())
+func (r AttributeType) Usage() (usage string) {
+	if !r.IsZero() {
+		switch v := r.attributeType.Usage; int(v) {
+		case 0:
+			break // zero is default (userApplication)
+		case 1:
+			usage = `directoryOperation`
+		case 2:
+			usage = `distributedOperation`
+		case 3:
+			usage = `dSAOperation`
 		}
 	}
 
 	return
 }
 
-func (r *AttributeType) validateSyntax() (ls *LDAPSyntax, err error) {
-	ls = r.getSyntax()
-	if ls.IsZero() {
-		err = raise(invalidSyntax,
-			"checkMatchingRules: %T is missing a syntax", r)
-	}
-
-	return
-}
-
-func (r *AttributeType) validateMatchingRules(ls *LDAPSyntax) (err error) {
-	if err = r.validateEquality(ls); err != nil {
-		return err
-	}
-
-	if err = r.validateOrdering(ls); err != nil {
-		return err
-	}
-
-	if err = r.validateSubstr(ls); err != nil {
-		return err
-	}
-
-	return
-}
-
-func (r *AttributeType) validateEquality(ls *LDAPSyntax) error {
-	if !r.Equality.IsZero() {
-		if contains(toLower(r.Equality.Name.Index(0)), `ordering`) ||
-			contains(toLower(r.Equality.Name.Index(0)), `substring`) {
-			return raise(invalidMatchingRule,
-				"validateEquality: %T.Equality uses non-equality %T syntax (%s)",
-				r, r.Equality, r.Equality.Syntax.OID.String())
-		}
-	}
-
-	return nil
-}
-
-func (r *AttributeType) validateSubstr(ls *LDAPSyntax) error {
-	if !r.Substring.IsZero() {
-		if !contains(toLower(r.Substring.Name.Index(0)), `substring`) {
-			return raise(invalidMatchingRule,
-				"validateSubstr: %T.Substring uses non-substring %T syntax (%s)",
-				r, r.Substring, r.Substring.Syntax.OID.String())
-		}
-	}
-
-	return nil
-}
-
-func (r *AttributeType) validateOrdering(ls *LDAPSyntax) error {
-	if !r.Ordering.IsZero() {
-		if !contains(toLower(r.Ordering.Name.Index(0)), `ordering`) {
-			return raise(invalidMatchingRule,
-				"validateOrdering: %T.Ordering uses non-substring %T syntax (%s)",
-				r, r.Ordering, r.Ordering.Syntax.OID.String())
-		}
-	}
-
-	return nil
-}
-
 /*
-SetUnmarshaler assigns the provided DefinitionUnmarshaler signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
+SetUsage assigns the specified USAGE to the receiver. Input types
+may be string, int or uint.
+
+	1, or directoryOperation
+	2, or distributedOperation
+	3, or dSAOperation
+
+Any other value results in assignment of the userApplication USAGE.
+
+This is a fluent method.
 */
-func (r *AttributeType) SetUnmarshaler(fn DefinitionUnmarshaler) {
-	r.ufn = fn
-}
-
-/*
-SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
-*/
-func (r *AttributeType) SetInfo(info []byte) {
-	r.info = info
-}
-
-/*
-Info returns the assigned informational byte slice instance stored within the receiver.
-*/
-func (r *AttributeType) Info() []byte {
-	return r.info
-}
-
-/*
-Map is a convenience method that returns a map[string][]string instance containing the effective contents of the receiver.
-*/
-func (r *AttributeType) Map() (def map[string][]string) {
-	if err := r.Validate(); err != nil {
-		return
-	}
-
-	def = make(map[string][]string, 14)
-	def[`RAW`] = []string{r.String()}
-	def[`OID`] = []string{r.OID.String()}
-	def[`TYPE`] = []string{r.Type()}
-
-	if len(r.info) > 0 {
-		def[`INFO`] = []string{string(r.info)}
-	}
-
-	if !r.Name.IsZero() {
-		def[`NAME`] = make([]string, 0)
-		for i := 0; i < r.Name.Len(); i++ {
-			def[`NAME`] = append(def[`NAME`], r.Name.Index(i))
-		}
-	}
-
-	if r.Usage != UserApplication {
-		def[`USAGE`] = []string{r.Usage.String()}
-	}
-
-	if len(r.Description) > 0 {
-		def[`DESC`] = []string{r.Description.String()}
-	}
-
-	if !r.Syntax.IsZero() {
-		syn := r.Syntax.OID.String()
-		def[`SYNTAX`] = []string{syn}
-		if r.MaxLength() > 0 {
-			def[`MUB`] = []string{itoa(r.MaxLength())}
-		}
-	}
-
-	if !r.Equality.IsZero() {
-		term := r.Equality.Name.Index(0)
-		if len(term) == 0 {
-			term = r.Equality.OID.String()
-		}
-		def[`EQUALITY`] = []string{term}
-	}
-
-	if !r.Substring.IsZero() {
-		term := r.Substring.Name.Index(0)
-		if len(term) == 0 {
-			term = r.Substring.OID.String()
-		}
-		def[`SUBSTR`] = []string{term}
-	}
-
-	if !r.Ordering.IsZero() {
-		term := r.Ordering.Name.Index(0)
-		if len(term) == 0 {
-			term = r.Ordering.OID.String()
-		}
-		def[`ORDERING`] = []string{term}
-	}
-
-	if !r.SuperType.IsZero() {
-		term := r.SuperType.Name.Index(0)
-		if len(term) == 0 {
-			term = r.SuperType.OID.String()
-		}
-		def[`SUP`] = []string{term}
-	}
-
-	if !r.Extensions.IsZero() {
-		for i := 0; i < r.Extensions.Len(); i++ {
-			ext := r.Extensions.Index(i)
-			def[ext.Label] = ext.Value
-		}
-	}
-
-	if r.Obsolete {
-		def[`OBSOLETE`] = []string{`TRUE`}
-	}
-
-	if r.Collective() {
-		def[`COLLECTIVE`] = []string{`TRUE`}
-	}
-
-	if r.NoUserModification() {
-		def[`NO-USER-MODIFICATION`] = []string{`TRUE`}
-	}
-
-	if r.SingleValue() {
-		def[`SINGLE-VALUE`] = []string{`TRUE`}
-	}
-
-	return def
-}
-
-/*
-AttributeTypeUnmarshaler is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshaler type.
-
-The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
-*/
-func AttributeTypeUnmarshaler(x any) (def string, err error) {
-	var r *AttributeType
-	switch tv := x.(type) {
-	case *AttributeType:
-		if tv.IsZero() {
-			err = raise(isZero, "%T is nil", tv)
-			return
-		}
-		r = tv
-	default:
-		err = raise(unexpectedType,
-			"Bad type for unmarshal (%T)", tv)
-		return
-	}
-
-	var (
-		WHSP string = ` `
-		idnt string = "\n\t"
-		head string = `(`
-		tail string = `)`
-	)
-
-	if len(r.spec) > 0 {
-		head = r.spec + WHSP + head
-	}
-
-	def += head + WHSP + r.OID.String()
-
-	if !r.Name.IsZero() {
-		def += idnt + r.Name.Label()
-		def += WHSP + r.Name.String()
-	}
-
-	if !r.Description.IsZero() {
-		def += idnt + r.Description.Label()
-		def += WHSP + r.Description.String()
-	}
-
-	if r.Obsolete {
-		def += idnt + `OBSOLETE`
-	}
-
-	if !r.SuperType.IsZero() {
-		def += idnt + r.SuperType.Label()
-		def += WHSP + r.SuperType.Name.Index(0)
-	}
-
-	if !r.Equality.IsZero() {
-		def += idnt + r.Equality.Label()
-		def += WHSP + r.Equality.Name.Index(0)
-	}
-
-	if !r.Ordering.IsZero() {
-		def += idnt + r.Ordering.Label()
-		def += WHSP + r.Ordering.Name.Index(0)
-	}
-
-	if !r.Substring.IsZero() {
-		def += idnt + r.Substring.Label()
-		def += WHSP + r.Substring.Name.Index(0)
-	}
-
-	if !r.Syntax.IsZero() {
-		def += idnt + r.Syntax.Label()
-		def += WHSP + r.Syntax.OID.String()
-		if r.MaxLength() > 0 {
-			def += `{` + itoa(r.MaxLength()) + `}`
-		}
-	}
-
-	if r.SingleValue() {
-		def += idnt + SingleValue.String()
-	}
-
-	if r.Collective() {
-		def += idnt + Collective.String()
-	}
-
-	if r.NoUserModification() {
-		def += idnt + NoUserModification.String()
-	}
-
-	if r.Usage != UserApplication {
-		def += idnt + r.Usage.Label()
-		def += WHSP + r.Usage.String()
-	}
-
-	if !r.Extensions.IsZero() {
-		for i := 0; i < r.Extensions.Len(); i++ {
-			if ext := r.Extensions.Index(i); !ext.IsZero() {
-				def += idnt + ext.String()
+func (r AttributeType) SetUsage(u any) AttributeType {
+	if !r.IsZero() {
+		switch tv := u.(type) {
+		case string:
+			switch lc(tv) {
+			case `directoryoperation`:
+				r.attributeType.Usage = DirectoryOperationUsage
+			case `distributedoperation`:
+				r.attributeType.Usage = DistributedOperationUsage
+			case `dsaoperation`:
+				r.attributeType.Usage = DSAOperationUsage
+			default:
+				r.attributeType.Usage = UserApplicationUsage
+			}
+		case uint:
+			r.SetUsage(int(tv))
+		case int:
+			switch tv {
+			case 1:
+				r.attributeType.Usage = DirectoryOperationUsage
+			case 2:
+				r.attributeType.Usage = DistributedOperationUsage
+			case 3:
+				r.attributeType.Usage = DSAOperationUsage
+			default:
+				r.attributeType.Usage = UserApplicationUsage
 			}
 		}
 	}
 
-	def += WHSP + tail
+	return r
+}
+
+/*
+Type returns the string literal "attributeType".
+*/
+func (r AttributeType) Type() string {
+	return `attributeType`
+}
+
+/*
+Type returns the string literal "attributeTypes".
+*/
+func (r AttributeTypes) Type() string {
+	return `attributeTypes`
+}
+
+/*
+IsZero returns a Boolean value indicative of nilness of the
+receiver instance.
+*/
+func (r AttributeTypes) IsZero() bool {
+	return r.cast().IsZero()
+}
+
+// stackage closure func - do not exec directly (use String method)
+func (r AttributeTypes) oIDsStringer(_ ...any) (present string) {
+	var _present []string
+	for i := 0; i < r.len(); i++ {
+		_present = append(_present, r.index(i).OID())
+	}
+
+	switch len(_present) {
+	case 0:
+		break
+	case 1:
+		present = _present[0]
+	default:
+		padchar := string(rune(32))
+		if !r.cast().IsPadded() {
+			padchar = ``
+		}
+
+		joined := join(_present, padchar+`$`+padchar)
+		present = `(` + padchar + joined + padchar + `)`
+	}
 
 	return
 }
 
-func (r *AttributeType) unmarshal() (string, error) {
-	if err := r.validate(); err != nil {
-		err = raise(invalidUnmarshal, err.Error())
-		return ``, err
+// stackage closure func - do not exec directly.
+func (r AttributeTypes) canPush(x ...any) (err error) {
+	if len(x) == 0 {
+		return
 	}
 
-	if r.ufn != nil {
-		return r.ufn(r)
-	}
-	return r.unmarshalBasic()
-}
-
-func (r *AttributeType) unmarshalBasic() (def string, err error) {
-	var (
-		WHSP string = ` `
-		head string = `(`
-		tail string = `)`
-	)
-
-	if len(r.spec) > 0 {
-		head = r.spec + WHSP + head
-	}
-
-	def += head + WHSP + r.OID.String()
-
-	if !r.Name.IsZero() {
-		def += WHSP + r.Name.Label()
-		def += WHSP + r.Name.String()
-	}
-
-	if !r.Description.IsZero() {
-		def += WHSP + r.Description.Label()
-		def += WHSP + r.Description.String()
-	}
-
-	if r.Obsolete {
-		def += WHSP + `OBSOLETE`
-	}
-
-	if !r.SuperType.IsZero() {
-		def += WHSP + r.SuperType.Label()
-		def += WHSP + r.SuperType.Name.Index(0)
-	}
-
-	if !r.Equality.IsZero() {
-		def += WHSP + r.Equality.Label()
-		def += WHSP + r.Equality.Name.Index(0)
-	}
-
-	if !r.Ordering.IsZero() {
-		def += WHSP + r.Ordering.Label()
-		def += WHSP + r.Ordering.Name.Index(0)
-	}
-
-	if !r.Substring.IsZero() {
-		def += WHSP + r.Substring.Label()
-		def += WHSP + r.Substring.Name.Index(0)
-	}
-
-	if !r.Syntax.IsZero() {
-		def += WHSP + r.Syntax.Label()
-		def += WHSP + r.Syntax.OID.String()
-		if r.MaxLength() > 0 {
-			def += `{` + itoa(r.MaxLength()) + `}`
+	for i := 0; i < len(x) && err == nil; i++ {
+		instance := x[i]
+		if at, ok := instance.(AttributeType); !ok || at.IsZero() {
+			err = errorf("Type assertion for %T has failed", instance)
+		} else {
+			if tst := r.get(at.NumericOID()); !tst.IsZero() {
+				err = errorf("%T %s not unique", at, at.NumericOID())
+			}
 		}
 	}
 
-	if r.SingleValue() {
-		def += WHSP + SingleValue.String()
-	}
+	return
+}
 
-	if r.Collective() {
-		def += WHSP + Collective.String()
-	}
+/*
+List returns a map[string][]string instance which represents the current
+inventory of attribute type instances within the receiver.  The keys are
+numeric OIDs, while the values are zero (0) or more string slices, each
+representing a name by which the definition is known.
 
-	if r.NoUserModification() {
-		def += WHSP + NoUserModification.String()
-	}
+For example: "2.5.4.3" = []string{"cn","commonName"}
+*/
+func (r AttributeTypes) List() (list map[string][]string) {
+	list = make(map[string][]string, 0)
+	for i := 0; i < r.len(); i++ {
+		def := r.index(i)
+		list[def.NumericOID()] = def.Names().List()
 
-	if r.Usage != UserApplication {
-		def += WHSP + r.Usage.Label()
-		def += WHSP + r.Usage.String()
 	}
-
-	if !r.Extensions.IsZero() {
-		def += WHSP + r.Extensions.String()
-	}
-
-	def += WHSP + tail
 
 	return
 }
 
 /*
-atFlags is an unsigned 8-bit integer that describes zero or more perceived values that only appear visually when TRUE. Such verisimilitude is revealed by the presence of the indicated atFlags value's "label" name, such as `SINGLE-VALUE`.  The actual value "TRUE" is never actually seen in textual format.
+Len returns the current integer length of the receiver instance.
 */
-type atFlags uint8
+func (r AttributeTypes) Len() int {
+	return r.len()
+}
 
-const (
-	SingleValue        atFlags = 1 << iota // 1
-	Collective                             // 2
-	NoUserModification                     // 4
-)
-
-func (r atFlags) IsZero() bool {
-	return uint8(r) == 0
+func (r AttributeTypes) len() int {
+	return r.cast().Len()
 }
 
 /*
-is returns a boolean value indicative of whether the specified value is enabled within the receiver instance.
+String is a stringer method that returns the string representation
+of the receiver instance.
 */
-func (r atFlags) is(o atFlags) bool {
-	return r.enabled(o)
+func (r AttributeTypes) String() string {
+	return r.cast().String()
 }
 
 /*
-String is a stringer method that returns the name(s) atFlags receiver in question, whether it represents multiple boolean flags or only one.
-
-If only a specific atFlags string is desired (if enabled), use atFlags.<Name>() (e.g: atFlags.SingleValue()).
+Index returns the instance of [AttributeType] found within the
+receiver stack instance at index N.  If no instance is found at
+the index specified, a zero [AttributeType] instance is returned.
 */
-func (r atFlags) String() (val string) {
+func (r AttributeTypes) Index(idx int) AttributeType {
+	return r.index(idx)
+}
 
-	// Look for so-called "pure"
-	// boolean values first ...
-	switch r {
-	case NoUserModification:
-		return `NO-USER-MODIFICATION`
-	case SingleValue:
-		return `SINGLE-VALUE`
-	case Collective:
-		return `COLLECTIVE`
-	}
-
-	// Assume multiple boolean bits
-	// are set concurrently ...
-	strs := []atFlags{
-		Collective,
-		SingleValue,
-		NoUserModification,
-	}
-
-	vals := make([]string, 0)
-	for _, v := range strs {
-		if r.enabled(v) {
-			vals = append(vals, v.String())
+func (r AttributeTypes) index(idx int) (at AttributeType) {
+	slice, found := r.cast().Index(idx)
+	if found {
+		if _at, ok := slice.(AttributeType); ok {
+			at = _at
 		}
 	}
 
-	if len(vals) != 0 {
-		val = join(vals, ` `)
+	return
+}
+
+func (r AttributeType) macro() (m []string) {
+	if !r.IsZero() {
+		m = r.attributeType.Macro
+	}
+
+	return
+}
+
+func (r AttributeType) setOID(x string) {
+	if !r.IsZero() {
+		r.attributeType.OID = x
+	}
+}
+
+/*
+Push returns an error following an attempt to push an AttributeType
+into the receiver stack instance.
+*/
+func (r AttributeTypes) Push(at any) error {
+	return r.push(at)
+}
+
+func (r AttributeTypes) push(at any) (err error) {
+	err = errorf("%T instance is nil; cannot append to %T", at, r)
+	if at != nil {
+		r.cast().Push(at)
+		err = nil
 	}
 
 	return
 }
 
 /*
-SingleValue returns the `SINGLE-VALUE` flag if the appropriate bits are set within the receiver instance.
+Contains calls [AttributeTypes.Get] to return a Boolean value indicative
+of a successful, non-zero retrieval of an [AttributeType] instance -- matching
+the provided id -- from within the receiver stack instance.
 */
-func (r atFlags) SingleValue() string {
-	if r.enabled(SingleValue) {
-		return r.String()
+func (r AttributeTypes) Contains(id string) bool {
+	return r.contains(id)
+}
+
+func (r AttributeTypes) contains(id string) bool {
+	return !r.get(id).IsZero()
+}
+
+/*
+Get returns an instance of [AttributeType] based upon a search for id within
+the receiver stack instance.
+
+The return instance, if not nil, was retrieved based upon a textual match of
+the principal identifier of an [AttributeType] and the provided id.
+
+The return instance is nil if no match was made.
+
+Case is not significant in the matching process.
+*/
+func (r AttributeTypes) Get(id string) AttributeType {
+	return r.get(id)
+}
+
+func (r AttributeTypes) get(id string) (at AttributeType) {
+	for i := 0; i < r.len() && at.IsZero(); i++ {
+		if _at := r.index(i); !_at.IsZero() {
+			if _at.attributeType.OID == id {
+				at = _at
+			} else if _at.attributeType.Name.contains(id) {
+				at = _at
+			}
+		}
 	}
 
-	return ``
+	return
 }
 
-/*
-Collective returns the `COLLECTIVE` flag if the appropriate bits are set within the receiver instance.
-*/
-func (r atFlags) Collective() string {
-	if r.enabled(Collective) {
-		return r.String()
+func (r Schema) processAttributeType(ctx antlr4512.IAttributeTypeDescriptionContext) (at AttributeType, err error) {
+	_at := new(attributeType)
+	_at.schema = r
+
+	if ctx.OpenParen() == nil || ctx.CloseParen() == nil {
+		err = errorf("Definition encapsulation error; missing parenthesis?")
+		return
 	}
 
-	return ``
-}
+	for k, ct := 0, ctx.GetChildCount(); k < ct && err == nil; k++ {
+		switch tv := ctx.GetChild(k).(type) {
+		case *antlr4512.NumericOIDOrMacroContext,
+			*antlr4512.OpenParenContext,
+			*antlr4512.CloseParenContext:
+			err = _at.setCritical(tv)
 
-/*
-NoUserModification returns the `NO-USER-MODIFICATION` flag if the appropriate bits are set within the receiver instance.
-*/
-func (r atFlags) NoUserModification() string {
-	if r.enabled(NoUserModification) {
-		return r.String()
+		case *antlr4512.ATUsageContext,
+			*antlr4512.DefinitionNameContext,
+			*antlr4512.DefinitionExtensionsContext,
+			*antlr4512.DefinitionDescriptionContext:
+			err = _at.setMisc(tv)
+
+		case *antlr4512.ATCollectiveContext,
+			*antlr4512.ATSingleValueContext,
+			*antlr4512.DefinitionObsoleteContext,
+			*antlr4512.ATNoUserModificationContext:
+			err = _at.setBooleanContexts(tv)
+
+		case *antlr4512.DefinitionSyntaxContext,
+			*antlr4512.MinimumUpperBoundsContext:
+			err = _at.setSyntaxContexts(tv)
+
+		case *antlr4512.ATEqualityContext,
+			*antlr4512.ATOrderingContext,
+			*antlr4512.ATSubstringContext:
+			err = _at.setMatchingRuleContexts(tv)
+
+		case *antlr4512.ATSuperTypeContext:
+			err = _at.setSuperTypeContext(tv)
+
+		default:
+			env := AttributeType{_at}
+			err = isErrImpl(env.Type(), env.OID(), tv)
+		}
 	}
 
-	return ``
+	// check for errors in new instance, and (if needed)
+	// resolve macro to numeric OID.
+	if err == nil {
+		r.resolveByMacro(AttributeType{_at})
+
+		if err = _at.check(); err == nil {
+			if err = _at.prepareString(); err == nil {
+				_at.t = nil
+				at = AttributeType{_at}
+			}
+		}
+	}
+
+	return
 }
 
 /*
-Unset removes the specified atFlags bits from the receiver instance of atFlags, thereby "disabling" the provided option.
+MinUpperBounds returns the minimum upper bounds as a uint instance.
+If zero (0), no minimum upper bounds was specified for the definition,
+meaning no value length limit is imposed through its use.
 */
-func (r *atFlags) Unset(o atFlags) {
-	r.unset(o)
+func (r AttributeType) MinUpperBounds() uint {
+	return r.attributeType.MUB
 }
 
 /*
-Set adds the specified atFlags bits to the receiver instance of atFlags, thereby "enabling" the provided option.
+IsZero returns a Boolean value indicative of nilness of the
+receiver instance.
 */
-func (r *atFlags) Set(o atFlags) {
-	r.set(o)
+func (r AttributeType) IsZero() bool {
+	return r.attributeType == nil
 }
 
-func (r *atFlags) set(o atFlags) {
-	*r = *r ^ o
+func (r *attributeType) setBooleanContexts(ctx any) (err error) {
+	switch ctx.(type) {
+	case *antlr4512.ATCollectiveContext:
+		r.Collective = true
+	case *antlr4512.ATSingleValueContext:
+		r.SingleVal = true
+	case *antlr4512.DefinitionObsoleteContext:
+		r.Obsolete = true
+	case *antlr4512.ATNoUserModificationContext:
+		r.NoUserMod = true
+	default:
+		err = errorf("Unknown boolean context %T", ctx)
+	}
+
+	return
 }
 
-func (b *atFlags) unset(o atFlags) {
-	*b = *b &^ o
+func (r *attributeType) check() (err error) {
+	if r == nil {
+		err = errorf("%T is nil", r)
+		return
+	}
+
+	if len(r.OID) == 0 {
+		err = errorf("%T lacks an OID", r)
+		return
+	}
+
+	if r.Collective && r.SingleVal {
+		err = errorf("%T is both collective AND single-valued", r)
+	}
+
+	return
 }
 
-func (r atFlags) enabled(o atFlags) bool {
-	return r&o != 0
+func (r *attributeType) effectiveSyntax() (ls LDAPSyntax) {
+	if r == nil {
+		return ls
+	}
+
+	syn := r.Syntax
+	sat := r.SuperType.attributeType
+	var ssyn LDAPSyntax
+	if sat != nil {
+		ssyn = sat.effectiveSyntax()
+	}
+
+	if !ssyn.IsZero() {
+		ls = ssyn
+	} else if !syn.IsZero() {
+		if ssyn.IsZero() {
+			ls = syn
+		}
+	}
+
+	return
+}
+
+func (r *attributeType) setMisc(ctx any) (err error) {
+
+	switch tv := ctx.(type) {
+	case *antlr4512.DefinitionNameContext:
+		r.Name, err = nameContext(tv)
+	case *antlr4512.ATUsageContext:
+		err = r.setUsageContext(tv)
+	case *antlr4512.DefinitionDescriptionContext:
+		r.Desc, err = descContext(tv)
+	case *antlr4512.DefinitionExtensionsContext:
+		r.Extensions, err = extContext(tv)
+	default:
+		err = errorf("Unknown miscellaneous context '%T'", ctx)
+	}
+
+	return
+}
+
+func (r *attributeType) setCritical(ctx any) (err error) {
+
+	switch tv := ctx.(type) {
+	case *antlr4512.NumericOIDOrMacroContext:
+		r.OID, r.Macro, err = numOIDContext(tv)
+	case *antlr4512.OpenParenContext, *antlr4512.CloseParenContext:
+		err = parenContext(tv)
+	default:
+		err = errorf("Unknown critical context '%T'", ctx)
+	}
+
+	return
+}
+
+func (r *attributeType) setMatchingRuleContexts(ctx any) (err error) {
+
+	switch tv := ctx.(type) {
+	case *antlr4512.ATEqualityContext:
+		err = r.setMatchingRuleContext(1, tv.OID())
+	case *antlr4512.ATOrderingContext:
+		err = r.setMatchingRuleContext(2, tv.OID())
+	case *antlr4512.ATSubstringContext:
+		err = r.setMatchingRuleContext(3, tv.OID())
+	default:
+		err = errorf("Unknown matchingRule context %T", ctx)
+	}
+
+	return
+}
+
+func (r *attributeType) setMatchingRuleContext(typ int, ctx antlr4512.IOIDContext) (err error) {
+	var n, d []string
+	if n, d, err = oIDContext(ctx.(*antlr4512.OIDContext)); err != nil {
+		return
+	}
+
+	var mr string
+	if len(n) > 0 {
+		mr = n[0]
+	} else if len(d) > 0 {
+		mr = d[0]
+	} else {
+		err = errorf("No %T value found", ctx)
+		return
+	}
+
+	var mrl MatchingRule
+	if mrl = r.schema.MatchingRules().get(mr); mrl.IsZero() {
+		err = errorf("matching rule '%s' not found", mr)
+		return
+	}
+
+	switch typ {
+	case 1:
+		r.Equality = mrl
+	case 2:
+		r.Ordering = mrl
+	case 3:
+		r.Substring = mrl
+	default:
+		err = errorf("Invalid matchingRule type '%d'", typ)
+	}
+
+	return
 }
 
 /*
-setatFlags is a private method used by reflect to set boolean values.
+setSuperTypeContext processes the intended super type of the receiver, returning
+an error if invalid or incomplete.
 */
-func (r *AttributeType) setATFlags(b atFlags) {
-	r.flags.set(b)
+func (r *attributeType) setSuperTypeContext(ctx *antlr4512.ATSuperTypeContext) (err error) {
+	if ctx == nil {
+		err = errorf("%T instance is nil", ctx)
+		return
+	}
+
+	// Obtain OIDContext pointer
+	o := ctx.OID()
+	if o == nil {
+		err = errorf("%T instance is nil", o)
+		return
+	}
+
+	// Type assert o to a bonafide
+	// *OIDContext instance.
+	var n, d []string
+	assert, ok := o.(*antlr4512.OIDContext)
+	if !ok {
+		err = errorf("super type OID assertion failed for %T", o)
+		return
+	}
+
+	// determine the nature of the OID and process it.
+	// Fail if we find anything else.
+	if n, d, err = oIDContext(assert); err != nil {
+		return
+	}
+
+	// Figure out what we got from oIDContext
+	// processing (numeric OID or descriptor?)
+	var _sup string
+	if len(n) > 0 {
+		_sup = n[0]
+	} else if len(d) > 0 {
+		_sup = d[0]
+	} else {
+		err = errorf("No %T OID or Descriptor found", ctx)
+		return
+	}
+
+	// look up the intended super type of r, fail if not
+	// already loaded into Schema.AttributeTypes.
+	sup := r.schema.AttributeTypes().get(_sup)
+	if sup.IsZero() {
+		err = errorf("super type '%s' not found in Schema", _sup)
+		return
+	}
+
+	// make sure our super type chain is valid. If
+	// so, ship it out.
+	if err = r.verifySuperType(sup.attributeType); err == nil {
+		r.SuperType = sup
+	}
+
+	return
 }
 
 /*
-SetCollective marks the receiver as COLLECTIVE.
+verifySuperType returns an error following the execution of basic sanity
+checks meant to assess the intended super type chain.
 */
-func (r *AttributeType) SetCollective() {
-	r.flags.set(Collective)
+func (r *attributeType) verifySuperType(sup *attributeType) (err error) {
+	// perform basic sanity check of super type
+	if err = sup.check(); err != nil {
+		return
+	}
+
+	// make sure super type and sub type aren't
+	// one-in-the-same.
+	if r.OID == sup.OID {
+		err = errorf("cyclical super type loop detected (%s)", r.OID)
+		return
+	}
+
+	// make sure that, if our super type is a sub
+	// type itself, that its own super type isn't
+	// the intended sub type (the receiver).
+	if !sup.SuperType.IsZero() {
+		if r.OID == sup.SuperType.NumericOID() {
+			err = errorf("cyclical super type recursion detected (%s)", r.OID)
+			return
+		}
+	}
+
+	return
 }
 
-/*
-Collective returns a boolean value indicative of whether the receiver describes a COLLECTIVE attribute type.
-*/
-func (r *AttributeType) Collective() bool {
-	return r.flags.is(Collective)
+func (r *attributeType) setUsageContext(ctx any) (err error) {
+	switch tv := ctx.(type) {
+	case int:
+		err = errorf("Invalid %T.Usage value", r)
+		if 0 <= tv && tv <= 3 {
+			err = nil
+			r.Usage = uint(tv)
+		}
+	case uint:
+		err = r.setUsageContext(int(tv))
+	case string:
+		err = errorf("Invalid usage text '%s'", tv)
+		switch tv {
+		case `userApplication`, ``:
+			err = nil
+		case `directoryOperation`:
+			err = nil
+			r.Usage = uint(1)
+		case `distributedOperation`:
+			err = nil
+			r.Usage = uint(2)
+		case `dSAOperation`:
+			err = nil
+			r.Usage = uint(3)
+		}
+	case *antlr4512.ATUsageContext:
+		err = r.setUsageContext(tv.GetText())
+	}
+
+	return
 }
 
-/*
-SetCollective marks the receiver as NO-USER-MODIFICATION.
-*/
-func (r *AttributeType) SetNoUserModification() {
-	r.flags.set(NoUserModification)
-}
+func (r *attributeType) setSyntaxContexts(ctx any) (err error) {
+	err = errorf("Unknown attribute syntax context %T", ctx)
 
-/*
-NoUserModification returns a boolean value indicative of whether the receiver describes a NO-USER-MODIFICATION attribute type.
-*/
-func (r *AttributeType) NoUserModification() bool {
-	return r.flags.is(NoUserModification)
-}
+	switch tv := ctx.(type) {
+	case *antlr4512.DefinitionSyntaxContext:
+		var _syn string
+		if _syn, err = syntaxContext(tv); err != nil {
+			break
+		}
 
-/*
-SetSingleValue marks the receiver as SINGLE-VALUE.
-*/
-func (r *AttributeType) SetSingleValue() {
-	r.flags.set(SingleValue)
-}
+		err = errorf("syntax '%s' not found", _syn)
+		if syn := r.schema.LDAPSyntaxes().get(_syn); !syn.IsZero() {
+			r.Syntax = syn
+			err = nil
+		}
 
-/*
-SingleValue returns a boolean value indicative of whether the receiver describes a SINGLE-VALUE attribute type.
-*/
-func (r *AttributeType) SingleValue() bool {
-	return r.flags.is(SingleValue)
-}
-
-func validateFlag(b atFlags) (err error) {
-	if b.is(Collective) && b.is(SingleValue) {
-		return raise(invalidFlag,
-			"Cannot have single-valued collective attribute")
+	case *antlr4512.MinimumUpperBoundsContext:
+		err = errorf("Min. Upper bounds %T instance is nil", tv)
+		if mb := tv.MinUpperBounds(); mb != nil {
+			var m int
+			m, err = atoi(trimS(trim(mb.GetText(), `{}`)))
+			r.MUB = uint(m)
+		}
 	}
 
 	return

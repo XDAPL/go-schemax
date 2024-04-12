@@ -1,548 +1,395 @@
 package schemax
 
-import "sync"
-
-/*
-MatchingRuleCollection describes all MatchingRules-based types.
-*/
-type MatchingRuleCollection interface {
-	// Get returns the *MatchingRule instance retrieved as a result
-	// of a term search, based on Name or OID. If no match is found,
-	// nil is returned.
-	Get(any) *MatchingRule
-
-	// Index returns the *MatchingRule instance stored at the nth
-	// index within the receiver, or nil.
-	Index(int) *MatchingRule
-
-	// Equal performs a deep-equal between the receiver and the
-	// interface MatchingRuleCollection provided.
-	Equal(MatchingRuleCollection) bool
-
-	// Set returns an error instance based on an attempt to add
-	// the provided *MatchingRule instance to the receiver.
-	Set(*MatchingRule) error
-
-	// Contains returns the index number and presence boolean that
-	// reflects the result of a term search within the receiver.
-	Contains(any) (int, bool)
-
-	// String returns a properly-delimited sequence of string
-	// values, either as a Name or OID, for the receiver type.
-	String() string
-
-	// Label returns the field name associated with the interface
-	// types, or a zero string if no label is appropriate.
-	Label() string
-
-	// IsZero returns a boolean value indicative of whether the
-	// receiver is considered zero, or undefined.
-	IsZero() bool
-
-	// Len returns an integer value indicative of the current
-	// number of elements stored within the receiver.
-	Len() int
-
-	// SetSpecifier assigns a string value to all definitions within
-	// the receiver. This value is used in cases where a definition
-	// type name (e.g.: attributetype, objectclass, etc.) is required.
-	// This value will be displayed at the beginning of the definition
-	// value during the unmarshal or unsafe stringification process.
-	SetSpecifier(string)
-
-	// SetUnmarshaler assigns the provided DefinitionUnmarshaler
-	// signature to all definitions within the receiver. The provided
-	// function shall be executed during the unmarshal or unsafe
-	// stringification process.
-	SetUnmarshaler(DefinitionUnmarshaler)
-}
-
-/*
-MatchingRule conforms to the specifications of RFC4512 Section 4.1.3.
-*/
-type MatchingRule struct {
-	OID         OID
-	Name        Name
-	Description Description
-	Obsolete    bool
-	Syntax      *LDAPSyntax
-	Extensions  *Extensions
-	ufn         DefinitionUnmarshaler
-	spec        string
-	info        []byte
-}
-
-/*
-Equality circumscribes an embedded pointer to an instance of *MatchingRule.  This type alias is intended for use solely within instances of AttributeType via its "Equality" struct field.
-*/
-type Equality struct {
-	*MatchingRule
-}
-
-/*
-Ordering circumscribes an embedded pointer to an instance of *MatchingRule.  This type alias is intended for use solely within instances of AttributeType via its "Ordering" struct field.
-*/
-type Ordering struct {
-	*MatchingRule
-}
-
-/*
-Substring circumscribes an embedded pointer to an instance of *MatchingRule.  This type alias is intended for use solely within instances of AttributeType via its "Substring" struct field.
-*/
-type Substring struct {
-	*MatchingRule
-}
-
-/*
-Type returns the formal name of the receiver in order to satisfy signature requirements of the Definition interface type.
-*/
-func (r *MatchingRule) Type() string {
-	return `MatchingRule`
-}
-
-/*
-Equal performs a deep-equal between the receiver and the provided definition type.
-
-Description text is ignored.
-*/
-func (r *MatchingRule) Equal(x any) (eq bool) {
-	var z *MatchingRule
-	switch tv := x.(type) {
-	case *MatchingRule:
-		z = tv
-	case Equality:
-		z = tv.MatchingRule
-	case Substring:
-		z = tv.MatchingRule
-	case Ordering:
-		z = tv.MatchingRule
-	default:
-		return
-	}
-
-	if z.IsZero() && r.IsZero() {
-		eq = true
-		return
-	} else if z.IsZero() || r.IsZero() {
-		return
-	}
-
-	if !z.OID.Equal(r.OID) {
-		return
-	}
-
-	if !z.Name.Equal(r.Name) {
-		return
-	}
-
-	if !z.Syntax.Equal(r.Syntax) {
-		return
-	}
-
-	noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
-	if !noexts {
-		eq = r.Extensions.Equal(z.Extensions)
-	} else {
-		eq = true
-	}
-
-	return
-}
-
-/*
-MatchingRules is a thread-safe collection of *MatchingRule slice instances.
-*/
-type MatchingRules struct {
-	mutex  *sync.Mutex
-	slice  collection
-	macros *Macros
-}
-
-/*
-Equal performs a deep-equal between the receiver and the provided collection type.
-*/
-func (r MatchingRules) Equal(x MatchingRuleCollection) bool {
-	return r.slice.equal(x.(*MatchingRules).slice)
-}
-
-/*
-SetMacros assigns the *Macros instance to the receiver, allowing subsequent OID resolution capabilities during the addition of new slice elements.
-*/
-func (r *MatchingRules) SetMacros(macros *Macros) {
-	r.macros = macros
-}
-
-/*
-SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
-*/
-func (r *MatchingRules) SetSpecifier(spec string) {
-	for i := 0; i < r.Len(); i++ {
-		r.Index(i).SetSpecifier(spec)
-	}
-}
-
-/*
-SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
-*/
-func (r *MatchingRules) SetUnmarshaler(fn DefinitionUnmarshaler) {
-	for i := 0; i < r.Len(); i++ {
-		r.Index(i).SetUnmarshaler(fn)
-	}
-}
-
-/*
-Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
-*/
-func (r MatchingRules) Contains(x any) (int, bool) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	if !r.macros.IsZero() {
-		if oid, resolved := r.macros.Resolve(x); resolved {
-			return r.slice.contains(oid)
-		}
-	}
-	return r.slice.contains(x)
-}
-
-/*
-Index is a thread-safe method that returns the nth collection slice element if defined, else nil. This method supports use of negative indices which should be used with special care.
-*/
-func (r MatchingRules) Index(idx int) *MatchingRule {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	assert, _ := r.slice.index(idx).(*MatchingRule)
-	return assert
-}
-
-/*
-Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
-*/
-func (r MatchingRules) Get(x any) *MatchingRule {
-	idx, found := r.Contains(x)
-	if !found {
-		return nil
-	}
-
-	return r.Index(idx)
-}
-
-/*
-Len is a thread-safe method that returns the effective length of the receiver slice collection.
-*/
-func (r MatchingRules) Len() int {
-	if &r == nil {
-		return 0
-	}
-
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	return r.slice.len()
-}
-
-/*
-String is a non-functional stringer method needed to satisfy interface type requirements and should not be used. There is no practical application for a list of matchingRule names or object identifiers in this package.
-*/
-func (r MatchingRules) String() string { return `` }
-
-/*
-String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
-*/
-func (r MatchingRule) String() (def string) {
-	def, _ = r.unmarshal()
-	return
-}
-
-/*
-SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: matchingrule). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
-*/
-func (r *MatchingRule) SetSpecifier(spec string) {
-	r.spec = spec
-}
-
-/*
-IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
-*/
-func (r MatchingRules) IsZero() bool {
-	return r.slice.len() == 0
-}
-
-/*
-IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
-*/
-func (r *MatchingRule) IsZero() bool {
-	return r == nil
-}
-
-/*
-Set is a thread-safe append method that returns an error instance indicative of whether the append operation failed in some manner. Uniqueness is enforced for new elements based on Object Identifier and not the effective Name of the definition, if defined.
-*/
-func (r *MatchingRules) Set(x *MatchingRule) error {
-	if _, exists := r.Contains(x.OID); exists {
-		return nil //silent
-	}
-
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	return r.slice.append(x)
-}
-
-/*
-SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
-*/
-func (r *MatchingRule) SetInfo(info []byte) {
-	r.info = info
-}
-
-/*
-Info returns the assigned informational byte slice instance stored within the receiver.
-*/
-func (r *MatchingRule) Info() []byte {
-	return r.info
-}
-
-/*
-SetUnmarshaler assigns the provided DefinitionUnmarshaler signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
-*/
-func (r *MatchingRule) SetUnmarshaler(fn DefinitionUnmarshaler) {
-	r.ufn = fn
-}
-
-/*
-NewMatchingRule returns a newly initialized, yet effectively nil, instance of *MatchingRule.
-
-Users generally do not need to execute this function unless an instance of the returned type will be manually populated (as opposed to parsing a raw text definition).
-*/
-func NewMatchingRule() *MatchingRule {
-	mr := new(MatchingRule)
-	mr.Extensions = NewExtensions()
-	return mr
-}
-
-/*
-NewMatchingRules initializes and returns a new MatchingRulesCollection interface object.
-*/
-func NewMatchingRules() MatchingRuleCollection {
-	var x any = &MatchingRules{
-		mutex: &sync.Mutex{},
-		slice: make(collection, 0, 0),
-	}
-	return x.(MatchingRuleCollection)
-}
-
-/*
-is returns a boolean value indicative of whether the provided interface argument matches an LDAPSyntax associated with the receiver.
-*/
-func (r *MatchingRule) is(b any) bool {
-	switch tv := b.(type) {
-	case *LDAPSyntax:
-		return r.OID.Equal(tv.OID)
-	}
-
-	return false
-}
-
-func (r *MatchingRule) validateSyntax() (err error) {
-	if r.Syntax.IsZero() {
-		err = raise(invalidSyntax,
-			"%T.validateSyntax: zero syntax", r)
-	}
-
-	return
-}
-
-/*
-Validate returns an error that reflects any fatal condition observed regarding the receiver configuration.
-*/
-func (r *MatchingRule) Validate() (err error) {
-	return r.validate()
-}
-
-func (r *MatchingRule) validate() (err error) {
-	if r.IsZero() {
-		return raise(isZero, "%T.validate", r)
-	}
-
-	if err = r.validateSyntax(); err != nil {
-		return
-	}
-
-	if err = r.validateSyntax(); err != nil {
-		return
-	}
-
-	if err = validateNames(r.Name.strings()...); err != nil {
-		return
-	}
-
-	if err = validateDesc(r.Description); err != nil {
-		return
-	}
-
-	return
-}
-
-func (r *MatchingRule) unmarshal() (string, error) {
-	if err := r.validate(); err != nil {
-		err = raise(invalidUnmarshal, err.Error())
-		return ``, err
-	}
-
-	if r.ufn != nil {
-		return r.ufn(r)
-	}
-	return r.unmarshalBasic()
-}
-
-/*
-Map is a convenience method that returns a map[string][]string instance containing the effective contents of the receiver.
-*/
-func (r *MatchingRule) Map() (def map[string][]string) {
-	if err := r.Validate(); err != nil {
-		return
-	}
-
-	def = make(map[string][]string, 14)
-	def[`RAW`] = []string{r.String()}
-	def[`OID`] = []string{r.OID.String()}
-	def[`TYPE`] = []string{r.Type()}
-
-	if len(r.info) > 0 {
-		def[`INFO`] = []string{string(r.info)}
-	}
-
-	if !r.Name.IsZero() {
-		def[`NAME`] = make([]string, 0)
-		for i := 0; i < r.Name.Len(); i++ {
-			def[`NAME`] = append(def[`NAME`], r.Name.Index(i))
-		}
-	}
-
-	if len(r.Description) > 0 {
-		def[`DESC`] = []string{r.Description.String()}
-	}
-
-	if !r.Syntax.IsZero() {
-		def[`SYNTAX`] = []string{r.Syntax.OID.String()}
-	}
-
-	if !r.Extensions.IsZero() {
-		for i := 0; i < r.Extensions.Len(); i++ {
-			ext := r.Extensions.Index(i)
-			def[ext.Label] = ext.Value
-		}
-	}
-
-	if r.Obsolete {
-		def[`OBSOLETE`] = []string{`TRUE`}
-	}
-
-	return def
-}
-
-/*
-MatchingRuleUnmarshaler is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshaler type.
-
-The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
-*/
-func MatchingRuleUnmarshaler(x any) (def string, err error) {
-	var r *MatchingRule
-	switch tv := x.(type) {
-	case *MatchingRule:
-		if tv.IsZero() {
-			err = raise(isZero, "%T is nil", tv)
+import (
+	"internal/rfc2307"
+	"internal/rfc4517"
+	"internal/rfc4523"
+	"internal/rfc4530"
+
+	antlr4512 "github.com/JesseCoretta/go-rfc4512-antlr"
+)
+
+var (
+	rfc2307MatchingRules rfc2307.MatchingRuleDefinitions = rfc2307.AllMatchingRules
+	rfc4517MatchingRules rfc4517.MatchingRuleDefinitions = rfc4517.AllMatchingRules
+	rfc4523MatchingRules rfc4523.MatchingRuleDefinitions = rfc4523.AllMatchingRules
+	rfc4530MatchingRules rfc4530.MatchingRuleDefinitions = rfc4530.AllMatchingRules
+)
+
+func (r *Schema) ParseMatchingRule(raw string) (err error) {
+	var i antlr4512.Instance
+	if i, err = antlr4512.ParseInstance(raw); err == nil {
+		var m MatchingRule
+		if m, err = r.processMatchingRule(i.P.MatchingRuleDescription()); err != nil {
 			return
 		}
-		r = tv
-	default:
-		err = raise(unexpectedType,
-			"Bad type for unmarshal (%T)", tv)
+
+		err = r.MatchingRules().push(m)
+	}
+
+	return
+}
+
+/*
+NewMatchingRules initializes a new Collection instance and
+casts it as an MatchingRules instance.
+*/
+func NewMatchingRules() MatchingRules {
+	r := MatchingRules(newCollection(``))
+	r.cast().SetPushPolicy(r.canPush)
+
+	return r
+}
+
+func (r MatchingRule) Syntax() (desc string) {
+	if !r.IsZero() {
+		if !r.matchingRule.Syntax.IsZero() {
+			desc = r.matchingRule.Syntax.NumericOID()
+		}
+	}
+
+	return
+}
+
+/*
+IsObsolete returns a Boolean value indicative of definition obsolescence.
+*/
+func (r MatchingRule) IsObsolete() (o bool) {
+	if !r.IsZero() {
+		o = r.matchingRule.Obsolete
+	}
+
+	return
+}
+
+/*
+Name returns the string form of the principal name of the receiver instance, if set.
+*/
+func (r MatchingRule) Name() (id string) {
+	if !r.IsZero() {
+		id = r.matchingRule.Name.index(0)
+	}
+
+	return
+}
+
+/*
+Names returns the underlying instance of DefinitionName from within
+the receiver.
+*/
+func (r MatchingRule) Names() (names DefinitionName) {
+	return r.matchingRule.Name
+}
+
+/*
+Extensions returns the Extensions instance -- if set -- within
+the receiver.
+*/
+func (r MatchingRule) Extensions() (e Extensions) {
+	if !r.IsZero() {
+		e = r.matchingRule.Extensions
+	}
+
+	return
+}
+
+/*
+String is a stringer method that returns the string representation
+of the receiver instance.
+*/
+func (r MatchingRule) String() (mr string) {
+	if !r.IsZero() {
+		mr = r.matchingRule.s
+	}
+
+	return
+}
+
+func (r MatchingRule) macro() (m []string) {
+	if !r.IsZero() {
+		m = r.matchingRule.Macro
+	}
+
+	return
+}
+
+func (r MatchingRule) setOID(x string) {
+	if !r.IsZero() {
+		r.matchingRule.OID = x
+	}
+}
+
+func (r *matchingRule) prepareString() (err error) {
+	buf := newBuf()
+	r.t = newTemplate(`matchingRule`).
+		Funcs(funcMap(map[string]any{
+			`ExtensionSet`: r.Extensions.tmplFunc,
+		}))
+	if r.t, err = r.t.Parse(matchingRuleTmpl); err == nil {
+		if err = r.t.Execute(buf, r); err == nil {
+			r.s = buf.String()
+		}
+	}
+
+	return
+}
+
+/*
+OID returns the string representation of an OID -- which is either a
+numeric OID or descriptor -- that is held by the receiver instance.
+*/
+func (r MatchingRule) OID() (oid string) {
+	if !r.IsZero() {
+		oid = r.NumericOID() // default
+		if r.matchingRule.Name.len() > 0 {
+			oid = r.matchingRule.Name.index(0)
+		}
+	}
+
+	return
+}
+
+/*
+NumericOID returns the string representation of the numeric OID
+held by the receiver instance.
+*/
+func (r MatchingRule) NumericOID() (noid string) {
+	if !r.IsZero() {
+		noid = r.matchingRule.OID
+	}
+
+	return
+}
+
+/*
+IsIdentifiedAs returns a Boolean value indicative of whether id matches
+either the numericOID or descriptor of the receiver instance.  Case is
+not significant in the matching process.
+*/
+func (r MatchingRule) IsIdentifiedAs(id string) (ident bool) {
+	if !r.IsZero() {
+		ident = id == r.NumericOID() || r.matchingRule.Name.contains(id)
+	}
+
+	return
+}
+
+/*
+Description returns the underlying (optional) descriptive text
+assigned to the receiver instance.
+*/
+func (r MatchingRule) Description() (desc string) {
+	if !r.IsZero() {
+		desc = r.matchingRule.Desc
+	}
+	return
+}
+
+/*
+IsZero returns a Boolean value indicative of nilness of the
+receiver instance.
+*/
+func (r MatchingRule) IsZero() bool {
+	return r.matchingRule == nil
+}
+
+/*
+List returns a map[string][]string instance which represents the current
+inventory of matching rule instances within the receiver.  The keys are
+numeric OIDs, while the values are zero (0) or more string slices, each
+representing a name by which the definition is known.
+*/
+func (r MatchingRules) List() (list map[string][]string) {
+	list = make(map[string][]string, 0)
+	for i := 0; i < r.len(); i++ {
+		def := r.index(i)
+		list[def.NumericOID()] = def.Names().List()
+
+	}
+
+	return
+}
+
+/*
+Type returns the string literal "matchingRule".
+*/
+func (r MatchingRule) Type() string {
+	return `matchingRule`
+}
+
+/*
+Type returns the string literal "matchingRules".
+*/
+func (r MatchingRules) Type() string {
+	return `matchingRules`
+}
+
+// stackage closure func - do not exec directly.
+// cyclo=6
+func (r MatchingRules) canPush(x ...any) (err error) {
+	if len(x) == 0 {
 		return
 	}
 
-	var (
-		WHSP string = ` `
-		idnt string = "\n\t"
-		head string = `(`
-		tail string = `)`
-	)
-
-	if len(r.spec) > 0 {
-		head = r.spec + WHSP + head
+	for i := 0; i < len(x) && err == nil; i++ {
+		instance := x[i]
+		if mr, ok := instance.(MatchingRule); !ok || mr.IsZero() {
+			err = errorf("Type assertion for %T has failed", instance)
+		} else if tst := r.get(mr.NumericOID()); !tst.IsZero() {
+			err = errorf("%T %s not unique", mr, mr.NumericOID())
+		}
 	}
 
-	def += head + WHSP + r.OID.String()
+	return
+}
 
-	if !r.Name.IsZero() {
-		def += idnt + r.Name.Label()
-		def += WHSP + r.Name.String()
+/*
+Len returns the current integer length of the receiver instance.
+*/
+func (r MatchingRules) Len() int {
+	return r.len()
+}
+
+func (r MatchingRules) len() int {
+	return r.cast().Len()
+}
+
+// cyclo=0
+func (r MatchingRules) String() string {
+	return r.cast().String()
+}
+
+/*
+IsZero returns a Boolean value indicative of nilness of the
+receiver instance.
+*/
+func (r MatchingRules) IsZero() bool {
+	return r.cast().IsZero()
+}
+
+/*
+Index returns the instance of [MatchingRule] found within the
+receiver stack instance at index N.  If no instance is found at
+the index specified, a zero [MatchingRule] instance is returned.
+*/
+func (r MatchingRules) Index(idx int) MatchingRule {
+	return r.index(idx)
+}
+
+func (r MatchingRules) index(idx int) (mr MatchingRule) {
+	slice, found := r.cast().Index(idx)
+	if found {
+		if _mr, ok := slice.(MatchingRule); ok {
+			mr = _mr
+		}
 	}
 
-	if !r.Description.IsZero() {
-		def += idnt + r.Description.Label()
-		def += WHSP + r.Description.String()
+	return
+}
+
+/*
+Push returns an error following an attempt to push a MatchingRule
+into the receiver stack instance.
+*/
+func (r MatchingRules) Push(mr any) error {
+	return r.push(mr)
+}
+
+func (r MatchingRules) push(mr any) (err error) {
+	if mr == nil {
+		err = errorf("%T instance is nil; cannot append to %T", mr, r)
+		return
 	}
 
-	if r.Obsolete {
-		def += idnt + `OBSOLETE`
-	}
+	r.cast().Push(mr)
 
-	// Syntax will never be zero
-	def += idnt + r.Syntax.Label()
-	def += WHSP + r.Syntax.OID.String()
+	return
+}
 
-	if !r.Extensions.IsZero() {
-		for i := 0; i < r.Extensions.Len(); i++ {
-			if ext := r.Extensions.Index(i); !ext.IsZero() {
-				def += idnt + ext.String()
+// cyclo=0
+func (r MatchingRules) contains(id string) bool {
+	return !r.get(id).IsZero()
+}
+
+// cyclo=6
+func (r MatchingRules) get(id string) (mr MatchingRule) {
+	for i := 0; i < r.len() && mr.IsZero(); i++ {
+		if _mr := r.index(i); !_mr.IsZero() {
+			if _mr.IsIdentifiedAs(id) {
+				mr = _mr
 			}
 		}
 	}
 
-	def += WHSP + tail
+	return
+}
+
+func (r Schema) processMatchingRule(ctx antlr4512.IMatchingRuleDescriptionContext) (mr MatchingRule, err error) {
+
+	_mr := new(matchingRule)
+	_mr.schema = r
+
+	for k, ct := 0, ctx.GetChildCount(); k < ct && err == nil; k++ {
+		switch tv := ctx.GetChild(k).(type) {
+		case *antlr4512.OpenParenContext, *antlr4512.CloseParenContext:
+			err = parenContext(tv)
+		case *antlr4512.NumericOIDOrMacroContext:
+			_mr.OID, _mr.Macro, err = numOIDContext(tv)
+		case *antlr4512.DefinitionNameContext:
+			_mr.Name, err = nameContext(tv)
+		case *antlr4512.DefinitionDescriptionContext:
+			_mr.Desc, err = descContext(tv)
+		case *antlr4512.DefinitionObsoleteContext:
+			_mr.Obsolete = true
+		case *antlr4512.DefinitionSyntaxContext:
+			_mr.Syntax, err = _mr.syntaxContext(tv)
+		case *antlr4512.DefinitionExtensionsContext:
+			_mr.Extensions, err = extContext(tv)
+		default:
+			env := MatchingRule{_mr}
+			err = isErrImpl(env.Type(), env.OID(), tv)
+		}
+	}
+
+	if err == nil {
+		r.resolveByMacro(MatchingRule{_mr})
+
+		if err = _mr.check(); err == nil {
+			if err = _mr.prepareString(); err == nil {
+				_mr.t = nil
+				mr = MatchingRule{_mr}
+			}
+		}
+	}
 
 	return
 }
 
-func (r *MatchingRule) unmarshalBasic() (def string, err error) {
-	var (
-		WHSP string = ` `
-		head string = `(`
-		tail string = `)`
-	)
-
-	if len(r.spec) > 0 {
-		head = r.spec + WHSP + head
+func (r *matchingRule) syntaxContext(ctx *antlr4512.DefinitionSyntaxContext) (s LDAPSyntax, err error) {
+	var syn string
+	if syn, err = syntaxContext(ctx); err == nil {
+		if s = r.schema.LDAPSyntaxes().get(syn); s.IsZero() {
+			err = errorf("%T.Syntax (%s) not found; cannot process", r, syn)
+		}
 	}
 
-	def += head + WHSP + r.OID.String()
+	return
+}
 
-	if !r.Name.IsZero() {
-		def += WHSP + r.Name.Label()
-		def += WHSP + r.Name.String()
+func (r *matchingRule) check() (err error) {
+	if r == nil {
+		err = errorf("%T is nil", r)
+		return
 	}
 
-	if !r.Description.IsZero() {
-		def += WHSP + r.Description.Label()
-		def += WHSP + r.Description.String()
+	if len(r.OID) == 0 {
+		err = errorf("%T lacks an OID", r)
+		return
 	}
 
-	if r.Obsolete {
-		def += WHSP + `OBSOLETE`
+	if r.Syntax.IsZero() {
+		err = errorf("%T.Syntax is nil", r)
 	}
-
-	// Syntax will never be zero
-	def += WHSP + r.Syntax.Label()
-	def += WHSP + r.Syntax.OID.String()
-
-	if !r.Extensions.IsZero() {
-		def += WHSP + r.Extensions.String()
-	}
-
-	def += WHSP + tail
 
 	return
 }
