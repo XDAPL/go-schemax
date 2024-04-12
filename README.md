@@ -23,8 +23,8 @@ Users may introduce definitions from other sources -- official or not -- using t
 Two (2) releases are available for end-users:
 
 | Version | Notes |
-| :-----: | :---: |
-| < 2.0.0 | Legacy, custom parser |
+| :----- | :--- |
+| ==1.1.6 | Legacy, custom parser |
 | >= 2.0.0 | Current, ANTLR parser |
 
 ## History of schemax
