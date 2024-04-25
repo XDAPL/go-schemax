@@ -14,6 +14,10 @@ var (
 	ExtensibleObject ObjectClassDefinition
 )
 
+func (r ObjectClassDefinition) String() string {
+	return string(r)
+}
+
 // Other object classes
 func init() {
 	Top = ObjectClassDefinition(`( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass X-ORIGIN 'RFC4512' )`)

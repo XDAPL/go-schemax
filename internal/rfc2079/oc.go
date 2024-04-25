@@ -11,6 +11,10 @@ var (
 	LabeledURIObject ObjectClassDefinition
 )
 
+func (r ObjectClassDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	LabeledURIObject = ObjectClassDefinition(`( 1.3.6.1.4.1.250.3.15 NAME 'labeledURIObject' DESC 'RFC2079: object that contains the URI attribute type' SUP top AUXILIARY MAY labeledURI X-ORIGIN 'RFC2079' )`)

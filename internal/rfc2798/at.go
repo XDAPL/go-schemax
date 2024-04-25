@@ -21,6 +21,10 @@ var (
 	UserPKCS12           AttributeTypeDefinition
 )
 
+func (r AttributeTypeDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	Audio = AttributeTypeDefinition(`( 0.9.2342.19200300.100.1.55 NAME 'audio' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40{250000} X-ORIGIN 'RFC2798' )`)

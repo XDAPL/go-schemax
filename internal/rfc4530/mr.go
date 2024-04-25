@@ -20,6 +20,10 @@ var (
 	UUIDOrderingMatch MatchingRuleDefinition
 )
 
+func (r MatchingRuleDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	UUIDMatch = MatchingRuleDefinition(`( 1.3.6.1.1.16.2 NAME 'uuidMatch' SYNTAX 1.3.6.1.1.16.1 X-ORIGIN 'RFC4530' )`)

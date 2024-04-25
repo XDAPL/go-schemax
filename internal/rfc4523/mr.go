@@ -25,6 +25,10 @@ var (
 	AlgorithmIdentifierMatch  MatchingRuleDefinition
 )
 
+func (r MatchingRuleDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	CertificateExactMatch = MatchingRuleDefinition(`( 2.5.13.34 NAME 'certificateExactMatch' SYNTAX 1.3.6.1.1.15.1 X-ORIGIN 'RFC4523' )`)

@@ -29,6 +29,10 @@ var (
 	AlgorithmIdentifier           LDAPSyntaxDefinition
 )
 
+func (r LDAPSyntaxDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	Certificate = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.8 DESC 'Certificate' X-ORIGIN 'RFC4523' X-NOT-HUMAN-READABLE 'TRUE' )`)

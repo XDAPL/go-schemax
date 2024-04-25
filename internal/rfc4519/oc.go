@@ -25,6 +25,10 @@ var (
 	UIDObject            ObjectClassDefinition
 )
 
+func (r ObjectClassDefinition) String() string {
+	return string(r)
+}
+
 // User ObjectClasses
 func init() {
 	ApplicationProcess = ObjectClassDefinition(`( 2.5.6.11 NAME 'applicationProcess' SUP top STRUCTURAL MUST cn MAY ( seeAlso $ ou $ l $ description ) X-ORIGIN 'RFC4519' )`)

@@ -52,6 +52,10 @@ var (
 	KeywordMatch                        MatchingRuleDefinition
 )
 
+func (r MatchingRuleDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 	PresentationAddressMatch = MatchingRuleDefinition(`( 2.5.13.22 NAME 'presentationAddressMatch' SYNTAX 1.3.6.1.4.1.1466.115.121.1.43 X-ORIGIN 'RFC2256' )`)
 	ProtocolInformationMatch = MatchingRuleDefinition(`( 2.5.13.24 NAME 'protocolInformationMatch' SYNTAX 1.3.6.1.4.1.1466.115.121.1.42 X-ORIGIN 'RFC2252' )`)

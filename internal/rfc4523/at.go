@@ -17,6 +17,10 @@ var (
 	SupportedAlgorithms       AttributeTypeDefinition
 )
 
+func (r AttributeTypeDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	UserCertificate = AttributeTypeDefinition(`( 2.5.4.36 NAME 'userCertificate' DESC 'X.509 user certificate' EQUALITY certificateExactMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.8 X-ORIGIN 'RFC4523' )`)

@@ -73,6 +73,10 @@ var (
 	SubstringAssertion          LDAPSyntaxDefinition
 )
 
+func (r LDAPSyntaxDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 	ACIItem = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.1 DESC 'ACI Item' X-ORIGIN 'RFC4517' X-NOT-HUMAN-READABLE 'TRUE' )`)
 	AccessPoint = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.2 DESC 'Access Point' X-ORIGIN 'RFC4517' )`)

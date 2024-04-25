@@ -23,6 +23,10 @@ var (
 	C_IISDN AttributeTypeDefinition
 )
 
+func (r AttributeTypeDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	CollectiveAttributeSubentries = AttributeTypeDefinition(`( 2.5.18.12

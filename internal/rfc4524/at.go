@@ -35,6 +35,10 @@ var (
 	UserClass            AttributeTypeDefinition
 )
 
+func (r AttributeTypeDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 	AssociatedDomain = AttributeTypeDefinition(`( 0.9.2342.19200300.100.1.37 NAME 'associatedDomain' EQUALITY caseIgnoreIA5Match SUBSTR caseIgnoreIA5SubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN 'RFC4524' )`)
 	AssociatedName = AttributeTypeDefinition(`( 0.9.2342.19200300.100.1.38 NAME 'associatedName' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'RFC4524' )`)

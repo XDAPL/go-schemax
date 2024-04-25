@@ -19,6 +19,10 @@ var (
 	SimpleSecurityObject ObjectClassDefinition
 )
 
+func (r ObjectClassDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	Account = ObjectClassDefinition(`( 0.9.2342.19200300.100.4.5 NAME 'account' SUP top STRUCTURAL MUST uid MAY ( description $ seeAlso $ l $ o $ ou $ host ) X-ORIGIN 'RFC4524' )`)

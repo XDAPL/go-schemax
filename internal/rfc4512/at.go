@@ -46,6 +46,10 @@ var (
 	SupportedSASLMechanisms AttributeTypeDefinition
 )
 
+func (r AttributeTypeDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 	ObjectClasses = AttributeTypeDefinition(`( 2.5.21.6 NAME 'objectClasses' EQUALITY objectIdentifierFirstComponentMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.37 USAGE directoryOperation X-ORIGIN 'RFC4512' )`)
 	SubschemaSubentry = AttributeTypeDefinition(`( 2.5.18.10 NAME 'subschemaSubentry' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'RFC4512' )`)

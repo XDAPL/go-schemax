@@ -19,6 +19,10 @@ var (
 	UUID LDAPSyntaxDefinition
 )
 
+func (r LDAPSyntaxDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	UUID = LDAPSyntaxDefinition(`( 1.3.6.1.1.16.1 DESC 'UUID' X-ORIGIN 'RFC4530' )`)

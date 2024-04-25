@@ -16,6 +16,10 @@ var (
 	CertificationAuthorityV2 ObjectClassDefinition
 )
 
+func (r ObjectClassDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 
 	PKIUser = ObjectClassDefinition(`( 2.5.6.21 NAME 'pkiUser' DESC 'X.509 PKI User' SUP top AUXILIARY MAY userCertificate X-ORIGIN 'RFC4523' )`)

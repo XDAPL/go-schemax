@@ -8,6 +8,10 @@ var (
 	Subentry         ObjectClassDefinition
 )
 
+func (r ObjectClassDefinition) String() string {
+	return string(r)
+}
+
 func init() {
 	Subentry = ObjectClassDefinition(`( 2.5.17.0 NAME 'subentry' SUP top STRUCTURAL MUST ( cn $ subtreeSpecification ) X-ORIGIN 'RFC3672' )`)
 
