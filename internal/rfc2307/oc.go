@@ -1,10 +1,10 @@
 package rfc2307
 
-type ObjectClassDefinitiones []ObjectClassDefinition
-type ObjectClassDefinition string
+type ObjectClassDefinitions []ObjectClassDefinition
+type ObjectClassDefinition  string
 
 var (
-	AllObjectClasses ObjectClassDefinitiones
+	AllObjectClasses ObjectClassDefinitions
 )
 
 var (
@@ -37,9 +37,9 @@ func init() {
 	NISMap = ObjectClassDefinition(`( nisSchema.2.09 NAME 'nisMap' SUP top STRUCTURAL DESC 'A generic abstraction of a NIS map' MUST nisMapName MAY description X-ORIGIN 'RFC2307' )`)
 	NISObject = ObjectClassDefinition(`( nisSchema.2.10 NAME 'nisObject' SUP top STRUCTURAL DESC 'An entry in a NIS map' MUST ( cn $ nisMapEntry $ nisMapName ) MAY description X-ORIGIN 'RFC2307' )`)
 	IEEE802Device = ObjectClassDefinition(`( nisSchema.2.11 NAME 'ieee802Device' SUP top AUXILIARY DESC 'A device with a MAC address; device SHOULD be used as a structural class' MAY macAddress X-ORIGIN 'RFC2307' )`)
-	BootableDevice = ObjectClassDefinition(`( nisSchema.2.12 NAME 'bootableDevice' SUP top AUXILIARY DESC 'A device with boot parameters; device SHOULD be used as a structural class' MAY ( bootFile $ bootParameter ) X-ORIGIN 'RFC2307' )`)
+	BootableDevice = ObjectClassDefinition(`( nisSchema.2.12 NAME 'bootableDevice' DESC 'A device with boot parameters; device SHOULD be used as a structural class' SUP top AUXILIARY MAY ( bootFile $ bootParameter ) X-ORIGIN 'RFC2307' )`)
 
-	AllObjectClasses = ObjectClassDefinitiones{
+	AllObjectClasses = ObjectClassDefinitions{
 		POSIXAccount,
 		ShadowAccount,
 		POSIXGroup,
