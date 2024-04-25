@@ -1,40 +1,5 @@
 package schemax
 
-import (
-	"internal/rfc2307"
-	"internal/rfc4517"
-	"internal/rfc4523"
-	"internal/rfc4530"
-
-	antlr4512 "github.com/JesseCoretta/go-rfc4512-antlr"
-)
-
-var (
-	rfc2307Macros   map[string]string             = rfc2307.Macros
-	rfc2307Syntaxes rfc2307.LDAPSyntaxDefinitions = rfc2307.AllLDAPSyntaxes
-	rfc4517Syntaxes rfc4517.LDAPSyntaxDefinitions = rfc4517.AllLDAPSyntaxes
-	rfc4523Syntaxes rfc4523.LDAPSyntaxDefinitions = rfc4523.AllLDAPSyntaxes
-	rfc4530Syntaxes rfc4530.LDAPSyntaxDefinitions = rfc4530.AllLDAPSyntaxes
-)
-
-/*
-ParseLDAPSyntax parses raw into an instance of [LDAPSyntax], which is
-appended to the receiver's LS stack.
-*/
-func (r Schema) ParseLDAPSyntax(raw string) (err error) {
-	var i antlr4512.Instance
-	if i, err = antlr4512.ParseInstance(raw); err == nil {
-		var l LDAPSyntax
-		if l, err = r.processLDAPSyntax(i.P.LDAPSyntaxDescription()); err != nil {
-			return
-		}
-
-		err = r.LDAPSyntaxes().push(l)
-	}
-
-	return
-}
-
 /*
 NewLDAPSyntaxes initializes a new [Collection] instance and casts it
 as an [LDAPSyntaxes] instance.
@@ -47,17 +12,77 @@ func NewLDAPSyntaxes() LDAPSyntaxes {
 }
 
 /*
-Type returns the string literal "ldapSyntax".
+IsIdentifiedAs returns a Boolean value indicative of whether id matches
+either the numericOID or description of the receiver instance.  Case is
+not significant in the matching process.
 */
-func (r LDAPSyntax) Type() string {
-	return `ldapSyntax`
+func (r LDAPSyntax) IsIdentifiedAs(id string) (ident bool) {
+	if !r.IsZero() {
+		ident = id == r.NumericOID() || eq(r.lDAPSyntax.Desc, id)
+	}
+
+	return
 }
 
 /*
-Type returns the string literal "ldapSyntaxes".
+Len returns the current integer length of the receiver instance.
 */
-func (r LDAPSyntaxes) Type() string {
-	return `ldapSyntaxes`
+func (r LDAPSyntaxes) Len() int {
+	return r.len()
+}
+
+func (r LDAPSyntaxes) len() int {
+	return r.cast().Len()
+}
+
+/*
+SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
+internal verification of certain actions without the need for user input of
+an instance of [Schema] manually at each juncture.
+
+Note that the underlying [Schema] instance is automatically set when creating
+instances of this type by way of parsing.
+
+This is a fluent method.
+*/
+func (r *LDAPSyntax) SetSchema(schema Schema) *LDAPSyntax {
+	if r.IsZero() {
+		r.lDAPSyntax = newLDAPSyntax()
+	}
+
+	r.lDAPSyntax.schema = schema
+
+	return r
+}
+
+func (r LDAPSyntax) schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.lDAPSyntax.schema
+	}
+
+	return
+}
+
+/*
+SetStringer allows the assignment of an individual "stringer" function
+or method to the receiver instance.
+
+A non-nil value will be executed for every call of the String method
+for the receiver instance.
+
+Should the input stringer value be nil, the [text/template.Template]
+value will be used automatically going forward.
+
+This is a fluent method.
+*/
+func (r *LDAPSyntax) SetStringer(stringer func() string) *LDAPSyntax {
+	if r.IsZero() {
+		r.lDAPSyntax = newLDAPSyntax()
+	}
+
+	r.lDAPSyntax.stringer = stringer
+
+	return r
 }
 
 /*
@@ -80,76 +105,42 @@ func (r LDAPSyntaxes) xOrigin(x string) (lss LDAPSyntaxes) {
 }
 
 /*
-Extensions returns the [Extensions] instance -- if set -- within
-the receiver.
-*/
-func (r LDAPSyntax) Extensions() (e Extensions) {
-	if !r.IsZero() {
-		e = r.lDAPSyntax.Extensions
-	}
-
-	return
-}
-
-/*
 String is a stringer method that returns the string representation
 of the receiver instance.
 */
-func (r LDAPSyntax) String() (ls string) {
+func (r LDAPSyntax) String() (def string) {
 	if !r.IsZero() {
-		ls = r.lDAPSyntax.s
-	}
+		if r.stringer != nil {
+			def = r.stringer()
+		} else {
+			if len(r.lDAPSyntax.s) == 0 {
+				var err error
+				if err = r.lDAPSyntax.prepareString(); err != nil {
+					return
+				}
+			}
 
-	return
-}
-
-/*
-IsObsolete only returns a false Boolean value, as definition obsolescence
-does not apply to [LDAPSyntax] definitions.  This method exists only to
-satisfy Go's interface signature requirements.
-*/
-func (r LDAPSyntax) IsObsolete() bool { return false }
-
-/*
-IsIdentifiedAs returns a Boolean value indicative of whether id matches
-either the numericOID or description of the receiver instance.  Case is
-not significant in the matching process.
-*/
-func (r LDAPSyntax) IsIdentifiedAs(id string) (ident bool) {
-	if !r.IsZero() {
-		ident = id == r.NumericOID() || eq(r.lDAPSyntax.Desc, id)
-	}
-
-	return
-}
-
-func (r *lDAPSyntax) prepareString() (err error) {
-	buf := newBuf()
-	r.t = newTemplate(`ldapSyntax`).
-		Funcs(funcMap(map[string]any{
-			`ExtensionSet`: r.Extensions.tmplFunc,
-		}))
-	if r.t, err = r.t.Parse(lDAPSyntaxTmpl); err == nil {
-		if err = r.t.Execute(buf, r); err == nil {
-			r.s = buf.String()
+			def = r.lDAPSyntax.s
 		}
 	}
 
 	return
 }
 
-func (r LDAPSyntax) macro() (m []string) {
-	if !r.IsZero() {
-		m = r.lDAPSyntax.Macro
-	}
-
-	return
+/*
+IsZero returns a Boolean value indicative of nilness of the
+receiver instance.
+*/
+func (r LDAPSyntax) IsZero() bool {
+	return r.lDAPSyntax == nil
 }
 
-func (r LDAPSyntax) setOID(x string) {
-	if !r.IsZero() {
-		r.lDAPSyntax.OID = x
-	}
+/*
+IsZero returns a Boolean value indicative of nilness of the
+receiver instance.
+*/
+func (r LDAPSyntaxes) IsZero() bool {
+	return r.cast().IsZero()
 }
 
 /*
@@ -168,57 +159,31 @@ signature requirements.
 func (r LDAPSyntax) Name() string { return `` }
 
 /*
-Names returns an empty instance of [DefinitionName], as names do not
+Names returns an empty instance of [Name], as names do not
 apply to [LDAPSyntax] definitions.  This method exists only to satisfy
 Go's interface signature requirements.
 */
-func (r LDAPSyntax) Names() DefinitionName { return DefinitionName{} }
+func (r LDAPSyntax) Names() Name { return Name{} }
 
 /*
-NumericOID returns the string representation of the numeric OID
-held by the receiver instance.
+String returns the string representation of the receiver instance.
 */
-func (r LDAPSyntax) NumericOID() (noid string) {
+func (r LDAPSyntaxes) String() string {
+	return r.cast().String()
+}
+
+func (r LDAPSyntax) macro() (m []string) {
 	if !r.IsZero() {
-		noid = r.lDAPSyntax.OID
+		m = r.lDAPSyntax.Macro
 	}
 
 	return
 }
 
-/*
-Description returns the underlying (optional) descriptive text
-assigned to the receiver instance.
-*/
-func (r LDAPSyntax) Description() (desc string) {
+func (r LDAPSyntax) setOID(x string) {
 	if !r.IsZero() {
-		desc = r.lDAPSyntax.Desc
+		r.lDAPSyntax.OID = x
 	}
-	return
-}
-
-/*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
-*/
-func (r LDAPSyntax) IsZero() bool {
-	return r.lDAPSyntax == nil
-}
-
-/*
-List returns a map[string]string instance which represents the current
-inventory of [LDAPSyntax] instances within the receiver.  The keys are
-numeric OIDs, while the value is the description of the [LDAPSyntax]
-definition is known.
-*/
-func (r LDAPSyntaxes) List() (list map[string]string) {
-	list = make(map[string]string, 0)
-	for i := 0; i < r.len(); i++ {
-		def := r.index(i)
-		list[def.NumericOID()] = def.Description()
-	}
-
-	return
 }
 
 func (r LDAPSyntaxes) canPush(x ...any) (err error) {
@@ -239,26 +204,195 @@ func (r LDAPSyntaxes) canPush(x ...any) (err error) {
 }
 
 /*
-Len returns the current integer length of the receiver instance.
-*/
-func (r LDAPSyntaxes) Len() int {
-	return r.len()
-}
+SetNumericOID allows the manual assignment of a numeric OID to the
+receiver instance if the following are all true:
 
-func (r LDAPSyntaxes) len() int {
-	return r.cast().Len()
+  - The input id value is a syntactically valid numeric OID
+  - The receiver does not already possess a numeric OID
+
+This is a fluent method.
+*/
+func (r *LDAPSyntax) SetNumericOID(id string) *LDAPSyntax {
+	if r.IsZero() {
+		r.lDAPSyntax = newLDAPSyntax()
+	}
+
+	if isNumericOID(id) {
+		if len(r.lDAPSyntax.OID) == 0 {
+			r.lDAPSyntax.OID = id
+		}
+	}
+
+	return r
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+Extensions returns the [Extensions] instance -- if set -- within
+the receiver.
 */
-func (r LDAPSyntaxes) IsZero() bool {
-	return r.cast().IsZero()
+func (r LDAPSyntax) Extensions() (e Extensions) {
+	if !r.IsZero() {
+		e = r.lDAPSyntax.Extensions
+	}
+
+	return
 }
 
-func (r LDAPSyntaxes) String() string {
-	return r.cast().String()
+/*
+SetExtension assigns key x to value xstrs within the receiver's underlying
+[Extensions] instance.
+
+This is a fluent method.
+*/
+func (r *LDAPSyntax) SetExtension(x string, xstrs ...string) *LDAPSyntax {
+	if r.IsZero() {
+		r.lDAPSyntax = newLDAPSyntax()
+	}
+
+	r.Extensions().Set(x, xstrs...)
+
+	return r
+}
+
+/*
+Maps returns slices of [DefinitionMap] instances.
+*/
+func (r LDAPSyntaxes) Maps() (defs DefinitionMaps) {
+	defs = make(DefinitionMaps, r.Len())
+	for i := 0; i < r.Len(); i++ {
+		defs[i] = r.Index(i).Map()
+	}
+
+	return
+}
+
+/*
+Map marshals the receiver instance into an instance of
+[DefinitionMap].
+*/
+func (r LDAPSyntax) Map() (def DefinitionMap) {
+	if r.IsZero() {
+		return
+	}
+
+	def = make(DefinitionMap, 0)
+	def[`NUMERICOID`] = []string{r.NumericOID()}
+	def[`DESC`] = []string{r.Description()}
+	def[`TYPE`] = []string{r.Type()}
+	def[`RAW`] = []string{r.String()}
+
+	// copy our extensions from receiver r
+	// into destination def.
+	def = mapTransferExtensions(r, def)
+
+	// Clean up any empty fields
+	def.clean()
+
+	return
+}
+
+/*
+Type returns the string literal "ldapSyntax".
+*/
+func (r LDAPSyntax) Type() string {
+	return `ldapSyntax`
+}
+
+/*
+Type returns the string literal "ldapSyntaxes".
+*/
+func (r LDAPSyntaxes) Type() string {
+	return `ldapSyntaxes`
+}
+
+/*
+Description returns the underlying (optional) descriptive text
+assigned to the receiver instance.
+*/
+func (r LDAPSyntax) Description() (desc string) {
+	if !r.IsZero() {
+		desc = r.lDAPSyntax.Desc
+	}
+
+	return
+}
+
+/*
+SetDescription parses desc into the underlying Desc field within the
+receiver instance.  Although a RFC 4512-compliant QuotedString is
+required, the outer single-quotes need not be specified literally.
+
+This is a fluent method.
+*/
+func (r *LDAPSyntax) SetDescription(desc string) *LDAPSyntax {
+	if len(desc) < 3 {
+		return r
+	}
+
+	if r.lDAPSyntax == nil {
+		r.lDAPSyntax = new(lDAPSyntax)
+	}
+
+	if !(rune(desc[0]) == rune(39) && rune(desc[len(desc)-1]) == rune(39)) {
+		if !r.IsZero() {
+			r.lDAPSyntax.Desc = desc
+		}
+	}
+
+	return r
+}
+
+/*
+IsObsolete only returns a false Boolean value, as definition obsolescence
+does not apply to [LDAPSyntax] definitions.  This method exists only to
+satisfy Go's interface signature requirements.
+*/
+func (r LDAPSyntax) IsObsolete() bool { return false }
+
+/*
+Get returns an instance of [LDAPSyntax] based upon a search for id within
+the receiver stack instance.
+
+The return instance, if not nil, was retrieved based upon a textual match of
+either of the following:
+
+  - the numeric OID of an [LDAPSyntax] and the provided id
+  - the description text -- minus whitespace -- and the provided id
+
+The return instance is nil if no match was made.
+
+Case is not significant in the matching process.
+*/
+func (r LDAPSyntaxes) Get(id string) LDAPSyntax {
+	return r.get(id)
+}
+
+func (r LDAPSyntaxes) get(id string) (ls LDAPSyntax) {
+	for i := 0; i < r.len() && ls.IsZero(); i++ {
+		if _ls := r.index(i); !_ls.IsZero() {
+			if eq(_ls.lDAPSyntax.OID, id) {
+				ls = _ls
+			} else {
+				if desc := repAll(_ls.lDAPSyntax.Desc, ` `, ``); eq(desc, id) {
+					ls = _ls
+				}
+			}
+		}
+	}
+
+	return
+}
+
+/*
+NumericOID returns the string representation of the numeric OID
+held by the receiver instance.
+*/
+func (r LDAPSyntax) NumericOID() (noid string) {
+	if !r.IsZero() {
+		noid = r.lDAPSyntax.OID
+	}
+
+	return
 }
 
 /*
@@ -300,17 +434,75 @@ func (r LDAPSyntaxes) push(ls any) (err error) {
 	return
 }
 
-// cyclo=0
-func (r LDAPSyntaxes) contains(id string) bool {
-	return !r.get(id).IsZero()
+/*
+NewLDAPSyntax initializes and returns a new instance of [LDAPSyntax].
+*/
+func NewLDAPSyntax() LDAPSyntax {
+	return LDAPSyntax{newLDAPSyntax()}
 }
 
-// cyclo=6
-func (r LDAPSyntaxes) get(id string) (ls LDAPSyntax) {
-	for i := 0; i < r.len() && ls.IsZero(); i++ {
-		if _ls := r.index(i); !_ls.IsZero() {
-			if eq(_ls.lDAPSyntax.OID, id) {
-				ls = _ls
+func newLDAPSyntax() *lDAPSyntax {
+	return &lDAPSyntax{
+		Extensions: NewExtensions(),
+	}
+}
+
+func (r *lDAPSyntax) prepareString() (err error) {
+	buf := newBuf()
+	r.t = newTemplate(`ldapSyntax`).
+		Funcs(funcMap(map[string]any{
+			`ExtensionSet`: r.Extensions.tmplFunc,
+		}))
+
+	if r.t, err = r.t.Parse(lDAPSyntaxTmpl); err == nil {
+		if err = r.t.Execute(buf, struct {
+			Definition *lDAPSyntax
+			HIndent    string
+		}{
+			Definition: r,
+			HIndent:    hindent(),
+		}); err == nil {
+			r.s = buf.String()
+		}
+	}
+
+	return
+}
+
+/*
+LDAPSyntaxes returns the [LDAPSyntaxes] instance from within the
+receiver instance.
+*/
+func (r Schema) LDAPSyntaxes() (lss LDAPSyntaxes) {
+	slice, _ := r.cast().Index(ldapSyntaxesIndex)
+	lss, _ = slice.(LDAPSyntaxes)
+	return
+}
+
+/*
+LoadLDAPSyntaxes will load all package-included [LDAPSyntax] definitions
+into the receiver instance.
+*/
+func (r Schema) LoadLDAPSyntaxes() Schema {
+	_ = r.loadSyntaxes()
+	return r
+}
+
+/*
+loadSyntaxes returns an error following an attempt to load all
+built-in ldapSyntax definitions found within this package into
+the receiver instance.
+*/
+func (r Schema) loadSyntaxes() (err error) {
+	if !r.IsZero() {
+		for _, funk := range []func() error{
+			r.loadRFC4517Syntaxes,
+			r.loadRFC4523Syntaxes,
+			r.loadRFC4530Syntaxes,
+			r.loadRFC2307Syntaxes,
+		} {
+			if err = funk(); err != nil {
+				break
 			}
 		}
 	}
@@ -318,49 +510,77 @@ func (r LDAPSyntaxes) get(id string) (ls LDAPSyntax) {
 	return
 }
 
-func (r Schema) processLDAPSyntax(ctx antlr4512.ILDAPSyntaxDescriptionContext) (ls LDAPSyntax, err error) {
-	_ls := new(lDAPSyntax)
-	_ls.schema = r
+/*
+LoadRFC2307Syntaxes returns an error following an attempt to load
+all RFC 2307 [LDAPSyntax] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC2307Syntaxes() Schema {
+	_ = r.loadRFC2307Syntaxes()
+	return r
+}
 
-	for k, ct := 0, ctx.GetChildCount(); k < ct && err == nil; k++ {
-		switch tv := ctx.GetChild(k).(type) {
-		case *antlr4512.OpenParenContext,
-			*antlr4512.CloseParenContext:
-			err = parenContext(tv)
-		case *antlr4512.NumericOIDOrMacroContext:
-			_ls.OID, _ls.Macro, err = numOIDContext(tv)
-		case *antlr4512.DefinitionDescriptionContext:
-			_ls.Desc, err = descContext(tv)
-		case *antlr4512.DefinitionExtensionsContext:
-			_ls.Extensions, err = extContext(tv)
-		default:
-			env := LDAPSyntax{_ls}
-			err = isErrImpl(env.Type(), env.OID(), tv)
-		}
+func (r Schema) loadRFC2307Syntaxes() (err error) {
+	for k, v := range rfc2307Macros {
+		r.SetMacro(k, v)
 	}
 
-	if err == nil {
-		r.resolveByMacro(LDAPSyntax{_ls})
-
-		if err = _ls.check(); err == nil {
-			if err = _ls.prepareString(); err == nil {
-				_ls.t = nil
-				ls = LDAPSyntax{_ls}
-			}
-		}
+	for i := 0; i < len(rfc2307LDAPSyntaxes) && err == nil; i++ {
+		ls := rfc2307LDAPSyntaxes[i]
+		err = r.ParseLDAPSyntax(string(ls))
 	}
 
 	return
 }
 
-func (r *lDAPSyntax) check() (err error) {
-	if r == nil {
-		err = errorf("%T is nil", r)
-		return
+/*
+LoadRFC4517Syntaxes returns an error following an attempt to
+load all RFC 4517 [LDAPSyntax] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4517Syntaxes() Schema {
+	_ = r.loadRFC4517Syntaxes()
+	return r
+}
+
+func (r Schema) loadRFC4517Syntaxes() (err error) {
+	for i := 0; i < len(rfc4517LDAPSyntaxes) && err == nil; i++ {
+		ls := rfc4517LDAPSyntaxes[i]
+		err = r.ParseLDAPSyntax(string(ls))
 	}
 
-	if len(r.OID) == 0 {
-		err = errorf("%T lacks an OID", r)
+	return
+}
+
+/*
+LoadRFC4523Syntaxes returns an error following an attempt to
+load all RFC 4523 [LDAPSyntax] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4523Syntaxes() Schema {
+	_ = r.loadRFC4523Syntaxes()
+	return r
+}
+
+func (r Schema) loadRFC4523Syntaxes() (err error) {
+	for i := 0; i < len(rfc4523LDAPSyntaxes) && err == nil; i++ {
+		ls := rfc4523LDAPSyntaxes[i]
+		err = r.ParseLDAPSyntax(string(ls))
+	}
+
+	return
+}
+
+/*
+LoadRFC4530Syntaxes returns an error following an attempt to
+load all RFC 4530 [LDAPSyntax] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4530Syntaxes() Schema {
+	_ = r.loadRFC4530Syntaxes()
+	return r
+}
+
+func (r Schema) loadRFC4530Syntaxes() (err error) {
+	for i := 0; i < len(rfc4530LDAPSyntaxes) && err == nil; i++ {
+		ls := rfc4530LDAPSyntaxes[i]
+		err = r.ParseLDAPSyntax(string(ls))
 	}
 
 	return

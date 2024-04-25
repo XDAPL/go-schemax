@@ -1,52 +1,251 @@
 package schemax
 
-import (
-	"internal/rfc2307"
-	"internal/rfc4517"
-	"internal/rfc4523"
-	"internal/rfc4530"
+/*
+NewMatchingRules initializes a new [Collection] instance and
+casts it as an [MatchingRules] instance.
+*/
+func NewMatchingRules() MatchingRules {
+	r := MatchingRules(newCollection(`matchingRules`))
+	r.cast().SetPushPolicy(r.canPush)
 
-	antlr4512 "github.com/JesseCoretta/go-rfc4512-antlr"
-)
+	return r
+}
 
-var (
-	rfc2307MatchingRules rfc2307.MatchingRuleDefinitions = rfc2307.AllMatchingRules
-	rfc4517MatchingRules rfc4517.MatchingRuleDefinitions = rfc4517.AllMatchingRules
-	rfc4523MatchingRules rfc4523.MatchingRuleDefinitions = rfc4523.AllMatchingRules
-	rfc4530MatchingRules rfc4530.MatchingRuleDefinitions = rfc4530.AllMatchingRules
-)
+/*
+NewMatchingRule initializes and returns a new instance of [MatchingRule].
+*/
+func NewMatchingRule() MatchingRule {
+	return MatchingRule{newMatchingRule()}
+}
 
-func (r *Schema) ParseMatchingRule(raw string) (err error) {
-	var i antlr4512.Instance
-	if i, err = antlr4512.ParseInstance(raw); err == nil {
-		var m MatchingRule
-		if m, err = r.processMatchingRule(i.P.MatchingRuleDescription()); err != nil {
-			return
-		}
+func newMatchingRule() *matchingRule {
+	return &matchingRule{
+		Name:       NewName(),
+		Extensions: NewExtensions(),
+	}
+}
 
-		err = r.MatchingRules().push(m)
+/*
+NumericOID returns the string representation of the numeric OID
+held by the receiver instance.
+*/
+func (r MatchingRule) NumericOID() (noid string) {
+	if !r.IsZero() {
+		noid = r.matchingRule.OID
 	}
 
 	return
 }
 
 /*
-NewMatchingRules initializes a new Collection instance and
-casts it as an MatchingRules instance.
-*/
-func NewMatchingRules() MatchingRules {
-	r := MatchingRules(newCollection(``))
-	r.cast().SetPushPolicy(r.canPush)
+SetNumericOID allows the manual assignment of a numeric OID to the
+receiver instance if the following are all true:
 
-	return r
+  - The input id value is a syntactically valid numeric OID
+  - The receiver does not already possess a numeric OID
+
+This is a fluent method.
+*/
+func (r *MatchingRule) SetNumericOID(id string) *MatchingRule {
+        if r.IsZero() {
+                r.matchingRule = newMatchingRule()
+        }
+
+        if isNumericOID(id) {
+                if len(r.matchingRule.OID) == 0 {
+                        r.matchingRule.OID = id
+                }
+        }
+
+        return r
 }
 
+/*
+OID returns the string representation of an OID -- which is either a
+numeric OID or descriptor -- that is held by the receiver instance.
+*/
+func (r MatchingRule) OID() (oid string) {
+	if !r.IsZero() {
+		oid = r.NumericOID() // default
+		if r.matchingRule.Name.len() > 0 {
+			oid = r.matchingRule.Name.index(0)
+		}
+	}
+
+	return
+}
+
+/*
+Syntax returns the string numeric OID value associated with
+the underlying [LDAPSyntax] instance.
+*/
 func (r MatchingRule) Syntax() (desc string) {
 	if !r.IsZero() {
 		if !r.matchingRule.Syntax.IsZero() {
 			desc = r.matchingRule.Syntax.NumericOID()
 		}
 	}
+
+	return
+}
+
+/*
+SetSyntax assigns x to the receiver instance as an instance of [LDAPSyntax].
+
+This is a fluent method.
+*/
+func (r *MatchingRule) SetSyntax(x any) *MatchingRule {
+	if r.IsZero() {
+		r.matchingRule = newMatchingRule()
+	}
+
+	var syn LDAPSyntax
+	switch tv := x.(type) {
+	case string:
+		if sch := r.schema(); !sch.IsZero() {
+			syn = sch.LDAPSyntaxes().get(tv)
+		}
+	case LDAPSyntax:
+		syn = tv
+	}
+
+	if !syn.IsZero() {
+		r.matchingRule.Syntax = syn
+	}
+
+	return r
+}
+
+/*
+SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
+internal verification of certain actions without the need for user input of
+an instance of [Schema] manually at each juncture.
+
+Note that the underlying [Schema] instance is automatically set when creating
+instances of this type by way of parsing.
+
+This is a fluent method.
+*/
+func (r *MatchingRule) SetSchema(schema Schema) *MatchingRule {
+	if r.IsZero() {
+		r.matchingRule = newMatchingRule()
+	}
+
+	r.matchingRule.schema = schema
+
+	return r
+}
+
+func (r MatchingRule) schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.matchingRule.schema
+	}
+
+	return
+}
+
+/*
+SetDescription parses desc into the underlying Desc field within the
+receiver instance.  Although a RFC 4512-compliant QuotedString is
+required, the outer single-quotes need not be specified literally.
+
+This is a fluent method.
+*/
+func (r *MatchingRule) SetDescription(desc string) *MatchingRule {
+	if len(desc) < 3 {
+		return r
+	}
+
+	if r.matchingRule == nil {
+		r.matchingRule = new(matchingRule)
+	}
+
+	if !(rune(desc[0]) == rune(39) && rune(desc[len(desc)-1]) == rune(39)) {
+		if !r.IsZero() {
+			r.matchingRule.Desc = desc
+		}
+	}
+
+	return r
+}
+
+/*
+Description returns the underlying (optional) descriptive text
+assigned to the receiver instance.
+*/
+func (r MatchingRule) Description() (desc string) {
+	if !r.IsZero() {
+		desc = r.matchingRule.Desc
+	}
+	return
+}
+
+/*
+IsIdentifiedAs returns a Boolean value indicative of whether id matches
+either the numericOID or descriptor of the receiver instance.  Case is
+not significant in the matching process.
+*/
+func (r MatchingRule) IsIdentifiedAs(id string) (ident bool) {
+	if !r.IsZero() {
+		ident = id == r.NumericOID() || r.matchingRule.Name.contains(id)
+	}
+
+	return
+}
+
+/*
+IsZero returns a Boolean value indicative of nilness of the
+receiver instance.
+*/
+func (r MatchingRule) IsZero() bool {
+	return r.matchingRule == nil
+}
+
+/*
+MatchingRules returns the [MatchingRules] instance from within
+the receiver instance.
+*/
+func (r Schema) MatchingRules() (mrs MatchingRules) {
+	slice, _ := r.cast().Index(matchingRulesIndex)
+	mrs, _ = slice.(MatchingRules)
+	return
+}
+
+/*
+Maps returns slices of [DefinitionMap] instances.
+*/
+func (r MatchingRules) Maps() (defs DefinitionMaps) {
+	defs = make(DefinitionMaps, r.Len())
+	for i := 0; i < r.Len(); i++ {
+		defs[i] = r.Index(i).Map()
+	}
+
+	return
+}
+
+/*
+Map marshals the receiver instance into an instance of
+DefinitionMap.
+*/
+func (r MatchingRule) Map() (def DefinitionMap) {
+	if r.IsZero() {
+		return
+	}
+
+	def = make(DefinitionMap, 0)
+	def[`NUMERICOID`] = []string{r.NumericOID()}
+	def[`NAME`] = r.Names().List()
+	def[`DESC`] = []string{r.Description()}
+	def[`OBSOLETE`] = []string{bool2str(r.IsObsolete())}
+	def[`SYNTAX`] = []string{r.Syntax()}
+	def[`RAW`] = []string{r.String()}
+
+	// copy our extensions from receiver r
+	// into destination def.
+	def = mapTransferExtensions(r, def)
+
+	// Clean up any empty fields
+	def.clean()
 
 	return
 }
@@ -63,6 +262,53 @@ func (r MatchingRule) IsObsolete() (o bool) {
 }
 
 /*
+SetObsolete sets the receiver instance to OBSOLETE if not already set.
+
+Obsolescence cannot be unset.
+
+This is a fluent method.
+*/
+func (r *MatchingRule) SetObsolete() *MatchingRule {
+	if !r.IsZero() {
+		if !r.IsObsolete() {
+			r.matchingRule.Obsolete = true
+		}
+	}
+
+	return r
+}
+
+/*
+SetName assigns the provided names to the receiver instance.
+
+Name instances must conform to RFC 4512 descriptor format but
+need not be quoted.
+*/
+func (r *MatchingRule) SetName(x ...string) *MatchingRule {
+	if len(x) == 0 {
+		return r
+	}
+
+	if r.IsZero() {
+		r.matchingRule = newMatchingRule()
+	}
+
+	for i := 0; i < len(x); i++ {
+		r.matchingRule.Name.Push(x[i])
+	}
+
+	return r
+}
+
+/*
+Names returns the underlying instance of [Name] from within
+the receiver.
+*/
+func (r MatchingRule) Names() (names Name) {
+	return r.matchingRule.Name
+}
+
+/*
 Name returns the string form of the principal name of the receiver instance, if set.
 */
 func (r MatchingRule) Name() (id string) {
@@ -74,32 +320,28 @@ func (r MatchingRule) Name() (id string) {
 }
 
 /*
-Names returns the underlying instance of DefinitionName from within
-the receiver.
+SetExtension assigns key x to value xstrs within the receiver's underlying
+[Extensions] instance.
+
+This is a fluent method.
 */
-func (r MatchingRule) Names() (names DefinitionName) {
-	return r.matchingRule.Name
+func (r *MatchingRule) SetExtension(x string, xstrs ...string) *MatchingRule {
+	if r.IsZero() {
+		r.matchingRule = newMatchingRule()
+	}
+
+	r.Extensions().Set(x, xstrs...)
+
+	return r
 }
 
 /*
-Extensions returns the Extensions instance -- if set -- within
+Extensions returns the [Extensions] instance -- if set -- within
 the receiver.
 */
 func (r MatchingRule) Extensions() (e Extensions) {
 	if !r.IsZero() {
 		e = r.matchingRule.Extensions
-	}
-
-	return
-}
-
-/*
-String is a stringer method that returns the string representation
-of the receiver instance.
-*/
-func (r MatchingRule) String() (mr string) {
-	if !r.IsZero() {
-		mr = r.matchingRule.s
 	}
 
 	return
@@ -119,109 +361,133 @@ func (r MatchingRule) setOID(x string) {
 	}
 }
 
+/*
+LoadMatchingRules will load all package-included [MatchingRule] definitions
+into the receiver instance.
+*/
+func (r Schema) LoadMatchingRules() Schema {
+	_ = r.loadMatchingRules()
+	return r
+}
+
+/*
+loadMatchingRules returns an error following an attempt to load
+all matchingRule definitions found within this package into the
+receiver instance.
+*/
+func (r Schema) loadMatchingRules() (err error) {
+	if !r.IsZero() {
+		for _, funk := range []func() error{
+			r.loadRFC2307MatchingRules,
+			r.loadRFC4517MatchingRules,
+			r.loadRFC4523MatchingRules,
+			r.loadRFC4530MatchingRules,
+		} {
+			if err = funk(); err != nil {
+				break
+			}
+		}
+	}
+
+	return
+}
+
+/*
+LoadRFC2307MatchingRules returns an error following an attempt to load
+all RFC 2307 [MatchingRule] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC2307MatchingRules() Schema {
+	_ = r.loadRFC2307MatchingRules()
+	return r
+}
+
+func (r Schema) loadRFC2307MatchingRules() (err error) {
+	for k, v := range rfc2307Macros {
+		r.SetMacro(k, v)
+	}
+
+	for i := 0; i < len(rfc2307MatchingRules) && err == nil; i++ {
+		mr := rfc2307MatchingRules[i]
+		err = r.ParseMatchingRule(string(mr))
+	}
+
+	return
+}
+
+/*
+LoadRFC4517MatchingRules returns an error following an attempt to load
+all RFC 4517 [MatchingRule] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4517MatchingRules() Schema {
+	_ = r.loadRFC4517MatchingRules()
+	return r
+}
+
+func (r Schema) loadRFC4517MatchingRules() (err error) {
+	for i := 0; i < len(rfc4517MatchingRules) && err == nil; i++ {
+		mr := rfc4517MatchingRules[i]
+		err = r.ParseMatchingRule(string(mr))
+	}
+
+	return
+}
+
+/*
+LoadRFC4523MatchingRules returns an error following an attempt to load
+all RFC 4523 [MatchingRule] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4523MatchingRules() Schema {
+	_ = r.loadRFC4523MatchingRules()
+	return r
+}
+
+func (r Schema) loadRFC4523MatchingRules() (err error) {
+	for i := 0; i < len(rfc4523MatchingRules) && err == nil; i++ {
+		mr := rfc4523MatchingRules[i]
+		err = r.ParseMatchingRule(string(mr))
+	}
+
+	return
+}
+
+/*
+LoadRFC4530MatchingRules returns an error following an attempt to load
+all RFC 4530 [MatchingRule] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4530MatchingRules() Schema {
+	_ = r.loadRFC4530MatchingRules()
+	return r
+}
+
+func (r Schema) loadRFC4530MatchingRules() (err error) {
+	for i := 0; i < len(rfc4530MatchingRules) && err == nil; i++ {
+		mr := rfc4530MatchingRules[i]
+		err = r.ParseMatchingRule(string(mr))
+	}
+
+	return
+}
+
 func (r *matchingRule) prepareString() (err error) {
 	buf := newBuf()
 	r.t = newTemplate(`matchingRule`).
 		Funcs(funcMap(map[string]any{
+			`Syntax`:       func() string { return r.Syntax.NumericOID() },
 			`ExtensionSet`: r.Extensions.tmplFunc,
 		}))
 	if r.t, err = r.t.Parse(matchingRuleTmpl); err == nil {
-		if err = r.t.Execute(buf, r); err == nil {
+		if err = r.t.Execute(buf, struct {
+			Definition *matchingRule
+			HIndent    string
+		}{
+			Definition: r,
+			HIndent:    hindent(),
+		}); err == nil {
 			r.s = buf.String()
 		}
 	}
 
 	return
-}
-
-/*
-OID returns the string representation of an OID -- which is either a
-numeric OID or descriptor -- that is held by the receiver instance.
-*/
-func (r MatchingRule) OID() (oid string) {
-	if !r.IsZero() {
-		oid = r.NumericOID() // default
-		if r.matchingRule.Name.len() > 0 {
-			oid = r.matchingRule.Name.index(0)
-		}
-	}
-
-	return
-}
-
-/*
-NumericOID returns the string representation of the numeric OID
-held by the receiver instance.
-*/
-func (r MatchingRule) NumericOID() (noid string) {
-	if !r.IsZero() {
-		noid = r.matchingRule.OID
-	}
-
-	return
-}
-
-/*
-IsIdentifiedAs returns a Boolean value indicative of whether id matches
-either the numericOID or descriptor of the receiver instance.  Case is
-not significant in the matching process.
-*/
-func (r MatchingRule) IsIdentifiedAs(id string) (ident bool) {
-	if !r.IsZero() {
-		ident = id == r.NumericOID() || r.matchingRule.Name.contains(id)
-	}
-
-	return
-}
-
-/*
-Description returns the underlying (optional) descriptive text
-assigned to the receiver instance.
-*/
-func (r MatchingRule) Description() (desc string) {
-	if !r.IsZero() {
-		desc = r.matchingRule.Desc
-	}
-	return
-}
-
-/*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
-*/
-func (r MatchingRule) IsZero() bool {
-	return r.matchingRule == nil
-}
-
-/*
-List returns a map[string][]string instance which represents the current
-inventory of matching rule instances within the receiver.  The keys are
-numeric OIDs, while the values are zero (0) or more string slices, each
-representing a name by which the definition is known.
-*/
-func (r MatchingRules) List() (list map[string][]string) {
-	list = make(map[string][]string, 0)
-	for i := 0; i < r.len(); i++ {
-		def := r.index(i)
-		list[def.NumericOID()] = def.Names().List()
-
-	}
-
-	return
-}
-
-/*
-Type returns the string literal "matchingRule".
-*/
-func (r MatchingRule) Type() string {
-	return `matchingRule`
-}
-
-/*
-Type returns the string literal "matchingRules".
-*/
-func (r MatchingRules) Type() string {
-	return `matchingRules`
 }
 
 // stackage closure func - do not exec directly.
@@ -257,6 +523,29 @@ func (r MatchingRules) len() int {
 // cyclo=0
 func (r MatchingRules) String() string {
 	return r.cast().String()
+}
+
+/*                                                                      
+String is a stringer method that returns the string representation      
+of the receiver instance.                                               
+*/                                                                      
+func (r MatchingRule) String() (mr string) {
+        if !r.IsZero() {                                                
+                if r.stringer != nil {                                  
+                        mr = r.stringer()                               
+                } else {                                                
+                        if len(r.matchingRule.s) == 0 {                
+                                var err error                           
+                                if err = r.matchingRule.prepareString(); err != nil {
+                                        return                          
+                                }                                       
+                        }                                               
+                                                                        
+                        mr = r.matchingRule.s                          
+                }                                                       
+        }                                                               
+                                                                        
+        return                                                          
 }
 
 /*
@@ -306,12 +595,48 @@ func (r MatchingRules) push(mr any) (err error) {
 	return
 }
 
-// cyclo=0
+/*
+Contains calls [MatchingRules.Get] to return a Boolean value indicative of
+a successful, non-zero retrieval of an [MatchingRule] instance -- matching
+the provided id -- from within the receiver stack instance.
+*/
+func (r MatchingRules) Contains(id string) bool {
+	return r.contains(id)
+}
+
 func (r MatchingRules) contains(id string) bool {
 	return !r.get(id).IsZero()
 }
 
-// cyclo=6
+/*
+Type returns the string literal "matchingRule".
+*/
+func (r MatchingRule) Type() string {
+	return `matchingRule`
+}
+
+/*
+Type returns the string literal "matchingRules".
+*/
+func (r MatchingRules) Type() string {
+	return `matchingRules`
+}
+
+/*
+Get returns an instance of [MatchingRule] based upon a search for id within
+the receiver stack instance.
+
+The return instance, if not nil, was retrieved based upon a textual match of
+the principal identifier of an [MatchingRule] and the provided id.
+
+The return instance is nil if no match was made.
+
+Case is not significant in the matching process.
+*/
+func (r MatchingRules) Get(id string) MatchingRule {
+	return r.get(id)
+}
+
 func (r MatchingRules) get(id string) (mr MatchingRule) {
 	for i := 0; i < r.len() && mr.IsZero(); i++ {
 		if _mr := r.index(i); !_mr.IsZero() {
@@ -319,76 +644,6 @@ func (r MatchingRules) get(id string) (mr MatchingRule) {
 				mr = _mr
 			}
 		}
-	}
-
-	return
-}
-
-func (r Schema) processMatchingRule(ctx antlr4512.IMatchingRuleDescriptionContext) (mr MatchingRule, err error) {
-
-	_mr := new(matchingRule)
-	_mr.schema = r
-
-	for k, ct := 0, ctx.GetChildCount(); k < ct && err == nil; k++ {
-		switch tv := ctx.GetChild(k).(type) {
-		case *antlr4512.OpenParenContext, *antlr4512.CloseParenContext:
-			err = parenContext(tv)
-		case *antlr4512.NumericOIDOrMacroContext:
-			_mr.OID, _mr.Macro, err = numOIDContext(tv)
-		case *antlr4512.DefinitionNameContext:
-			_mr.Name, err = nameContext(tv)
-		case *antlr4512.DefinitionDescriptionContext:
-			_mr.Desc, err = descContext(tv)
-		case *antlr4512.DefinitionObsoleteContext:
-			_mr.Obsolete = true
-		case *antlr4512.DefinitionSyntaxContext:
-			_mr.Syntax, err = _mr.syntaxContext(tv)
-		case *antlr4512.DefinitionExtensionsContext:
-			_mr.Extensions, err = extContext(tv)
-		default:
-			env := MatchingRule{_mr}
-			err = isErrImpl(env.Type(), env.OID(), tv)
-		}
-	}
-
-	if err == nil {
-		r.resolveByMacro(MatchingRule{_mr})
-
-		if err = _mr.check(); err == nil {
-			if err = _mr.prepareString(); err == nil {
-				_mr.t = nil
-				mr = MatchingRule{_mr}
-			}
-		}
-	}
-
-	return
-}
-
-func (r *matchingRule) syntaxContext(ctx *antlr4512.DefinitionSyntaxContext) (s LDAPSyntax, err error) {
-	var syn string
-	if syn, err = syntaxContext(ctx); err == nil {
-		if s = r.schema.LDAPSyntaxes().get(syn); s.IsZero() {
-			err = errorf("%T.Syntax (%s) not found; cannot process", r, syn)
-		}
-	}
-
-	return
-}
-
-func (r *matchingRule) check() (err error) {
-	if r == nil {
-		err = errorf("%T is nil", r)
-		return
-	}
-
-	if len(r.OID) == 0 {
-		err = errorf("%T lacks an OID", r)
-		return
-	}
-
-	if r.Syntax.IsZero() {
-		err = errorf("%T.Syntax is nil", r)
 	}
 
 	return

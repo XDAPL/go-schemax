@@ -1,258 +1,299 @@
 package schemax
 
+import (
+	"bytes"
+	"text/template"
+)
+
+func newTemplate(name string) *template.Template {
+	return template.New(name)
+}
+
+func newBuf() *bytes.Buffer {
+	return new(bytes.Buffer)
+}
+
+func funcMap(fm map[string]any) template.FuncMap {
+	return template.FuncMap(fm)
+}
+
 const lDAPSyntaxTmpl = `{{- $open:="( " -}}
 {{- $close:=" )" -}}
 {{- $extn:=(ExtensionSet) -}}
-{{- $descl:=" DESC " -}}
-{{- $numOID:=.OID -}}
-{{- $desc:=.Desc -}}
+{{- $hindent:=.HIndent -}}
+{{- $descl:="DESC " -}}
+{{- $numOID:=.Definition.OID -}}
+{{- $desc:=.Definition.Desc -}}
 {{- $open -}}{{- $numOID -}}
 {{if $desc -}}
-{{- $descl -}}'{{- $desc -}}'
+{{- $hindent -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
-{{if $extn -}} {{$extn}}{{- end -}}
+{{if $extn -}}{{- $extn -}}{{- end -}}
 {{$close -}}`
 
 const matchingRuleTmpl = `{{- $open:="( " -}}
 {{- $close:=" )" -}}
-{{- $name:=.Name -}}
+{{- $name:=.Definition.Name -}}
+{{- $hindent:=.HIndent -}}
 {{- $extn:=(ExtensionSet) -}}
-{{- $descl:=" DESC " -}}
-{{- $namel:=" NAME " -}}
-{{- $stxl:=" SYNTAX " -}}
-{{- $numOID:=.OID -}}
-{{- $desc:=.Desc -}}
-{{- $sytx:=.Syntax.OID -}}
+{{- $descl:="DESC " -}}
+{{- $namel:="NAME " -}}
+{{- $stxl:="SYNTAX " -}}
+{{- $numOID:=.Definition.OID -}}
+{{- $desc:=.Definition.Desc -}}
+{{- $sytx:=(Syntax) -}}
 {{- $open -}}{{- $numOID -}}
 {{if $name -}}
-{{- $namel -}}{{- $name -}}
+{{- $hindent -}}{{- $namel -}}{{- $name -}}
 {{- end -}}
 {{if $desc -}}
-{{- $descl -}}'{{- $desc -}}'
+{{- $hindent -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
 {{if $sytx -}}
-{{- $stxl -}} {{- $sytx -}}
+{{- $hindent -}}{{- $stxl -}} {{- $sytx -}}
 {{- end -}}
-{{if $extn -}} {{$extn}}{{- end -}}
+{{if $extn -}}{{$extn}}{{- end -}}
 {{$close -}}`
 
 const attributeTypeTmpl = `{{- $open:="( " -}}
 {{- $close:=" )" -}}
-{{- $namel:=" NAME " -}}
-{{- $name:=.Name -}}
+{{- $namel:="NAME " -}}
+{{- $name:=.Definition.Name -}}
 {{- $extn:=(ExtensionSet) -}}
-{{- $descl:=" DESC " -}}
-{{- $eqll:=" EQUALITY " -}}
-{{- $subl:=" SUBSTR " -}}
-{{- $ordl:=" ORDERING " -}}
-{{- $obsl:=" OBSOLETE " -}}
+{{- $hindent:=.HIndent -}}
+{{- $descl:="DESC " -}}
+{{- $eqll:="EQUALITY " -}}
+{{- $subl:="SUBSTR " -}}
+{{- $ordl:="ORDERING " -}}
 {{- $obs:=(IsObsolete) -}}
-{{- $usagel:=" USAGE " -}}
+{{- $collective:=(IsCollective) -}}
+{{- $single:=(IsSingleVal) -}}
+{{- $nousermod:=(IsNoUserMod) -}}
+{{- $usagel:="USAGE " -}}
 {{- $usage:=Usage -}}
-{{- $desc:=.Desc -}}
-{{- $stxl:=" SYNTAX " -}}
-{{- $sytx:=.Syntax.OID -}}
-{{- $eql:=.Equality.OID -}}
-{{- $ord:=.Ordering.OID -}}
-{{- $sub:=.Substring.OID -}}
-{{- $supl:=" SUP " -}}
-{{- $sup:=.SuperType.OID -}}
-{{- $numOID:=.OID -}}
+{{- $desc:=.Definition.Desc -}}
+{{- $stxl:="SYNTAX " -}}
+{{- $sytx:=(Syntax) -}}
+{{- $eql:=(Equality) -}}
+{{- $ord:=(Ordering) -}}
+{{- $sub:=(Substring) -}}
+{{- $supl:="SUP " -}}
+{{- $obsl:="OBSOLETE" -}}
+{{- $sv:="SINGLE-VALUE" -}}
+{{- $coll:="COLLECTIVE" -}}
+{{- $nomod:="NO-USER-MODIFICATIONS" -}}
+{{- $sup:=(SuperType) -}}
+{{- $numOID:=.Definition.OID -}}
 {{- $open -}}{{- $numOID -}}
 {{if $name -}}
-{{- $namel -}}{{- $name -}}
+{{- $hindent -}}{{- $namel -}}{{- $name -}}
 {{- end -}}
 {{if $desc -}}
-{{- $descl -}}'{{- $desc -}}'
+{{- $hindent -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
 {{if $obs -}}
-{{- $obsl -}}
+{{- $hindent -}}{{- $obsl -}}
 {{end -}}
 {{if $sup -}}
-{{- $supl -}} {{- $sup -}}
-{{- end -}}
-{{if $sytx -}}
-{{- $stxl -}} {{- $sytx -}}
+{{- $hindent -}}{{- $supl -}} {{- $sup -}}
 {{- end -}}
 {{if $eql -}}
-{{- $eqll -}} {{- $eql -}}
+{{- $hindent -}}{{- $eqll -}} {{- $eql -}}
 {{- end -}}
 {{if $sub -}}
-{{- $subl -}} {{- $sub -}}
+{{- $hindent -}}{{- $subl -}} {{- $sub -}}
 {{- end -}}
 {{if $ord -}}
-{{- $ordl -}} {{- $ord -}}
+{{- $hindent -}}{{- $ordl -}} {{- $ord -}}
+{{- end -}}
+{{if $sytx -}}
+{{- $hindent -}}{{- $stxl -}} {{- $sytx -}}
+{{- end -}}
+{{if $single -}}
+{{- $hindent -}}{{- $sv -}}
+{{- else if $collective -}}
+{{- $hindent -}}{{- $coll -}}
+{{- end -}}
+{{if $nousermod -}}
+{{- $hindent -}}{{- $nomod -}}
 {{- end -}}
 {{if $usage -}}
-{{- $usagel -}} {{- $usage -}}
+{{- $hindent -}}{{- $usagel -}} {{- $usage -}}
 {{- end -}}
-{{if $extn -}} {{$extn}}{{- end -}}
+{{if $extn -}}{{- $extn}}{{- end -}}
 {{$close -}}`
 
 const matchingRuleUseTmpl = `{{- $open:="( " -}}
 {{- $close:=" )" -}}
-{{- $name:=.Name -}}
+{{- $name:=.Definition.Name -}}
+{{- $hindent:=.HIndent -}}
 {{- $extn:=(ExtensionSet) -}}
-{{- $descl:=" DESC " -}}
-{{- $namel:=" NAME " -}}
-{{- $appl:=" APPLIES " -}}
-{{- $numOID:=.OID -}}
-{{- $desc:=.Desc -}}
-{{- $apps:=.Applies -}}
+{{- $descl:="DESC " -}}
+{{- $namel:="NAME " -}}
+{{- $appl:="APPLIES " -}}
+{{- $numOID:=.Definition.OID -}}
+{{- $desc:=.Definition.Desc -}}
+{{- $apps:=.Definition.Applies -}}
 {{- $open -}}{{- $numOID -}}
 {{if $name -}}
-{{- $namel -}}{{- $name -}}
+{{- $hindent -}}{{- $namel -}}{{- $name -}}
 {{- end -}}
 {{if $desc -}}
-{{- $descl -}}'{{- $desc -}}'
+{{- $hindent -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
 {{if $apps -}}
-{{- $appl -}} {{- $apps -}}
+{{- $hindent -}}{{- $appl -}} {{- $apps -}}
 {{- end -}}
-{{if $extn -}} {{$extn}}{{- end -}}
+{{if $extn -}}{{$extn}}{{- end -}}
 {{$close -}}`
 
-const objectClassTmpl = `{{- $name:=.Name -}}
+const objectClassTmpl = `{{- $name:=.Definition.Name -}}
 {{- $open:="( " -}}
 {{- $close:=" )" -}}
 {{- $extn:=(ExtensionSet) -}}
 {{- $obs:=(IsObsolete) -}}
-{{- $obsl:=" OBSOLETE " -}}
-{{- $namel:=" NAME " -}}
-{{- $descl:=" DESC " -}}
-{{- $mustl:=" MUST " -}}
-{{- $mayl:=" MAY " -}}
-{{- $supl:=" SUP " -}}
+{{- $hindent:=.HIndent -}}
+{{- $obsl:="OBSOLETE " -}}
+{{- $kind:=(Kind) -}}
+{{- $namel:="NAME " -}}
+{{- $descl:="DESC " -}}
+{{- $mustl:="MUST " -}}
+{{- $mayl:="MAY " -}}
+{{- $supl:="SUP " -}}
 {{- $suplen:=SuperLen -}}
 {{- $mustlen:=MustLen -}}
 {{- $maylen:=MayLen -}}
-{{- $id:=.OID -}}
-{{- $desc:=.Desc -}}
+{{- $id:=.Definition.OID -}}
+{{- $desc:=.Definition.Desc -}}
 {{- $open -}}{{- $id -}}
 {{if $name -}}
-{{- $namel -}}{{- $name -}}
+{{- $hindent -}}{{- $namel -}}{{- $name -}}
 {{- end -}}
 {{if $desc -}}
-{{- $descl -}}'{{- $desc -}}'
+{{- $hindent  -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
 {{if $obs -}}
-{{- $obsl -}}
+{{- $hindent -}}{{- $obsl -}}
 {{end -}}
 {{if gt $suplen 0 -}}
-{{- $supl -}}{{- .SuperClasses -}}
+{{- $hindent -}}{{- $supl -}}{{- .Definition.SuperClasses -}}
 {{end -}}
+{{- $hindent -}}{{- $kind -}}
 {{if gt $mustlen 0 -}}
-{{- $mustl -}}{{- .Must -}}
+{{- $hindent -}}{{- $mustl -}}{{- .Definition.Must -}}
 {{end -}}
 {{if gt $maylen 0 -}}
-{{- $mayl -}}{{- .May -}}
+{{- $hindent -}}{{- $mayl -}}{{- .Definition.May -}}
 {{end -}}
-{{if $extn -}} {{$extn}}{{- end -}}
+{{if $extn -}}{{$extn}}{{- end -}}
 {{$close -}}`
 
-const dITContentRuleTmpl = `{{- $name:=.Name -}}
+const dITContentRuleTmpl = `{{- $name:=.Definition.Name -}}
 {{- $open:="( " -}}
 {{- $close:=" )" -}}
 {{- $extn:=(ExtensionSet) -}}
+{{- $hindent:=.HIndent -}}
 {{- $obs:=(IsObsolete) -}}
-{{- $obsl:=" OBSOLETE " -}}
-{{- $namel:=" NAME " -}}
-{{- $descl:=" DESC " -}}
-{{- $mustl:=" MUST " -}}
-{{- $mayl:=" MAY " -}}
-{{- $notl:=" NOT " -}}
-{{- $auxl:=" AUX " -}}
+{{- $obsl:="OBSOLETE " -}}
+{{- $namel:="NAME " -}}
+{{- $descl:="DESC " -}}
+{{- $mustl:="MUST " -}}
+{{- $mayl:="MAY " -}}
+{{- $notl:="NOT " -}}
+{{- $auxl:="AUX " -}}
 {{- $auxlen:=AuxLen -}}
 {{- $mustlen:=MustLen -}}
 {{- $maylen:=MayLen -}}
 {{- $notlen:=NotLen -}}
 {{- $id:=(StructuralOID) -}}
-{{- $desc:=.Desc -}}
+{{- $desc:=.Definition.Desc -}}
 {{- $open -}}{{- $id -}}
 {{if $name -}}
-{{- $namel -}}{{- $name -}}
+{{- $hindent -}}{{- $namel -}}{{- $name -}}
 {{- end -}}
 {{if $desc -}}
-{{- $descl -}}'{{- $desc -}}'
+{{- $hindent -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
 {{if $obs -}}
-{{- $obsl -}}
+{{- $hindent -}}{{- $obsl -}}
 {{end -}}
 {{if gt $auxlen 0 -}}
-{{- $auxl -}}{{- .Aux -}}
+{{- $hindent -}}{{- $auxl -}}{{- .Definition.Aux -}}
 {{end -}}
 {{if gt $mustlen 0 -}}
-{{- $mustl -}}{{- .Must -}}
+{{- $hindent -}}{{- $mustl -}}{{- .Definition.Must -}}
 {{end -}}
 {{if gt $maylen 0 -}}
-{{- $mayl -}}{{- .May -}}
+{{- $hindent -}}{{- $mayl -}}{{- .Definition.May -}}
 {{end -}}
 {{if gt $notlen 0 -}}
-{{- $notl -}}{{- .Not -}}
+{{- $hindent -}}{{- $notl -}}{{- .Definition.Not -}}
 {{end -}}
-{{if $extn -}} {{$extn}}{{- end -}}
+{{if $extn -}}{{$extn}}{{- end -}}
 {{$close -}}`
 
-const nameFormTmpl = `{{- $name:=.Name -}}
+const nameFormTmpl = `{{- $name:=.Definition.Name -}}
 {{- $open:="( " -}}
 {{- $close:=" )" -}}
 {{- $extn:=(ExtensionSet) -}}
+{{- $hindent:=.HIndent -}}
 {{- $obs:=(IsObsolete) -}}
-{{- $obsl:=" OBSOLETE " -}}
-{{- $namel:=" NAME " -}}
-{{- $descl:=" DESC " -}}
-{{- $mustl:=" MUST " -}}
-{{- $mayl:=" MAY " -}}
-{{- $ocl:=" OC " -}}
-{{- $oc:=.Structural.OID -}}
+{{- $obsl:="OBSOLETE " -}}
+{{- $namel:="NAME " -}}
+{{- $descl:="DESC " -}}
+{{- $mustl:="MUST " -}}
+{{- $mayl:="MAY " -}}
+{{- $ocl:="OC " -}}
+{{- $oc:=.Definition.Structural.OID -}}
 {{- $maylen:=MayLen -}}
-{{- $id:=.OID -}}
-{{- $desc:=.Desc -}}
+{{- $id:=.Definition.OID -}}
+{{- $desc:=.Definition.Desc -}}
 {{- $open -}}{{- $id -}}
 {{if $name -}}
-{{- $namel -}}{{- $name -}}
+{{- $hindent -}}{{- $namel -}}{{- $name -}}
 {{- end -}}
 {{if $desc -}}
-{{- $descl -}}'{{- $desc -}}'
+{{- $hindent -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
 {{if $obs -}}
-{{- $obsl -}}
+{{- $hindent -}}{{- $obsl -}}
 {{end -}}
-{{- $ocl -}}{{- $oc -}}
-{{- $mustl -}}{{- .Must -}}
+{{- $hindent -}}{{- $ocl -}}{{- $oc -}}
+{{- $hindent -}}{{- $mustl -}}{{- .Definition.Must -}}
 {{if gt $maylen 0 -}}
-{{- $mayl -}}{{- .May -}}
+{{- $hindent -}}{{- $mayl -}}{{- .Definition.May -}}
 {{end -}}
-{{if $extn -}} {{$extn}}{{- end -}}
+{{if $extn -}}{{$extn}}{{- end -}}
 {{$close -}}`
 
-const dITStructureRuleTmpl = `{{- $name:=.Name -}}
+const dITStructureRuleTmpl = `{{- $name:=.Definition.Name -}}
 {{- $open:="( " -}}
 {{- $close:=" )" -}}
 {{- $obs:=(IsObsolete) -}}
 {{- $obsl:=" OBSOLETE " -}}
 {{- $extn:=(ExtensionSet) -}}
-{{- $namel:=" NAME " -}}
-{{- $descl:=" DESC " -}}
-{{- $forml:=" FORM " -}}
-{{- $supl:=" SUP " -}}
+{{- $hindent:=.HIndent -}}
+{{- $namel:="NAME " -}}
+{{- $descl:="DESC " -}}
+{{- $forml:="FORM " -}}
+{{- $supl:="SUP " -}}
 {{- $suplen:=SuperLen -}}
-{{- $id:=.ID -}}
-{{- $form:=.Form.OID -}}
-{{- $desc:=.Desc -}}
+{{- $id:=.Definition.ID -}}
+{{- $form:=.Definition.Form.OID -}}
+{{- $desc:=.Definition.Desc -}}
 {{- $open -}}{{- $id -}}
 {{if $name -}}
-{{- $namel -}}{{- $name -}}
+{{- $hindent -}}{{- $namel -}}{{- $name -}}
 {{- end -}}
 {{if $desc -}}
-{{- $descl -}}'{{- $desc -}}'
+{{- $hindent -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
 {{if $obs -}}
-{{- $obsl -}}
+{{- $hindent -}}{{- $obsl -}}
 {{end -}}
-{{- $forml -}}{{- $form -}}
+{{- $hindent -}}{{- $forml -}}{{- $form -}}
 {{if gt $suplen 0 -}}
-{{- $supl -}}{{- .SuperRules -}}
+{{- $hindent -}}{{- $supl -}}{{- .Definition.SuperRules -}}
 {{end -}}
-{{if $extn -}} {{$extn}}{{- end -}}
+{{if $extn -}}{{$extn}}{{- end -}}
 {{$close -}}`

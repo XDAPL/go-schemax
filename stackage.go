@@ -47,8 +47,8 @@ func newQStringList(name string) (qstr QuotedStringList) {
 func newRuleIDList(name string) RuleIDList {
 	return RuleIDList(stackageList().
 		SetID(name).
-		SetCategory(`idlist`).
-		SetDelimiter('$').
+		SetCategory(`ruleids`).
+		SetDelimiter(' ').
 		Paren(true).
 		Mutex())
 }
@@ -62,11 +62,23 @@ func newOIDList(name string) OIDList {
 		Mutex())
 }
 
+func newExtensions() Extensions {
+	return Extensions(stackageList().
+		SetID(`extensions`).
+		SetCategory(`extensions`).
+		SetDelimiter(' ').
+		Mutex())
+}
+
 func (r ObjectClasses) cast() stackage.Stack {
 	return stackage.Stack(r)
 }
 
 func (r QuotedStringList) cast() stackage.Stack {
+	return stackage.Stack(r)
+}
+
+func (r Extensions) cast() stackage.Stack {
 	return stackage.Stack(r)
 }
 
@@ -98,7 +110,7 @@ func (r DITContentRules) cast() stackage.Stack {
 	return stackage.Stack(r)
 }
 
-func (r DefinitionName) cast() stackage.Stack {
+func (r Name) cast() stackage.Stack {
 	return stackage.Stack(r)
 }
 
@@ -122,6 +134,28 @@ func (r QuotedStringList) index(idx int) (v string) {
 	}
 
 	return
+}
+
+/*
+Index returns the instance of string found within the receiver stack
+instance at index N.  If no instance is found at the index specified,
+a zero string instance is returned.
+*/
+func (r Extensions) Index(idx int) Extension {
+	return r.index(idx)
+}
+
+func (r Extensions) index(idx int) (v Extension) {
+	slice, _ := stackage.Stack(r).Index(idx)
+	if extn, ok := slice.(Extension); ok {
+		v = extn
+	}
+
+	return
+}
+
+func (r QuotedStringList) String() string {
+	return r.cast().String()
 }
 
 /*

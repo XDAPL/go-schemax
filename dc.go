@@ -1,30 +1,5 @@
 package schemax
 
-import (
-	antlr4512 "github.com/JesseCoretta/go-rfc4512-antlr"
-)
-
-/*
-ParseDITContentRule parses an individual textual attribute type (raw) and
-returns an error instance.
-
-When no error occurs, the newly formed [DITContentRule] instance -- based
-on the parsed contents of raw -- is added to the receiver [DITContentRules]
-slice instance.
-*/
-func (r *Schema) ParseDITContentRule(raw string) (err error) {
-	var i antlr4512.Instance
-	if i, err = antlr4512.ParseInstance(raw); err == nil {
-		var d DITContentRule
-		d, err = r.processDITContentRule(i.P.DITContentRuleDescription())
-		if err == nil {
-			err = r.DITContentRules().push(d)
-		}
-	}
-
-	return
-}
-
 /*
 NewDITContentRules initializes a new [Collection] instance and
 casts it as a [DITContentRules] instance.
@@ -49,18 +24,134 @@ func (r DITContentRule) Description() (desc string) {
 }
 
 /*
-List returns a map[string][]string instance which represents the current
-inventory of [DITContentRule] instances within the receiver.  The keys
-are numeric OIDs, while the values are zero (0) or more string slices,
-each representing a name by which the definition is known.
+DITContentRules returns the [DITContentRules] instance from within
+the receiver instance.
 */
-func (r DITContentRules) List() (list map[string][]string) {
-	list = make(map[string][]string, 0)
+func (r Schema) DITContentRules() (dcs DITContentRules) {
+	slice, _ := r.cast().Index(dITContentRulesIndex)
+	dcs, _ = slice.(DITContentRules)
+	return
+}
+
+func newDITContentRule() *dITContentRule {
+	return &dITContentRule{
+		Name:       NewName(),
+		Aux:        NewObjectClassOIDList(),
+		Must:       NewAttributeTypeOIDList(),
+		May:        NewAttributeTypeOIDList(),
+		Not:        NewAttributeTypeOIDList(),
+		Extensions: NewExtensions(),
+	}
+}
+
+/*
+SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
+internal verification of certain actions without the need for user input of
+an instance of [Schema] manually at each juncture.
+
+Note that the underlying [Schema] instance is automatically set when creating
+instances of this type by way of parsing.
+
+This is a fluent method.
+*/
+func (r *DITContentRule) SetSchema(schema Schema) *DITContentRule {
+	if r.IsZero() {
+		r.dITContentRule = newDITContentRule()
+	}
+
+	r.dITContentRule.schema = schema
+
+	return r
+}
+
+func (r DITContentRule) schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.dITContentRule.schema
+	}
+
+	return
+}
+
+/*
+Inventory returns an instance of [Inventory] which represents the current
+inventory of [DITContentRule] instances within the receiver.
+
+The keys are numeric OIDs, while the values are zero (0) or more string
+slices, each representing a name by which the definition is known.
+*/
+func (r DITContentRules) Inventory() (inv Inventory) {
+	inv = make(Inventory, 0)
 	for i := 0; i < r.len(); i++ {
 		def := r.index(i)
-		list[def.NumericOID()] = def.Names().List()
-
+		inv[def.NumericOID()] = def.Names().List()
 	}
+
+	return
+}
+
+/*
+Maps returns slices of [DefinitionMap] instances.
+*/
+func (r DITContentRules) Maps() (defs DefinitionMaps) {
+	defs = make(DefinitionMaps, r.Len())
+	for i := 0; i < r.Len(); i++ {
+		defs[i] = r.Index(i).Map()
+	}
+
+	return
+}
+
+/*
+Map marshals the receiver instance into an instance of
+[DefinitionMap].
+*/
+func (r DITContentRule) Map() (def DefinitionMap) {
+	if r.IsZero() {
+		return
+	}
+
+	var auxs []string
+	for i := 0; i < r.Aux().Len(); i++ {
+		m := r.Aux().Index(i)
+		auxs = append(auxs, m.OID())
+	}
+
+	var musts []string
+	for i := 0; i < r.Must().Len(); i++ {
+		m := r.Must().Index(i)
+		musts = append(musts, m.OID())
+	}
+
+	var mays []string
+	for i := 0; i < r.May().Len(); i++ {
+		m := r.May().Index(i)
+		mays = append(mays, m.OID())
+	}
+
+	var nots []string
+	for i := 0; i < r.Not().Len(); i++ {
+		m := r.Not().Index(i)
+		nots = append(nots, m.OID())
+	}
+
+	def = make(DefinitionMap, 0)
+	def[`NUMERICOID`] = []string{r.NumericOID()}
+	def[`NAME`] = r.Names().List()
+	def[`DESC`] = []string{r.Description()}
+	def[`OBSOLETE`] = []string{bool2str(r.IsObsolete())}
+	def[`AUX`] = auxs
+	def[`MUST`] = musts
+	def[`MAY`] = mays
+	def[`NOT`] = nots
+	def[`TYPE`] = []string{r.Type()}
+	def[`RAW`] = []string{r.String()}
+
+	// copy our extensions from receiver r
+	// into destination def.
+	def = mapTransferExtensions(r, def)
+
+	// Clean up any empty fields
+	def.clean()
 
 	return
 }
@@ -246,12 +337,38 @@ func (r DITContentRule) Not() (not AttributeTypes) {
 }
 
 /*
+SetStringer allows the assignment of an individual "stringer" function
+or method to the receiver instance.
+
+A non-nil value will be executed for every call of the String method
+for the receiver instance.
+
+Should the input stringer value be nil, the [text/template.Template]
+value will be used automatically going forward.
+
+This is a fluent method.
+*/
+func (r *DITContentRule) SetStringer(stringer func() string) DITContentRule {
+	if r.IsZero() {
+		r.dITContentRule = newDITContentRule()
+	}
+
+	r.dITContentRule.stringer = stringer
+
+	return *r
+}
+
+/*
 String is a stringer method that returns the string representation
 of the receiver instance.
 */
-func (r DITContentRule) String() (dsr string) {
+func (r DITContentRule) String() (dcr string) {
 	if !r.IsZero() {
-		dsr = r.dITContentRule.s
+		if r.dITContentRule.stringer != nil {
+			dcr = r.dITContentRule.stringer()
+		} else {
+			dcr = r.dITContentRule.s
+		}
 	}
 
 	return
@@ -269,8 +386,15 @@ func (r *dITContentRule) prepareString() (err error) {
 			`NotLen`:        r.Not.len,
 			`IsObsolete`:    func() bool { return r.Obsolete },
 		}))
+
 	if r.t, err = r.t.Parse(dITContentRuleTmpl); err == nil {
-		if err = r.t.Execute(buf, r); err == nil {
+		if err = r.t.Execute(buf, struct {
+			Definition *dITContentRule
+			HIndent    string
+		}{
+			Definition: r,
+			HIndent:    hindent(),
+		}); err == nil {
 			r.s = buf.String()
 		}
 	}
@@ -290,10 +414,10 @@ func (r DITContentRule) Name() (id string) {
 }
 
 /*
-Names returns the underlying instance of [DefinitionName] from within
+Names returns the underlying instance of [Name] from within
 the receiver.
 */
-func (r DITContentRule) Names() (names DefinitionName) {
+func (r DITContentRule) Names() (names Name) {
 	return r.dITContentRule.Name
 }
 
@@ -351,189 +475,41 @@ func (r DITContentRule) IsZero() bool {
 	return r.dITContentRule == nil
 }
 
-func (r *dITContentRule) setMisc(ctx any) (err error) {
-	err = errorf("Unknown miscellaneous context '%T'", ctx)
-
-	switch tv := ctx.(type) {
-	case *antlr4512.DefinitionNameContext:
-		r.Name, err = nameContext(tv)
-	case *antlr4512.DefinitionDescriptionContext:
-		r.Desc, err = descContext(tv)
-	case *antlr4512.DefinitionExtensionsContext:
-		r.Extensions, err = extContext(tv)
-	}
-
-	return
+/*
+Contains calls [DITStructureRules.Get] to return a Boolean value indicative of
+a successful, non-zero retrieval of an [DITStructureRule] instance -- matching
+the provided id -- from within the receiver stack instance.
+*/
+func (r DITContentRules) Contains(id string) bool {
+	return r.contains(id)
 }
 
 func (r DITContentRules) contains(id string) bool {
 	return !r.get(id).IsZero()
 }
 
+/*
+Get returns an instance of [DITContentRule] based upon a search for id within
+the receiver stack instance.
+
+The return instance, if not nil, was retrieved based upon a textual match of
+the principal identifier of an [DITContentRule] and the provided id.
+
+The return instance is nil if no match was made.
+
+Case is not significant in the matching process.
+*/
+func (r DITContentRules) Get(id string) DITContentRule {
+	return r.get(id)
+}
+
 func (r DITContentRules) get(id string) (dc DITContentRule) {
 	for i := 0; i < r.len() && dc.IsZero(); i++ {
 		if _dc := r.index(i); !_dc.IsZero() {
-			if _dc.OID() == id {
+			if _dc.NumericOID() == id {
 				dc = _dc
 			} else if _dc.dITContentRule.Name.contains(id) {
 				dc = _dc
-			}
-		}
-	}
-
-	return
-}
-
-func (r Schema) processDITContentRule(ctx antlr4512.IDITContentRuleDescriptionContext) (dc DITContentRule, err error) {
-
-	_dc := new(dITContentRule)
-	_dc.schema = r
-
-	for k, ct := 0, ctx.GetChildCount(); k < ct && err == nil; k++ {
-		switch tv := ctx.GetChild(k).(type) {
-		case *antlr4512.OpenParenContext,
-			*antlr4512.CloseParenContext:
-			err = parenContext(tv)
-
-		case *antlr4512.DefinitionNameContext,
-			*antlr4512.DefinitionExtensionsContext,
-			*antlr4512.DefinitionDescriptionContext:
-			err = _dc.setMisc(tv)
-
-		case *antlr4512.NumericOIDOrMacroContext:
-			err = _dc.structuralOID(r, tv)
-
-		case *antlr4512.DefinitionObsoleteContext:
-			_dc.Obsolete = true
-
-		case *antlr4512.DefinitionMustContext:
-			err = _dc.mustContext(r, tv)
-
-		case *antlr4512.DefinitionMayContext:
-			err = _dc.mayContext(r, tv)
-
-		case *antlr4512.DCRNotContext:
-			err = _dc.notContext(r, tv)
-
-		case *antlr4512.DCRAuxContext:
-			err = _dc.auxContext(r, tv)
-
-		default:
-			env := DITContentRule{_dc}
-			err = isErrImpl(env.Type(), env.OID(), tv)
-		}
-	}
-
-	// check for errors in new instance
-	if err == nil {
-		if err = _dc.check(); err == nil {
-			if err = _dc.prepareString(); err == nil {
-				_dc.t = nil
-				dc = DITContentRule{_dc}
-			}
-		}
-	}
-
-	return
-}
-
-func (r *dITContentRule) structuralOID(s Schema, ctx *antlr4512.NumericOIDOrMacroContext) (err error) {
-	var oc string
-	if oc, r.Macro, err = numOIDContext(ctx); err != nil {
-		return
-	}
-
-	var soc ObjectClass
-	if soc = s.ObjectClasses().get(oc); soc.IsZero() {
-		err = errorf("structural class '%s' not found; cannot process %T",
-			oc, r)
-		return
-	}
-	r.OID = soc
-
-	return
-}
-
-func (r *dITContentRule) mustContext(s Schema, ctx *antlr4512.DefinitionMustContext) (err error) {
-	var must []string
-	if must, err = mustContext(ctx); err != nil {
-		return
-	}
-
-	r.Must = NewAttributeTypeOIDList()
-	for i := 0; i < len(must); i++ {
-		var mustt AttributeType
-		if mustt = s.AttributeTypes().get(must[i]); mustt.IsZero() {
-			err = errorf("required attr '%s' not found; cannot process %T",
-				must[i], r)
-			break
-		}
-		r.Must.push(mustt)
-	}
-
-	return
-}
-
-func (r *dITContentRule) mayContext(s Schema, ctx *antlr4512.DefinitionMayContext) (err error) {
-	var may []string
-	if may, err = mayContext(ctx); err != nil {
-		return
-	}
-
-	r.May = NewAttributeTypeOIDList()
-	for i := 0; i < len(may); i++ {
-		var mayy AttributeType
-		if mayy = s.AttributeTypes().get(may[i]); mayy.IsZero() {
-			err = errorf("required attr '%s' not found; cannot process %T",
-				may[i], r)
-			break
-		}
-		r.May.push(mayy)
-	}
-
-	return
-}
-
-func (r *dITContentRule) notContext(s Schema, ctx *antlr4512.DCRNotContext) (err error) {
-	var not []string
-	if not, err = notContext(ctx); err != nil {
-		return
-	}
-
-	r.Not = NewAttributeTypeOIDList()
-	for i := 0; i < len(not); i++ {
-		var nott AttributeType
-		if nott = s.AttributeTypes().get(not[i]); nott.IsZero() {
-			err = errorf("required attr '%s' not found; cannot process %T",
-				not[i], r)
-			break
-		}
-		r.Not.push(nott)
-	}
-
-	return
-}
-
-func notContext(ctx *antlr4512.DCRNotContext) (not []string, err error) {
-	if ctx != nil {
-		var n, d []string
-
-		if x := ctx.OID(); x != nil {
-			n, d, err = oIDContext(x.(*antlr4512.OIDContext))
-		} else if y := ctx.OIDs(); y != nil {
-			n, d, err = oIDsContext(y.(*antlr4512.OIDsContext))
-		}
-
-		if err == nil {
-			not = append(not, n...)
-			not = append(not, d...)
-		}
-
-		if len(not) == 0 {
-			if err != nil {
-				err = errorf("No forbidden attributes parsed from %T: %v", ctx, err)
-			} else {
-				err = errorf("No forbidden attributes parsed from %T", ctx)
 			}
 		}
 	}
@@ -567,53 +543,6 @@ func (r DITContentRules) canPush(x ...any) (err error) {
 			err = errorf("%T %s not unique", dc, dc.NumericOID())
 			if tst := r.get(dc.NumericOID()); tst.IsZero() {
 				err = nil
-			}
-		}
-	}
-
-	return
-}
-
-func (r *dITContentRule) auxContext(s Schema, ctx *antlr4512.DCRAuxContext) (err error) {
-	var aux []string
-	if aux, err = auxContext(ctx); err != nil {
-		return
-	}
-
-	r.Aux = NewObjectClassOIDList()
-	for i := 0; i < len(aux); i++ {
-		var auxx ObjectClass
-		if auxx = s.ObjectClasses().get(aux[i]); auxx.IsZero() {
-			err = errorf("auxiliary class '%s' not found; cannot process %T",
-				aux[i], r)
-			break
-		}
-		r.Aux.push(auxx)
-	}
-
-	return
-}
-
-func auxContext(ctx *antlr4512.DCRAuxContext) (aux []string, err error) {
-	if ctx != nil {
-		var n, d []string
-
-		if x := ctx.OID(); x != nil {
-			n, d, err = oIDContext(x.(*antlr4512.OIDContext))
-		} else if y := ctx.OIDs(); y != nil {
-			n, d, err = oIDsContext(y.(*antlr4512.OIDsContext))
-		}
-
-		if err == nil {
-			aux = append(aux, n...)
-			aux = append(aux, d...)
-		}
-
-		if len(aux) == 0 {
-			if err != nil {
-				err = errorf("No auxiliary classes parsed from %T: %v", ctx, err)
-			} else {
-				err = errorf("No auxiliary classes parsed from %T", ctx)
 			}
 		}
 	}

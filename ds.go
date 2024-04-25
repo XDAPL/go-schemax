@@ -1,31 +1,5 @@
 package schemax
 
-import (
-	antlr4512 "github.com/JesseCoretta/go-rfc4512-antlr"
-)
-
-/*
-ParseDITStructureRule parses an individual textual structure rule (raw)
-and returns an error instance.
-
-When no error occurs, the newly formed [DITStructureRule] instance -- based
-on the parsed contents of raw -- is added to the receiver [DITStructureRules]
-slice instance.
-*/
-func (r *Schema) ParseDITStructureRule(raw string) (err error) {
-	i, err := parseI(raw)
-	if err == nil {
-		var dsr DITStructureRule
-		dsr, err = r.processDITStructureRule(
-			i.P.DITStructureRuleDescription())
-		if err == nil {
-			err = r.DITStructureRules().push(dsr)
-		}
-	}
-
-	return
-}
-
 /*
 NewDITStructureRules initializes a new [Collection] instance and casts
 it as an [DITStructureRules] instance.
@@ -51,6 +25,44 @@ func NewDITStructureRuleIDList() DITStructureRules {
 		SetPresentationPolicy(r.iDsStringer)
 
 	return r
+}
+
+/*
+DITStructureRules returns the [DITStructureRules] instance from
+within the receiver instance.
+*/
+func (r Schema) DITStructureRules() (dss DITStructureRules) {
+	slice, _ := r.cast().Index(dITStructureRulesIndex)
+	dss, _ = slice.(DITStructureRules)
+	return
+}
+
+/*
+SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
+internal verification of certain actions without the need for user input of
+an instance of [Schema] manually at each juncture.
+
+Note that the underlying [Schema] instance is automatically set when creating
+instances of this type by way of parsing.
+
+This is a fluent method.
+*/
+func (r *DITStructureRule) SetSchema(schema Schema) *DITStructureRule {
+	if r.IsZero() {
+		r.dITStructureRule = newDITStructureRule()
+	}
+
+	r.dITStructureRule.schema = schema
+
+	return r
+}
+
+func (r DITStructureRule) schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.dITStructureRule.schema
+	}
+
+	return
 }
 
 /*
@@ -174,10 +186,10 @@ func (r DITStructureRule) Name() (id string) {
 }
 
 /*
-Names returns the underlying instance of [DefinitionName] from
+Names returns the underlying instance of [Name] from
 within the receiver.
 */
-func (r DITStructureRule) Names() (names DefinitionName) {
+func (r DITStructureRule) Names() (names Name) {
 	return r.dITStructureRule.Name
 }
 
@@ -194,29 +206,63 @@ func (r DITStructureRule) Description() (desc string) {
 }
 
 /*
+SetStringer allows the assignment of an individual "stringer" function
+or method to the receiver instance.
+
+A non-nil value will be executed for every call of the String method
+for the receiver instance.
+
+Should the input stringer value be nil, the [text/template.Template]
+value will be used automatically going forward.
+
+This is a fluent method.
+*/
+func (r *DITStructureRule) SetStringer(stringer func() string) DITStructureRule {
+	if r.IsZero() {
+		r.dITStructureRule = newDITStructureRule()
+	}
+
+	r.dITStructureRule.stringer = stringer
+
+	return *r
+}
+
+func newDITStructureRule() *dITStructureRule {
+	return &dITStructureRule{
+		Name:       NewName(),
+		SuperRules: NewDITStructureRuleIDList(),
+		Extensions: NewExtensions(),
+	}
+}
+
+/*
 String is a stringer method that returns the string representation
 of the receiver instance.
 */
 func (r DITStructureRule) String() (dsr string) {
 	if !r.IsZero() {
-		dsr = r.dITStructureRule.s
+		if r.dITStructureRule.stringer != nil {
+			dsr = r.dITStructureRule.stringer()
+		} else {
+			dsr = r.dITStructureRule.s
+		}
 	}
 
 	return
 }
 
 /*
-List returns a map[uint][]string instance which represents the current
-inventory of [DITStructureRule] instances within the receiver.  The keys
-are numeric OIDs, while the values are zero (0) or more string slices,
-each representing a name by which the definition is known.
+Inventory returns an instance of [Inventory] which represents the current
+inventory of [DITStructureRule] instances within the receiver.
+
+The keys are numeric OIDs, while the values are zero (0) or more string
+slices, each representing a name by which the definition is known.
 */
-func (r DITStructureRules) List() (list map[uint][]string) {
-	list = make(map[uint][]string, 0)
+func (r DITStructureRules) Inventory() (inv Inventory) {
+	inv = make(Inventory, 0)
 	for i := 0; i < r.len(); i++ {
 		def := r.index(i)
-		list[def.RuleID()] = def.Names().List()
-
+		inv[itoa(int(def.RuleID()))] = def.Names().List()
 	}
 
 	return
@@ -229,7 +275,7 @@ func (r DITStructureRule) macro() []string { return []string{} }
 func (r DITStructureRules) iDsStringer(_ ...any) (present string) {
 	var _present []string
 	for i := 0; i < r.len(); i++ {
-		_present = append(_present, r.index(i).ID())
+		_present = append(_present, itoa(int(r.index(i).RuleID())))
 	}
 
 	switch len(_present) {
@@ -261,12 +307,10 @@ func (r DITStructureRules) canPush(x ...any) (err error) {
 
 	for i := 0; i < len(x) && err == nil; i++ {
 		instance := x[i]
-		err = errorf("Type assertion for %T has failed", instance)
-		if ds, ok := instance.(DITStructureRule); ok && !ds.IsZero() {
-			err = errorf("%T %s not unique", ds, ds.NumericOID())
-			if tst := r.get(ds.NumericOID()); tst.IsZero() {
-				err = nil
-			}
+		if ds, ok := instance.(DITStructureRule); !ok || ds.IsZero() {
+			err = errorf("Type assertion for %T has failed", instance)
+		} else if tst := r.get(ds.RuleID()); !tst.IsZero() {
+			err = errorf("%T %d not unique", ds, ds.RuleID())
 		}
 	}
 
@@ -328,17 +372,42 @@ func (r DITStructureRules) Push(ds any) error {
 }
 
 func (r DITStructureRules) push(ds any) (err error) {
-	err = errorf("%T instance is nil; cannot append to %T", ds, r)
-	if ds != nil {
-		r.cast().Push(ds)
-		err = nil
+	if ds == nil {
+		err = errorf("%T instance is nil; cannot append to %T", ds, r)
+		return
 	}
+
+	r.cast().Push(ds)
 
 	return
 }
 
+/*
+Contains calls [Contains.Get] to return a Boolean value indicative of
+a successful, non-zero retrieval of an [DITStructureRules] instance --
+matching the provided id -- from within the receiver stack instance.
+*/
+func (r DITStructureRules) Contains(id string) bool {
+	return r.contains(id)
+}
+
 func (r DITStructureRules) contains(id string) bool {
 	return !r.get(id).IsZero()
+}
+
+/*
+Get returns an instance of [DITStructureRule] based upon a search for id within
+the receiver stack instance.
+
+The return instance, if not nil, was retrieved based upon a textual match of
+the principal identifier of an [DITStructureRule] and the provided id.
+
+The return instance is nil if no match was made.
+
+Case is not significant in the matching process.
+*/
+func (r DITStructureRules) Get(id any) DITStructureRule {
+	return r.get(id)
 }
 
 func (r DITStructureRules) get(id any) (ds DITStructureRule) {
@@ -380,44 +449,53 @@ func (r DITStructureRules) get(id any) (ds DITStructureRule) {
 	return
 }
 
-func (r Schema) processDITStructureRule(ctx antlr4512.IDITStructureRuleDescriptionContext) (ds DITStructureRule, err error) {
-
-	_ds := new(dITStructureRule)
-	_ds.schema = r
-
-	for k, ct := 0, ctx.GetChildCount(); k < ct && err == nil; k++ {
-		switch tv := ctx.GetChild(k).(type) {
-		case *antlr4512.StructureRuleContext,
-			*antlr4512.OpenParenContext, *antlr4512.CloseParenContext:
-			err = _ds.setCritical(tv)
-
-		case *antlr4512.DefinitionNameContext,
-			*antlr4512.DefinitionObsoleteContext,
-			*antlr4512.DefinitionExtensionsContext,
-			*antlr4512.DefinitionDescriptionContext:
-			err = _ds.setMisc(tv)
-
-		case *antlr4512.DSRFormContext:
-			err = _ds.dSRNameFormContext(r, tv)
-
-		case *antlr4512.DSRSuperRulesContext:
-			err = _ds.superRulesContext(r, tv)
-		default:
-			env := DITStructureRule{_ds}
-			err = isErrImpl(env.Type(), env.ID(), tv)
-		}
+/*
+Maps returns slices of [DefinitionMap] instances.
+*/
+func (r DITStructureRules) Maps() (defs DefinitionMaps) {
+	defs = make(DefinitionMaps, r.Len())
+	for i := 0; i < r.Len(); i++ {
+		defs[i] = r.Index(i).Map()
 	}
 
-	if err == nil {
-		// check for non-parser-related
-		// errors in new instance.
-		if err = _ds.check(); err == nil {
-			if err = _ds.prepareString(); err == nil {
-				_ds.t = nil
-				ds = DITStructureRule{_ds}
-			}
-		}
+	return
+}
+
+/*
+Map marshals the receiver instance into an instance of
+[DefinitionMap].
+*/
+func (r DITStructureRule) Map() (def DefinitionMap) {
+	if r.IsZero() {
+		return
 	}
+
+	var sups []string
+	for i := 0; i < r.SuperRules().Len(); i++ {
+		m := r.SuperRules().Index(i)
+		sups = append(sups, itoa(int(m.RuleID())))
+	}
+
+	if r.Form().IsZero() {
+		return
+	}
+
+	def = make(DefinitionMap, 0)
+	def[`RULEID`] = []string{itoa(int(r.RuleID()))}
+	def[`NAME`] = r.Names().List()
+	def[`DESC`] = []string{r.Description()}
+	def[`OBSOLETE`] = []string{bool2str(r.IsObsolete())}
+	def[`FORM`] = []string{r.Form().OID()}
+	def[`SUP`] = sups
+	def[`TYPE`] = []string{r.Type()}
+	def[`RAW`] = []string{r.String()}
+
+	// copy our extensions from receiver r
+	// into destination def.
+	def = mapTransferExtensions(r, def)
+
+	// Clean up any empty fields
+	def.clean()
 
 	return
 }
@@ -432,7 +510,13 @@ func (r *dITStructureRule) prepareString() (err error) {
 		}))
 
 	if r.t, err = r.t.Parse(dITStructureRuleTmpl); err == nil {
-		if err = r.t.Execute(buf, r); err == nil {
+		if err = r.t.Execute(buf, struct {
+			Definition *dITStructureRule
+			HIndent    string
+		}{
+			Definition: r,
+			HIndent:    hindent(),
+		}); err == nil {
 			r.s = buf.String()
 		}
 	}
@@ -440,116 +524,14 @@ func (r *dITStructureRule) prepareString() (err error) {
 	return
 }
 
-func (r *dITStructureRule) check() (err error) { return }
-
-func (r *dITStructureRule) superRulesContext(s Schema, ctx *antlr4512.DSRSuperRulesContext) (err error) {
-	if ctx != nil {
-		var sids []uint
-		if x := ctx.StructureRule(); x != nil {
-			var sid uint
-			sid, err = ruleIDContext(x.(*antlr4512.StructureRuleContext))
-			if err == nil {
-				sids = append(sids, sid)
-			}
-
-		} else if y := ctx.StructureRules(); y != nil {
-			sids, err = ruleIDsContext(y.(*antlr4512.StructureRulesContext))
-		}
-
-		if err == nil {
-			err = errorf("No super rules parsed from %T", ctx)
-			r.SuperRules = NewDITStructureRuleIDList()
-			for i := 0; i < len(sids) && err == nil; i++ {
-				err = errorf("super rule '%s' not found", sids[i])
-				if sds := s.DITStructureRules().get(sids[i]); !sds.IsZero() {
-					r.SuperRules.push(sds)
-					err = nil
-				}
-			}
-		}
-	}
-
-	return
-}
-
-func (r *dITStructureRule) dSRNameFormContext(s Schema, ctx *antlr4512.DSRFormContext) (err error) {
-	err = errorf("%T is nil", ctx)
-	if ctx != nil {
-		o := ctx.OID()
-		err = errorf("%T.%T is nil", ctx, o)
-		if o != nil {
-			var n, d []string
-			assert, ok := o.(*antlr4512.OIDContext)
-			if !ok {
-				err = errorf("name form OID assertion failed for %T", o)
-				return
-			}
-
-			if n, d, err = oIDContext(assert); err != nil {
-				return
-			}
-
-			var nf string
-			if len(n) > 0 {
-				nf = n[0]
-			} else if len(d) > 0 {
-				nf = d[0]
-			}
-
-			err = errorf("name form '%s' not found", nf)
-			if nff := s.NameForms().get(nf); !nff.IsZero() {
-				err = nil
-				r.Form = nff
-			}
-		}
-	}
-
-	return
-}
-
-// Use of single-valued OIDs applies to attributeType, dITStructureRule
-// and nameForm definitions.
-func ruleIDContext(ctx *antlr4512.StructureRuleContext) (id uint, err error) {
-
-	dig := ctx.Number()
-	if dig == nil {
-		err = errorf("%T.%T is nil", ctx, dig)
+func (r *dITStructureRule) check() (err error) {
+	if r == nil {
+		err = errorf("%T instance is nil", r)
 		return
 	}
 
-	var _id int
-	if _id, err = atoi(trimS(trim(dig.GetText(), `''`))); err != nil {
-		return
-	} else if _id < 0 {
-		err = errorf("%T cannot be negative", ctx)
-		return
-	}
-	id = uint(_id)
-
-	return
-}
-
-// Use of multi-valued IDs applies solely to subordinate dITStructureRules
-// in reference to their respective superior rules.
-func ruleIDsContext(ctx *antlr4512.StructureRulesContext) (sids []uint, err error) {
-	ch := ctx.AllStructureRule()
-
-	for i := 0; i < len(ch) && err == nil; i++ {
-		assert, ok := ch[i].(*antlr4512.StructureRuleContext)
-		if !ok {
-			err = errorf("%T type assertion failed for %T", ch[i], assert)
-			break
-		}
-
-		var sid uint
-		if sid, err = ruleIDContext(assert); err != nil {
-			break
-		}
-		sids = append(sids, sid)
-	}
-
-	if len(sids) == 0 {
-		err = errorf("No rule IDs parsed")
+	if r.Form.IsZero() {
+		err = errorf("%T missing %T", r, r.Form)
 	}
 
 	return
@@ -561,34 +543,4 @@ receiver instance.
 */
 func (r DITStructureRule) IsZero() bool {
 	return r.dITStructureRule == nil
-}
-
-func (r *dITStructureRule) setCritical(ctx any) (err error) {
-	err = errorf("Unknown critical context '%T'", ctx)
-
-	switch tv := ctx.(type) {
-	case *antlr4512.StructureRuleContext:
-		r.ID, err = ruleIDContext(tv)
-	case *antlr4512.OpenParenContext, *antlr4512.CloseParenContext:
-		err = parenContext(tv)
-	}
-
-	return
-}
-
-func (r *dITStructureRule) setMisc(ctx any) (err error) {
-	err = errorf("Unknown miscellaneous context '%T'", ctx)
-
-	switch tv := ctx.(type) {
-	case *antlr4512.DefinitionNameContext:
-		r.Name, err = nameContext(tv)
-	case *antlr4512.DefinitionDescriptionContext:
-		r.Desc, err = descContext(tv)
-	case *antlr4512.DefinitionExtensionsContext:
-		r.Extensions, err = extContext(tv)
-	case *antlr4512.DefinitionObsoleteContext:
-		r.Obsolete = true
-	}
-
-	return
 }

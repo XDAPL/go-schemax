@@ -1,26 +1,5 @@
 package schemax
 
-import (
-	antlr4512 "github.com/JesseCoretta/go-rfc4512-antlr"
-)
-
-/*
-ParseNameForm returns an error following an attempt to parse raw into the
-receiver instance's [NameForms] instance.
-*/
-func (r *Schema) ParseNameForm(raw string) (err error) {
-	var i antlr4512.Instance
-	if i, err = antlr4512.ParseInstance(raw); err == nil {
-		var n NameForm
-		n, err = r.processNameForm(i.P.NameFormDescription())
-		if err == nil {
-			err = r.NameForms().push(n)
-		}
-	}
-
-	return
-}
-
 /*
 NewNameForms initializes a new [NameForms] instance.
 */
@@ -29,6 +8,78 @@ func NewNameForms() NameForms {
 	r.cast().SetPushPolicy(r.canPush)
 
 	return r
+}
+
+/*
+Nameforms returns the [NameForms] instance from within the receiver
+instance.
+*/
+func (r Schema) NameForms() (nfs NameForms) {
+	slice, _ := r.cast().Index(nameFormsIndex)
+	nfs, _ = slice.(NameForms)
+	return
+}
+
+/*
+Maps returns slices of [DefinitionMap] instances.
+*/
+func (r NameForms) Maps() (defs DefinitionMaps) {
+	defs = make(DefinitionMaps, r.Len())
+	for i := 0; i < r.Len(); i++ {
+		defs[i] = r.Index(i).Map()
+	}
+
+	return
+}
+
+/*
+Map marshals the receiver instance into an instance of
+[DefinitionMap].
+*/
+func (r NameForm) Map() (def DefinitionMap) {
+	if r.IsZero() {
+		return
+	}
+
+	var musts []string
+	for i := 0; i < r.Must().Len(); i++ {
+		m := r.Must().Index(i)
+		musts = append(musts, m.OID())
+	}
+
+	// if either of these evaluate as true,
+	// we shall not pass.
+	if len(musts) == 0 {
+		return
+	} else if r.OC().IsZero() {
+		return
+	}
+
+	var mays []string
+	for i := 0; i < r.May().Len(); i++ {
+		m := r.May().Index(i)
+		mays = append(mays, m.OID())
+	}
+
+	def = make(DefinitionMap, 0)
+	def[`NUMERICOID`] = []string{r.NumericOID()}
+	def[`NAME`] = r.Names().List()
+	def[`DESC`] = []string{r.Description()}
+	def[`OBSOLETE`] = []string{bool2str(r.IsObsolete())}
+	def[`OC`] = []string{r.OC().OID()}
+	def[`MUST`] = musts
+	def[`MAY`] = mays
+	def[`TYPE`] = []string{r.Type()}
+	def[`RAW`] = []string{r.String()}
+
+	// copy our extensions from receiver r
+	// into destination def.
+	def = mapTransferExtensions(r, def)
+
+	// Clean up any empty fields
+	def.clean()
+
+	return
 }
 
 /*
@@ -62,13 +113,42 @@ func (r NameForm) IsIdentifiedAs(id string) (ident bool) {
 }
 
 /*
+SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
+internal verification of certain actions without the need for user input of
+an instance of [Schema] manually at each juncture.
+
+Note that the underlying [Schema] instance is automatically set when creating
+instances of this type by way of parsing.
+
+This is a fluent method.
+*/
+func (r *NameForm) SetSchema(schema Schema) *NameForm {
+	if r.IsZero() {
+		r.nameForm = newNameForm()
+	}
+
+	r.nameForm.schema = schema
+
+	return r
+}
+
+func (r NameForm) schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.nameForm.schema
+	}
+
+	return
+}
+
+/*
 SetName allows the manual assignment of one (1) or more RFC 4512-compliant
 descriptor values by which the receiver instance is to be known.  This will
 append to -- not replace -- any preexisting names.
 
 This is a fluent method.
 */
-func (r NameForm) SetName(name ...string) NameForm {
+/*
+func (r *NameForm) SetName(name ...string) NameForm {
 	if r.nameForm == nil {
 		r.nameForm = new(nameForm)
 	}
@@ -79,8 +159,9 @@ func (r NameForm) SetName(name ...string) NameForm {
 		}
 	}
 
-	return r
+	return *r
 }
+*/
 
 /*
 SetNumericOID allows the manual assignment of a numeric OID to the
@@ -234,11 +315,42 @@ func (r NameForm) Name() (id string) {
 }
 
 /*
-Names returns the underlying instance of [DefinitionName] from within the
+Names returns the underlying instance of [Name] from within the
 receiver instance.
 */
-func (r NameForm) Names() (names DefinitionName) {
+func (r NameForm) Names() (names Name) {
 	return r.nameForm.Name
+}
+
+func newNameForm() *nameForm {
+	return &nameForm{
+		Name:       NewName(),
+		Must:       NewAttributeTypeOIDList(),
+		May:        NewAttributeTypeOIDList(),
+		Extensions: NewExtensions(),
+	}
+}
+
+/*
+SetStringer allows the assignment of an individual "stringer" function
+or method to the receiver instance.
+
+A non-nil value will be executed for every call of the String method
+for the receiver instance.
+
+Should the input stringer value be nil, the [text/template.Template]
+value will be used automatically going forward.
+
+This is a fluent method.
+*/
+func (r *NameForm) SetStringer(stringer func() string) NameForm {
+	if r.IsZero() {
+		r.nameForm = newNameForm()
+	}
+
+	r.nameForm.stringer = stringer
+
+	return *r
 }
 
 /*
@@ -247,7 +359,11 @@ of the receiver instance.
 */
 func (r NameForm) String() (nf string) {
 	if !r.IsZero() {
-		nf = r.nameForm.s
+		if r.nameForm.stringer != nil {
+			nf = r.nameForm.stringer()
+		} else {
+			nf = r.nameForm.s
+		}
 	}
 
 	return
@@ -279,8 +395,15 @@ func (r *nameForm) prepareString() (err error) {
 			`MayLen`:       r.May.len,
 			`IsObsolete`:   func() bool { return r.Obsolete },
 		}))
+
 	if r.t, err = r.t.Parse(nameFormTmpl); err == nil {
-		if err = r.t.Execute(buf, r); err == nil {
+		if err = r.t.Execute(buf, struct {
+			Definition *nameForm
+			HIndent    string
+		}{
+			Definition: r,
+			HIndent:    hindent(),
+		}); err == nil {
 			r.s = buf.String()
 		}
 	}
@@ -305,6 +428,7 @@ SetDescription parses desc into the underlying Desc field within the
 receiver instance.  Although a RFC 4512-compliant QuotedString is
 required, the outer single-quotes need not be specified literally.
 */
+/*
 func (r *NameForm) SetDescription(desc string) NameForm {
 	if len(desc) < 3 {
 		return *r
@@ -316,26 +440,27 @@ func (r *NameForm) SetDescription(desc string) NameForm {
 
 	if !(rune(desc[0]) == rune(39) && rune(desc[len(desc)-1]) == rune(39)) {
 		desc = `'` + desc + `'`
-		if !r.IsZero() && isValidDescription(desc) {
+		if !r.IsZero() {
 			r.nameForm.Desc = desc
 		}
 	}
 
 	return *r
 }
+*/
 
 /*
-List returns a map[string][]string instance which represents the current
-inventory of name form instances within the receiver.  The keys are
-numeric OIDs, while the values are zero (0) or more string slices, each
-representing a name by which the definition is known.
+Inventory returns an instance of [Inventory] which represents the current
+inventory of [NameForm] instances within the receiver.
+
+The keys are numeric OIDs, while the values are zero (0) or more string
+slices, each representing a name by which the definition is known.
 */
-func (r NameForms) List() (list map[string][]string) {
-	list = make(map[string][]string, 0)
+func (r NameForms) Inventory() (inv Inventory) {
+	inv = make(Inventory, 0)
 	for i := 0; i < r.len(); i++ {
 		def := r.index(i)
-		list[def.NumericOID()] = def.Names().List()
-
+		inv[def.NumericOID()] = def.Names().List()
 	}
 
 	return
@@ -480,55 +605,6 @@ func (r NameForms) get(id string) (nf NameForm) {
 	return
 }
 
-func (r Schema) processNameForm(ctx antlr4512.INameFormDescriptionContext) (nf NameForm, err error) {
-
-	_nf := new(nameForm)
-	_nf.schema = r
-
-	for k, ct := 0, ctx.GetChildCount(); k < ct && err == nil; k++ {
-		switch tv := ctx.GetChild(k).(type) {
-		case *antlr4512.OpenParenContext,
-			*antlr4512.CloseParenContext,
-			*antlr4512.NumericOIDOrMacroContext:
-			err = _nf.setCritical(tv)
-
-		case *antlr4512.DefinitionNameContext,
-			*antlr4512.DefinitionExtensionsContext,
-			*antlr4512.DefinitionDescriptionContext:
-			err = _nf.setMisc(tv)
-
-		case *antlr4512.DefinitionObsoleteContext:
-			_nf.Obsolete = true
-
-		case *antlr4512.NFStructuralOCContext:
-			err = _nf.structuralOCContext(tv)
-
-		case *antlr4512.DefinitionMustContext:
-			err = _nf.mustContext(tv)
-
-		case *antlr4512.DefinitionMayContext:
-			err = _nf.mayContext(tv)
-		default:
-			env := NameForm{_nf}
-			err = isErrImpl(env.Type(), env.OID(), tv)
-		}
-	}
-
-	// check for errors in new instance
-	if err == nil {
-		r.resolveByMacro(NameForm{_nf})
-
-		if err = _nf.check(); err == nil {
-			if err = _nf.prepareString(); err == nil {
-				_nf.t = nil
-				nf = NameForm{_nf}
-			}
-		}
-	}
-
-	return
-}
-
 /*
 OC returns the STRUCTURAL [ObjectClass] specified within the receiver instance.
 */
@@ -544,37 +620,6 @@ func (r NameForm) IsZero() bool {
 	return r.nameForm == nil
 }
 
-func (r *nameForm) setCritical(ctx any) (err error) {
-
-	switch tv := ctx.(type) {
-	case *antlr4512.NumericOIDOrMacroContext:
-		r.OID, r.Macro, err = numOIDContext(tv)
-	case *antlr4512.OpenParenContext,
-		*antlr4512.CloseParenContext:
-		err = parenContext(tv)
-	default:
-		err = errorf("Unknown critical context '%T'", ctx)
-	}
-
-	return
-}
-
-func (r *nameForm) setMisc(ctx any) (err error) {
-
-	switch tv := ctx.(type) {
-	case *antlr4512.DefinitionNameContext:
-		r.Name, err = nameContext(tv)
-	case *antlr4512.DefinitionDescriptionContext:
-		r.Desc, err = descContext(tv)
-	case *antlr4512.DefinitionExtensionsContext:
-		r.Extensions, err = extContext(tv)
-	default:
-		err = errorf("Unknown miscellaneous context '%T'", ctx)
-	}
-
-	return
-}
-
 func (r *nameForm) check() (err error) {
 	if r == nil {
 		err = errorf("%T is nil", r)
@@ -583,94 +628,6 @@ func (r *nameForm) check() (err error) {
 
 	if len(r.OID) == 0 {
 		err = errorf("%T lacks an OID", r)
-	}
-
-	return
-}
-
-func (r *nameForm) mustContext(ctx *antlr4512.DefinitionMustContext) (err error) {
-	var must []string
-	if must, err = mustContext(ctx); err != nil {
-		return
-	}
-
-	r.Must = NewAttributeTypeOIDList()
-	for i := 0; i < len(must); i++ {
-		var mustt AttributeType
-		if mustt = r.schema.AttributeTypes().get(must[i]); mustt.IsZero() {
-			err = errorf("required attr '%s' not found; cannot process %T",
-				must[i], r)
-			break
-		}
-		r.Must.push(mustt)
-	}
-
-	return
-}
-
-func (r *nameForm) mayContext(ctx *antlr4512.DefinitionMayContext) (err error) {
-	var may []string
-	if may, err = mayContext(ctx); err != nil {
-		return
-	}
-
-	r.May = NewAttributeTypeOIDList()
-	for i := 0; i < len(may); i++ {
-		var mayy AttributeType
-		if mayy = r.schema.AttributeTypes().get(may[i]); mayy.IsZero() {
-			err = errorf("required attr '%s' not found; cannot process %T",
-				may[i], r)
-			break
-		}
-		r.May.push(mayy)
-	}
-
-	return
-}
-
-func (r *nameForm) structuralOCContext(ctx *antlr4512.NFStructuralOCContext) (err error) {
-	if ctx == nil {
-		err = errorf("%T instance is nil", ctx)
-		return
-	}
-
-	// Obtain OIDContext pointer
-	o := ctx.OID()
-	if o == nil {
-		err = errorf("%T instance is nil", o)
-		return
-	}
-
-	// Type assert o to a bonafide
-	// *OIDContext instance.
-	var n, d []string
-	assert, ok := o.(*antlr4512.OIDContext)
-	if !ok {
-		err = errorf("structural objectClass OID assertion failed for %T", r)
-		return
-	}
-
-	// determine the nature of the OID and process it.
-	// Fail if we find anything else.
-	if n, d, err = oIDContext(assert); err != nil {
-		return
-	}
-
-	var oc ObjectClass
-	if len(n) > 0 {
-		oc = r.schema.ObjectClasses().get(n[0])
-	} else if len(d) > 0 {
-		oc = r.schema.ObjectClasses().get(d[0])
-	} else {
-		err = errorf("No %T OID or Descriptor found", r)
-		return
-	}
-
-	if oc.IsZero() {
-		err = errorf("structural class '%s' not found; cannot process %T",
-			assert.GetText(), r)
-	} else {
-		r.Structural = oc
 	}
 
 	return

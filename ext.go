@@ -3,8 +3,44 @@ package schemax
 /*
 NewExtensions initializes and returns a new instance of [Extensions].
 */
-func NewExtensions() Extensions {
-	return Extensions{make(extensions, 0)}
+func NewExtensions() (e Extensions) {
+	e = newExtensions()
+	e.cast().SetPushPolicy(e.canPush)
+	return
+}
+
+func (r Extensions) Push(x any) error {
+	return r.push(x)
+}
+
+func (r Extensions) push(extn any) (err error) {
+	if extn == nil {
+		err = errorf("%T instance is nil; cannot append to %T", extn, r)
+		return
+	}
+
+	r.cast().Push(extn)
+
+	return
+}
+
+func (r *Extension) IsZero() bool {
+	return r == nil
+}
+
+func (r Extensions) canPush(x ...any) (err error) {
+	if len(x) == 0 {
+		return
+	}
+
+	for i := 0; i < len(x) && err == nil; i++ {
+		instance := x[i]
+		if e, ok := instance.(Extension); !ok || e.IsZero() {
+			err = errorf("Type assertion for %T has failed", instance)
+		}
+	}
+
+	return
 }
 
 /*
@@ -13,19 +49,28 @@ quoted descriptor list based on the number of string values
 within the receiver instance.
 */
 func (r Extensions) String() (s string) {
+	for i := 0; i < r.Len(); i++ {
+		s += r.Index(i).String()
+	}
+
+	return
+}
+
+/*
 	if !r.IsZero() {
+		var _hindent string = hindent()
 		var _s []string
-		for k, v := range r.extensions {
-			_s = append(_s, k)
-			switch v.cast().Len() {
+		for _, extn := range r {
+			_s = append(_s, _hindent+extn.XString)
+			switch extn.Values.cast().Len() {
 			case 0:
 				continue
 			case 1:
-				if fst := v.index(0); len(fst) > 0 {
-					_s = append(_s, sprintf("'%s'", fst))
+				if fst := extn.Values.index(0); len(fst) > 0 {
+					_s = append(_s, `'`+fst+`'`)
 				}
 			default:
-				_s = append(_s, v.cast().String())
+				_s = append(_s, extn.Values.cast().String())
 			}
 		}
 
@@ -35,14 +80,14 @@ func (r Extensions) String() (s string) {
 	}
 
 	return
-}
+*/
 
 /*
 IsZero returns a Boolean value indicative of nilness of the
 receiver instance.
 */
 func (r Extensions) IsZero() bool {
-	return r.extensions == nil
+	return r.cast().IsZero()
 }
 
 /*
@@ -51,18 +96,18 @@ receiver instance, thereby specifying a new extension
 value as described in RFC 4512.
 */
 func (r Extensions) Set(key string, values ...string) {
-	r.extensions.set(key, values...)
-}
-
-func (r *extensions) set(key string, values ...string) {
 	_key := uc(key)
-	if !r.exists(_key) {
-		_values := newQStringList(`extensions`)
+	if _values, found := r.get(_key); !found {
+		_values = newQStringList(`extensions`)
 		for v := 0; v < len(values); v++ {
 			_values.cast().Push(values[v])
 		}
 		if _values.cast().Len() > 0 {
-			(*r)[_key] = _values
+			r.Push(Extension{key, _values})
+		}
+	} else {
+		for i := 0; i < len(values); i++ {
+			_values.cast().Push(values[i])
 		}
 	}
 }
@@ -73,12 +118,23 @@ specified key exists within the receiver instance.  Case
 is not significant in the matching process.
 */
 func (r Extensions) Exists(key string) bool {
-	return r.extensions.exists(key)
+	return r.exists(key)
 }
 
-func (r extensions) exists(key string) (found bool) {
+func (r Extensions) exists(key string) (found bool) {
 	_, found = r.get(key)
 	return
+}
+
+/*
+Len returns the current integer length of the receiver instance.
+*/
+func (r Extensions) Len() int {
+	return r.len()
+}
+
+func (r Extensions) len() int {
+	return r.cast().Len()
 }
 
 /*
@@ -89,11 +145,18 @@ a positive match.  Case is not significant in the matching
 process.
 */
 func (r Extensions) Get(key string) (QuotedStringList, bool) {
-	return r.extensions.get(key)
+	return r.get(key)
 }
 
-func (r extensions) get(key string) (values QuotedStringList, found bool) {
-	values, found = r[uc(key)]
+func (r Extensions) get(key string) (values QuotedStringList, found bool) {
+	for i := 0; i < r.len() && values.cast().Len() == 0; i++ {
+		if eq(r.index(i).XString, key) {
+			values = r.index(i).Values
+		}
+	}
+
+	found = values.cast().Len() > 0
+
 	return
 }
 
@@ -101,28 +164,35 @@ func (r extensions) get(key string) (values QuotedStringList, found bool) {
 Keys returns all keys found within the underlying map instance.
 */
 func (r Extensions) Keys() (keys []string) {
-	for k, _ := range r.extensions {
-		keys = append(keys, uc(k))
+	for i := 0; i < r.len(); i++ {
+		keys = append(keys, r.index(i).XString)
+	}
+
+	return
+}
+
+func (r Extensions) tmplFunc() (e string) {
+	if !r.IsZero() {
+		e = r.String()
 	}
 
 	return
 }
 
 /*
-Len returns the current integer length of the receiver
-instance.
+String returns the string representation of the receiver instance.
 */
-func (r Extensions) Len() int {
-	return r.extensions.len()
-}
-
-func (r extensions) len() int {
-	return len(r)
-}
-
-func (r Extensions) tmplFunc() (e string) {
+func (r Extension) String() (s string) {
 	if !r.IsZero() {
-		e = " " + r.String()
+		switch r.Values.Len() {
+		case 0:
+			break
+		case 1:
+			s = hindent() + r.XString + ` ` + `'` + r.Values.Index(0) + `'`
+		default:
+			s = hindent() + r.XString + ` ` + r.Values.String()
+		}
 	}
+
 	return
 }
