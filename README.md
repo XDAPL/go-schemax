@@ -2,7 +2,7 @@
 
 [![RFC 4512](https://img.shields.io/badge/RFC-4512-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4512) [![RFC4517](https://img.shields.io/badge/RFC-4517-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4517) [![RFC4519](https://img.shields.io/badge/RFC-4519-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4519) [![RFC4523](https://img.shields.io/badge/RFC-4523-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4523) [![RFC4524](https://img.shields.io/badge/RFC-4524-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4524) [![RFC4530](https://img.shields.io/badge/RFC-4530-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4530) [![RFC2307](https://img.shields.io/badge/RFC-2307-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2307) [![RFC2798](https://img.shields.io/badge/RFC-2798-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2798) [![RFC3045](https://img.shields.io/badge/RFC-3045-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3045) [![RFC3671](https://img.shields.io/badge/RFC-3671-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3671) [![RFC3672](https://img.shields.io/badge/RFC-3672-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3672)
 
-Package schemax implements a powerful [RFC4512](https://www.rfc-editor.org/rfc/rfc4512.txt) parser.
+Package schemax incorporates a powerful [RFC4512](https://www.rfc-editor.org/rfc/rfc4512.txt) parser, wrapped with convenient features for creating and interrogating directory schemas.
 
 Requires Go version 1.21 or higher.
 
@@ -29,7 +29,7 @@ Two (2) releases are available for end-users:
 
 ## History of schemax
 
-The goal of schemax has always been to provide a reliable parsing subsystem for schemata and `attributeDescription` values that allows transformation to usable Go objects. This goal will not change.
+The goal of schemax has always been to provide a reliable parsing subsystem for directory schema definitions that allows transformation into usable Go objects.
 
 The original design of schemax (version < 2.0.0) involved a custom-made parser. While this design performed remarkably well for years, it was not without its shortcomings. 
 
