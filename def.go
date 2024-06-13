@@ -9,6 +9,9 @@ func (r DefinitionMaps) Len() int {
 	return len(r)
 }
 
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
 func (r DefinitionMaps) IsZero() bool {
 	return r.Len() == 0
 }
@@ -36,6 +39,9 @@ func (r DefinitionMap) Contains(id string) bool {
 	return len(r.Get(id)) > 0
 }
 
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
 func (r DefinitionMap) IsZero() bool {
 	return r.Len() == 0
 }

@@ -1,10 +1,10 @@
 package schemax
 
 /*
-NewName initializes and returns a new instance of [Name].
+NewName initializes and returns a new instance of [QuotedDescriptorList].
 */
-func NewName() (name Name) {
-	name = Name(newQDescrList(``))
+func NewName() (name QuotedDescriptorList) {
+	name = QuotedDescriptorList(newQDescrList(``))
 	name.cast().SetPresentationPolicy(name.smvStringer)
 	return
 }
@@ -12,11 +12,11 @@ func NewName() (name Name) {
 /*
 Len returns the current integer length of the receiver instance.
 */
-func (r Name) Len() int {
+func (r QuotedDescriptorList) Len() int {
 	return r.len()
 }
 
-func (r Name) len() int {
+func (r QuotedDescriptorList) len() int {
 	return r.cast().Len()
 }
 
@@ -25,16 +25,16 @@ Push returns an error following an attempt to push name into
 the receiver instance.  The name value must be non-zero in
 length and must be a valid RFC 4512 "descr" qualifier.
 */
-func (r Name) Push(name string) error {
+func (r QuotedDescriptorList) Push(name string) error {
 	return r.push(name)
 }
 
-func (r Name) push(name string) (err error) {
+func (r QuotedDescriptorList) push(name string) (err error) {
 	if len(name) == 0 {
-		err = errorf("%T descriptor is nil; cannot append to %T", name, r)
+		err = ErrNilInput
 		return
 	} else if !isDescriptor(name) {
-		err = errorf("'%s' represents an invalid descriptor", name)
+		err = mkerr("Invalid RFC 4512 descriptor '" + name + `'`)
 		return
 	}
 
@@ -43,14 +43,16 @@ func (r Name) push(name string) (err error) {
 	return
 }
 
-// Contains returns a Boolean value indicative of whether the input
-// name value was found within the receiver instance.  Case-folding
-// is not significant in this operation.
-func (r Name) Contains(name string) bool {
+/*
+Contains returns a Boolean value indicative of whether the input
+name value was found within the receiver instance.  Case-folding
+is not significant in this operation.
+*/
+func (r QuotedDescriptorList) Contains(name string) bool {
 	return r.contains(name)
 }
 
-func (r Name) contains(name string) (found bool) {
+func (r QuotedDescriptorList) contains(name string) (found bool) {
 	for i := 0; i < r.len(); i++ {
 		if eq(name, r.index(i)) {
 			found = true
@@ -64,7 +66,7 @@ func (r Name) contains(name string) (found bool) {
 /*
 List returns slices of string names from within the receiver.
 */
-func (r Name) List() (list []string) {
+func (r QuotedDescriptorList) List() (list []string) {
 	for i := 0; i < r.len(); i++ {
 		list = append(list, r.index(i))
 	}
@@ -73,10 +75,9 @@ func (r Name) List() (list []string) {
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r Name) IsZero() bool {
+func (r QuotedDescriptorList) IsZero() bool {
 	return r.cast().IsZero()
 }
 
@@ -85,7 +86,7 @@ String is a stringer method that returns a properly formatted
 quoted descriptor list based on the number of string values
 within the receiver instance.
 */
-func (r Name) String() string {
+func (r QuotedDescriptorList) String() string {
 	return r.cast().String()
 }
 
@@ -93,7 +94,7 @@ func (r Name) String() string {
 // stringer mechanism called by r.String.
 //
 // This method qualifies for stackage.PresentationPolicy.
-func (r Name) smvStringer(_ ...any) (smv string) {
+func (r QuotedDescriptorList) smvStringer(_ ...any) (smv string) {
 	switch tv := r.len(); tv {
 	case 0:
 		break
@@ -120,11 +121,11 @@ Index returns the instance of string found within the receiver stack
 instance at index N.  If no instance is found at the index specified,
 a zero string instance is returned.
 */
-func (r Name) Index(idx int) string {
+func (r QuotedDescriptorList) Index(idx int) string {
 	return r.index(idx)
 }
 
-func (r Name) index(idx int) (name string) {
+func (r QuotedDescriptorList) index(idx int) (name string) {
 	raw, _ := r.cast().Index(idx)
 	name, _ = raw.(string)
 	return

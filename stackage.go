@@ -3,7 +3,7 @@ package schemax
 /*
 stackage.go contains links to go-stackage for convenience, and
 implements some basic methods for RFC 4512 source types such as
-QuotedDescrList and unofficial types such as Collection.
+QuotedDescrList and unofficial types such as collection.
 */
 
 import (
@@ -13,8 +13,8 @@ import (
 var stackageList func(...int) stackage.Stack = stackage.List
 var stackageBasic func(...int) stackage.Stack = stackage.Basic
 
-func newCollection(name string) (collection Collection) {
-	return Collection(
+func newCollection(name string) (c collection) {
+	return collection(
 		stackageList().
 			NoPadding(true).
 			SetID(name).
@@ -47,15 +47,23 @@ func newQStringList(name string) (qstr QuotedStringList) {
 func newRuleIDList(name string) RuleIDList {
 	return RuleIDList(stackageList().
 		SetID(name).
+		SetAuxiliary(map[string]any{
+			`options`:  newOpts(),
+			`stringer`: nil,
+		}).
 		SetCategory(`ruleids`).
 		SetDelimiter(' ').
 		Paren(true).
 		Mutex())
 }
 
-func newOIDList(name string) OIDList {
-	return OIDList(stackageList().
+func newOIDList(name string) oIDList {
+	return oIDList(stackageList().
 		SetID(name).
+		SetAuxiliary(map[string]any{
+			`options`:  newOpts(),
+			`stringer`: nil,
+		}).
 		SetCategory(`oidlist`).
 		SetDelimiter('$').
 		Paren(true).
@@ -65,6 +73,10 @@ func newOIDList(name string) OIDList {
 func newExtensions() Extensions {
 	return Extensions(stackageList().
 		SetID(`extensions`).
+		SetAuxiliary(map[string]any{
+			`options`:  newOpts(),
+			`stringer`: nil,
+		}).
 		SetCategory(`extensions`).
 		SetDelimiter(' ').
 		Mutex())
@@ -110,7 +122,11 @@ func (r DITContentRules) cast() stackage.Stack {
 	return stackage.Stack(r)
 }
 
-func (r Name) cast() stackage.Stack {
+func (r QuotedDescriptorList) cast() stackage.Stack {
+	return stackage.Stack(r)
+}
+
+func (r collection) cast() stackage.Stack {
 	return stackage.Stack(r)
 }
 
@@ -193,3 +209,29 @@ func (r QuotedStringList) Len() int {
 func (r QuotedStringList) len() int {
 	return r.cast().Len()
 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r QuotedStringList) IsZero() bool {
+	return r.cast().IsZero()
+}
+
+/*
+prepare a custom [stackage.PresentationPolicy] instance for our input
+[QuotedDescriptorList] stack to convert the following:
+
+	( cn $ sn $ l $ c $ st )
+
+... into ...
+
+	( cn
+	$ sn
+	$ l
+	$ c
+	$ st )
+
+This has no effect if the stack has only one member, producing:
+
+	cn
+*/

@@ -1,7 +1,6 @@
 package schemax
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -18,28 +17,96 @@ import (
 	"internal/rfc4523"
 	"internal/rfc4524"
 	"internal/rfc4530"
+
+	"github.com/JesseCoretta/go-objectid"
+	"github.com/JesseCoretta/go-shifty"
 )
 
 var (
-	atoi    func(string) (int, error)           = strconv.Atoi
-	itoa    func(int) string                    = strconv.Itoa
-	sprintf func(string, ...any) string         = fmt.Sprintf
-	printf  func(string, ...any) (int, error)   = fmt.Printf
-	repAll  func(string, string, string) string = strings.ReplaceAll
-	eq      func(string, string) bool           = strings.EqualFold
-	split   func(string, string) []string       = strings.Split
-	join    func([]string, string) string       = strings.Join
-	hasPfx  func(string, string) bool           = strings.HasPrefix
-	hasSfx  func(string, string) bool           = strings.HasSuffix
-	lc      func(string) string                 = strings.ToLower
-	uc      func(string) string                 = strings.ToUpper
-	trim    func(string, string) string         = strings.Trim
-	trimL   func(string, string) string         = strings.TrimLeft
-	trimR   func(string, string) string         = strings.TrimRight
-	trimS   func(string) string                 = strings.TrimSpace
-	isDigit func(rune) bool                     = unicode.IsDigit
-	isAlpha func(rune) bool                     = unicode.IsLetter
+	atoi   func(string) (int, error)           = strconv.Atoi
+	itoa   func(int) string                    = strconv.Itoa
+	repAll func(string, string, string) string = strings.ReplaceAll
+	eq     func(string, string) bool           = strings.EqualFold
+	split  func(string, string) []string       = strings.Split
+	join   func([]string, string) string       = strings.Join
+	hasPfx func(string, string) bool           = strings.HasPrefix
+	hasSfx func(string, string) bool           = strings.HasSuffix
+	lc     func(string) string                 = strings.ToLower
+	uc     func(string) string                 = strings.ToUpper
+	trim   func(string, string) string         = strings.Trim
+	trimL  func(string, string) string         = strings.TrimLeft
+	trimR  func(string, string) string         = strings.TrimRight
+	trimS  func(string) string                 = strings.TrimSpace
 )
+
+var (
+	isDigit func(rune) bool = unicode.IsDigit
+	isAlpha func(rune) bool = unicode.IsLetter
+)
+
+var (
+	parseDot func(...any) (*objectid.DotNotation, error) = objectid.NewDotNotation
+)
+
+func newOpts() Options {
+	return Options(shifty.New(shifty.Uint16))
+}
+
+func (r Options) cast() shifty.BitValue {
+	return shifty.BitValue(r)
+}
+
+/*
+Unshift assigns the variadic bit values of x to the receiver instance.
+
+Variadic input can include non-negative int or explicit [Option] constant slices.
+
+This is a fluent method.
+*/
+func (r Options) Shift(x ...any) Options {
+	r.cast().Shift(x...)
+	return r
+}
+
+/*
+Unshift unassigns the variadic bit values of x to the receiver instance.
+
+Variadic input can include non-negative int or explicit [Option] constant slices.
+
+This is a fluent method.
+*/
+func (r Options) Unshift(x ...any) Options {
+	r.cast().Unshift(x...)
+	return r
+}
+
+/*
+Positive returns a Boolean value indicative of whether option x has
+been set within the receiver instance.
+
+Input value x may be a non-negative int or explicit [Option] constants.
+*/
+func (r Options) Positive(x any) bool {
+	return r.cast().Positive(x)
+}
+
+func uitoa(x any) (s string) {
+	switch tv := x.(type) {
+	case uint:
+		s = strconv.FormatUint(uint64(tv), 10)
+	case uint64:
+		s = strconv.FormatUint(tv, 10)
+	}
+
+	return
+}
+
+func atoui(x string) (ui uint) {
+	_ui, _ := strconv.ParseUint(x, 10, 64)
+	ui = uint(_ui)
+
+	return
+}
 
 var (
 	rfc2307Macros map[string]string = rfc2307.Macros

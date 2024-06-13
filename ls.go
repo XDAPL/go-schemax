@@ -1,8 +1,7 @@
 package schemax
 
 /*
-NewLDAPSyntaxes initializes a new [Collection] instance and casts it
-as an [LDAPSyntaxes] instance.
+NewLDAPSyntaxes initializes a new [LDAPSyntaxes] instance.
 */
 func NewLDAPSyntaxes() LDAPSyntaxes {
 	r := LDAPSyntaxes(newCollection(`ldapSyntaxes`))
@@ -36,53 +35,187 @@ func (r LDAPSyntaxes) len() int {
 }
 
 /*
-SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
-internal verification of certain actions without the need for user input of
-an instance of [Schema] manually at each juncture.
+Contains calls [MatchingRules.Get] to return a Boolean value indicative of
+a successful, non-zero retrieval of an [MatchingRule] instance -- matching
+the provided id -- from within the receiver stack instance.
+*/
+func (r LDAPSyntaxes) Contains(id string) bool {
+	return r.contains(id)
+}
 
-Note that the underlying [Schema] instance is automatically set when creating
-instances of this type by way of parsing.
+func (r LDAPSyntaxes) contains(id string) bool {
+	return !r.get(id).IsZero()
+}
+
+/*
+SetData assigns x to the receiver instance. This is a general-use method and has no
+specific intent beyond convenience. The contents may be subsequently accessed via the
+[LDAPSyntax.Data] method.
 
 This is a fluent method.
 */
-func (r *LDAPSyntax) SetSchema(schema Schema) *LDAPSyntax {
-	if r.IsZero() {
-		r.lDAPSyntax = newLDAPSyntax()
+func (r LDAPSyntax) SetData(x any) LDAPSyntax {
+	if !r.IsZero() {
+		r.lDAPSyntax.setData(x)
 	}
-
-	r.lDAPSyntax.schema = schema
 
 	return r
 }
 
-func (r LDAPSyntax) schema() (s Schema) {
+func (r *lDAPSyntax) setData(x any) {
+	r.data = x
+}
+
+/*
+Data returns the underlying value (x) assigned to the receiver's data storage field. Data
+can be set within the receiver instance by way of the [LDAPSyntax.SetData] method.
+*/
+func (r LDAPSyntax) Data() (x any) {
 	if !r.IsZero() {
-		s = r.lDAPSyntax.schema
+		x = r.lDAPSyntax.data
 	}
 
 	return
 }
 
 /*
-SetStringer allows the assignment of an individual "stringer" function
-or method to the receiver instance.
+SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
+internal verification of certain actions without the need for user input of
+an instance of [Schema] manually at each juncture.
 
-A non-nil value will be executed for every call of the String method
-for the receiver instance.
-
-Should the input stringer value be nil, the [text/template.Template]
-value will be used automatically going forward.
+Note that the underlying [Schema] instance is automatically set when creating
+instances of this type by way of parsing, as well as if the receiver instance
+was initialized using the [Schema.NewLDAPSyntax] method.
 
 This is a fluent method.
 */
-func (r *LDAPSyntax) SetStringer(stringer func() string) *LDAPSyntax {
-	if r.IsZero() {
-		r.lDAPSyntax = newLDAPSyntax()
+func (r LDAPSyntax) SetSchema(schema Schema) LDAPSyntax {
+	if !r.IsZero() {
+		r.lDAPSyntax.setSchema(schema)
 	}
 
-	r.lDAPSyntax.stringer = stringer
+	return r
+}
+
+func (r *lDAPSyntax) setSchema(schema Schema) *lDAPSyntax {
+	r.schema = schema
+	return r
+}
+
+/*
+Schema returns the [Schema] instance associated with the receiver instance.
+*/
+func (r LDAPSyntax) Schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.lDAPSyntax.getSchema()
+	}
+
+	return
+}
+
+func (r *lDAPSyntax) getSchema() (s Schema) {
+	if r != nil {
+		s = r.schema
+	}
+
+	return
+}
+
+/*
+Compliant returns a Boolean value indicative of every [LDAPSyntax]
+returning a compliant response from the [LDAPSyntax.Compliant] method.
+*/
+func (r LDAPSyntaxes) Compliant() bool {
+	for i := 0; i < r.Len(); i++ {
+		if !r.Index(i).Compliant() {
+			return false
+		}
+	}
+
+	return true
+}
+
+/*
+Compliant returns a Boolean value indicative of the receiver being fully
+compliant per the required clauses of § 4.1.5 of RFC 4512:
+
+  - Numeric OID must be present and valid
+*/
+func (r LDAPSyntax) Compliant() bool {
+	if r.IsZero() {
+		return false
+	}
+
+	return isNumericOID(r.lDAPSyntax.OID)
+}
+
+/*
+SetStringer allows the assignment of an individual [Stringer] function or
+method to all [LDAPSyntax] slices within the receiver stack instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite all
+preexisting stringer functions with the internal closure default, which is
+based upon a one-time use of the [text/template] package by all receiver
+slice instances.
+
+Input of a non-nil closure function value will overwrite all preexisting
+stringers.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r LDAPSyntaxes) SetStringer(function ...Stringer) LDAPSyntaxes {
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		def.SetStringer(function...)
+	}
 
 	return r
+}
+
+/*
+SetStringer allows the assignment of an individual [Stringer] function
+or method to the receiver instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite any
+preexisting stringer function with the internal closure default, which is
+based upon a one-time use of the [text/template] package by the receiver
+instance.
+
+Input of a non-nil closure function value will overwrite any preexisting
+stringer.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r LDAPSyntax) SetStringer(function ...Stringer) LDAPSyntax {
+	if !r.IsZero() {
+		r.lDAPSyntax.setStringer(function...)
+	}
+
+	return r
+}
+
+func (r *lDAPSyntax) setStringer(function ...Stringer) {
+	var stringer Stringer
+	if len(function) > 0 {
+		stringer = function[0]
+	}
+
+	if stringer == nil {
+		// no user provided closure means we
+		// defer to a general use stringer.
+		str, err := r.prepareString() // perform one-time text/template op
+		if err == nil {
+			// Save the stringer
+			r.stringer = func() string {
+				// Return a preserved value.
+				return str
+			}
+		}
+		return
+	}
+
+	// assign user-provided closure
+	r.stringer = stringer
 }
 
 /*
@@ -90,6 +223,7 @@ xOrigin returns an instance of LDAPSyntaxes containing only definitions
 which bear the X-ORIGIN value of x. Case is not significant in the matching
 process, nor is whitespace (e.g.: RFC 4517 vs. RFC4517).
 */
+/*
 func (r LDAPSyntaxes) xOrigin(x string) (lss LDAPSyntaxes) {
 	lss = NewLDAPSyntaxes()
 	for i := 0; i < r.Len(); i++ {
@@ -103,6 +237,7 @@ func (r LDAPSyntaxes) xOrigin(x string) (lss LDAPSyntaxes) {
 
 	return
 }
+*/
 
 /*
 String is a stringer method that returns the string representation
@@ -110,17 +245,8 @@ of the receiver instance.
 */
 func (r LDAPSyntax) String() (def string) {
 	if !r.IsZero() {
-		if r.stringer != nil {
-			def = r.stringer()
-		} else {
-			if len(r.lDAPSyntax.s) == 0 {
-				var err error
-				if err = r.lDAPSyntax.prepareString(); err != nil {
-					return
-				}
-			}
-
-			def = r.lDAPSyntax.s
+		if r.lDAPSyntax.stringer != nil {
+			def = r.lDAPSyntax.stringer()
 		}
 	}
 
@@ -128,16 +254,14 @@ func (r LDAPSyntax) String() (def string) {
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r LDAPSyntax) IsZero() bool {
 	return r.lDAPSyntax == nil
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r LDAPSyntaxes) IsZero() bool {
 	return r.cast().IsZero()
@@ -159,11 +283,11 @@ signature requirements.
 func (r LDAPSyntax) Name() string { return `` }
 
 /*
-Names returns an empty instance of [Name], as names do not
+Names returns an empty instance of [QuotedDescriptorList], as names do not
 apply to [LDAPSyntax] definitions.  This method exists only to satisfy
 Go's interface signature requirements.
 */
-func (r LDAPSyntax) Names() Name { return Name{} }
+func (r LDAPSyntax) Names() QuotedDescriptorList { return QuotedDescriptorList{} }
 
 /*
 String returns the string representation of the receiver instance.
@@ -194,9 +318,9 @@ func (r LDAPSyntaxes) canPush(x ...any) (err error) {
 	for i := 0; i < len(x) && err == nil; i++ {
 		instance := x[i]
 		if ls, ok := instance.(LDAPSyntax); !ok || ls.IsZero() {
-			err = errorf("Type assertion for %T has failed", instance)
+			err = ErrTypeAssert
 		} else if tst := r.get(ls.NumericOID()); !tst.IsZero() {
-			err = errorf("%T %s not unique", ls, ls.NumericOID())
+			err = mkerr(ErrNotUnique.Error() + ": " + ls.Type() + `, ` + ls.NumericOID())
 		}
 	}
 
@@ -212,18 +336,24 @@ receiver instance if the following are all true:
 
 This is a fluent method.
 */
-func (r *LDAPSyntax) SetNumericOID(id string) *LDAPSyntax {
-	if r.IsZero() {
-		r.lDAPSyntax = newLDAPSyntax()
-	}
-
-	if isNumericOID(id) {
-		if len(r.lDAPSyntax.OID) == 0 {
-			r.lDAPSyntax.OID = id
-		}
+func (r LDAPSyntax) SetNumericOID(id string) LDAPSyntax {
+	if !r.IsZero() {
+		r.lDAPSyntax.setNumericOID(id)
 	}
 
 	return r
+}
+
+func (r *lDAPSyntax) setNumericOID(id string) {
+	if isNumericOID(id) {
+		// only set an OID when the receiver
+		// lacks one (iow: no modifications)
+		if len(r.OID) == 0 {
+			r.OID = id
+		}
+	}
+
+	return
 }
 
 /*
@@ -244,14 +374,16 @@ SetExtension assigns key x to value xstrs within the receiver's underlying
 
 This is a fluent method.
 */
-func (r *LDAPSyntax) SetExtension(x string, xstrs ...string) *LDAPSyntax {
-	if r.IsZero() {
-		r.lDAPSyntax = newLDAPSyntax()
+func (r LDAPSyntax) SetExtension(x string, xstrs ...string) LDAPSyntax {
+	if !r.IsZero() {
+		r.lDAPSyntax.setExtension(x, xstrs...)
 	}
 
-	r.Extensions().Set(x, xstrs...)
-
 	return r
+}
+
+func (r *lDAPSyntax) setExtension(x string, xstrs ...string) {
+	r.Extensions.Set(x, xstrs...)
 }
 
 /*
@@ -318,36 +450,44 @@ func (r LDAPSyntax) Description() (desc string) {
 }
 
 /*
-SetDescription parses desc into the underlying Desc field within the
+SetDescription parses desc into the underlying DESC clause within the
 receiver instance.  Although a RFC 4512-compliant QuotedString is
 required, the outer single-quotes need not be specified literally.
 
 This is a fluent method.
 */
-func (r *LDAPSyntax) SetDescription(desc string) *LDAPSyntax {
-	if len(desc) < 3 {
-		return r
-	}
-
-	if r.lDAPSyntax == nil {
-		r.lDAPSyntax = new(lDAPSyntax)
-	}
-
-	if !(rune(desc[0]) == rune(39) && rune(desc[len(desc)-1]) == rune(39)) {
-		if !r.IsZero() {
-			r.lDAPSyntax.Desc = desc
-		}
+func (r LDAPSyntax) SetDescription(desc string) LDAPSyntax {
+	if !r.IsZero() {
+		r.lDAPSyntax.setDescription(desc)
 	}
 
 	return r
 }
 
+func (r *lDAPSyntax) setDescription(desc string) {
+	if len(desc) < 3 {
+		return
+	}
+
+	if rune(desc[0]) == rune(39) {
+		desc = desc[1:]
+	}
+
+	if rune(desc[len(desc)-1]) == rune(39) {
+		desc = desc[:len(desc)-1]
+	}
+
+	r.Desc = desc
+
+	return
+}
+
 /*
-IsObsolete only returns a false Boolean value, as definition obsolescence
+Obsolete only returns a false Boolean value, as definition obsolescence
 does not apply to [LDAPSyntax] definitions.  This method exists only to
 satisfy Go's interface signature requirements.
 */
-func (r LDAPSyntax) IsObsolete() bool { return false }
+func (r LDAPSyntax) Obsolete() bool { return false }
 
 /*
 Get returns an instance of [LDAPSyntax] based upon a search for id within
@@ -423,22 +563,115 @@ func (r LDAPSyntaxes) Push(ls any) error {
 	return r.push(ls)
 }
 
-func (r LDAPSyntaxes) push(ls any) (err error) {
-	if ls == nil {
-		err = errorf("%T instance is nil; cannot append to %T", ls, r)
-		return
+func (r LDAPSyntaxes) push(x any) (err error) {
+	switch tv := x.(type) {
+	case LDAPSyntax:
+		if !tv.Compliant() {
+			err = ErrDefNonCompliant
+			break
+		}
+		r.cast().Push(tv)
+	default:
+		err = ErrInvalidType
 	}
-
-	r.cast().Push(ls)
 
 	return
 }
 
 /*
-NewLDAPSyntax initializes and returns a new instance of [LDAPSyntax].
+Parse returns an error following an attempt to parse raw into the receiver
+instance.
+
+Note that the receiver MUST possess a [Schema] reference prior to the execution
+of this method.
+
+Also note that successful execution of this method does NOT automatically push
+the receiver into any [LDAPSyntaxes] stack, nor does it automatically execute
+the [LDAPSyntax.SetStringer] method, leaving these tasks to the user.  If the
+automatic handling of these tasks is desired, see the [Schema.ParseLDAPSyntax]
+method as an alternative.
+*/
+func (r LDAPSyntax) Parse(raw string) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+		return
+	}
+
+	if r.getSchema().IsZero() {
+		err = ErrNilSchemaRef
+		return
+	}
+
+	err = r.lDAPSyntax.parse(raw)
+
+	return
+}
+
+func (r *lDAPSyntax) parse(raw string) error {
+	// parseLS wraps the antlr4512 LDAPSyntax parser/lexer
+	mp, err := parseLS(raw)
+	if err == nil {
+		// We received the parsed data from ANTLR (mp).
+		// Now we need to marshal it into the receiver.
+		var tsyn LDAPSyntax
+		if tsyn, err = r.schema.marshalLS(mp); err == nil {
+			err = ErrDefNonCompliant
+			if tsyn.Compliant() {
+				_r := LDAPSyntax{r}
+				_r.replace(tsyn)
+				err = nil
+			}
+		}
+	}
+
+	return err
+}
+
+/*
+NewLDAPSyntax initializes and returns a new instance of [LDAPSyntax],
+ready for manual assembly.  This method need not be used when creating
+new [LDAPSyntax] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this method does NOT automatically push the return instance into
+the [Schema.LDAPSyntaxes] stack; this is left to the user.
+
+Unlike the package-level [NewLDAPSyntax] function, this method will
+automatically reference its originating [Schema] instance (the receiver).
+This negates the need for manual use of the [LDAPSyntax.SetSchema]
+method.
+
+This is the recommended means of creating a new [LDAPSyntax] instance
+wherever a single [Schema] is being used, which represents most use cases.
+*/
+func (r Schema) NewLDAPSyntax() LDAPSyntax {
+	return NewLDAPSyntax().SetSchema(r)
+}
+
+/*
+NewLDAPSyntax initializes and returns a new instance of [LDAPSyntax],
+ready for manual assembly.  This method need not be used when creating
+new [LDAPSyntax] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this function does not automatically reference the "parent" [Schema]
+instance, leaving it up to the user to invoke the [LDAPSyntax.SetSchema]
+method manually.
+
+When interacting with a single [Schema] instance, which represents most use
+cases, use of the [Schema.NewLDAPSyntax] method is PREFERRED over use of
+this package-level function.
+
+However certain migration efforts, schema audits and other such activities
+may require distinct associations of [LDAPSyntax] instances with specific
+[Schema] instances. Use of this function allows the user to specify the
+appropriate [Schema] instance at a later point for a specific instance of
+an [LDAPSyntax] instance.
 */
 func NewLDAPSyntax() LDAPSyntax {
-	return LDAPSyntax{newLDAPSyntax()}
+	ls := LDAPSyntax{newLDAPSyntax()}
+	ls.lDAPSyntax.Extensions.setDefinition(ls)
+	return ls
 }
 
 func newLDAPSyntax() *lDAPSyntax {
@@ -447,22 +680,62 @@ func newLDAPSyntax() *lDAPSyntax {
 	}
 }
 
-func (r *lDAPSyntax) prepareString() (err error) {
+/*
+Replace overrides the receiver with x. Both must bear an identical
+numeric OID and x MUST be compliant.
+
+Note that the relevant [Schema] instance must be configured to allow
+definition override by way of the [AllowOverride] bit setting.  See
+the [Schema.Options] method for a means of accessing the settings
+value.
+
+Note that this method does not reallocate a new pointer instance
+within the [LDAPSyntax] envelope type, thus all references to the
+receiver instance within various stacks will be preserved.
+
+This is a fluent method.
+*/
+func (r LDAPSyntax) Replace(x LDAPSyntax) LDAPSyntax {
+	if r.NumericOID() != x.NumericOID() {
+		return r
+	}
+	r.replace(x)
+
+	return r
+}
+
+func (r LDAPSyntax) replace(x LDAPSyntax) {
+	if x.Compliant() && !r.IsZero() {
+		r.lDAPSyntax.OID = x.lDAPSyntax.OID
+		r.lDAPSyntax.Desc = x.lDAPSyntax.Desc
+		r.lDAPSyntax.Extensions = x.lDAPSyntax.Extensions
+		r.lDAPSyntax.data = x.lDAPSyntax.data
+		r.lDAPSyntax.schema = x.lDAPSyntax.schema
+		r.lDAPSyntax.stringer = x.lDAPSyntax.stringer
+		r.lDAPSyntax.data = x.lDAPSyntax.data
+	}
+}
+
+/*
+prepareString returns a string an an error indicative of an attempt
+to represent the receiver instance as a string using [text/template].
+*/
+func (r *lDAPSyntax) prepareString() (str string, err error) {
 	buf := newBuf()
-	r.t = newTemplate(`ldapSyntax`).
+	t := newTemplate(`ldapSyntax`).
 		Funcs(funcMap(map[string]any{
 			`ExtensionSet`: r.Extensions.tmplFunc,
 		}))
 
-	if r.t, err = r.t.Parse(lDAPSyntaxTmpl); err == nil {
-		if err = r.t.Execute(buf, struct {
+	if t, err = t.Parse(lDAPSyntaxTmpl); err == nil {
+		if err = t.Execute(buf, struct {
 			Definition *lDAPSyntax
 			HIndent    string
 		}{
 			Definition: r,
 			HIndent:    hindent(),
 		}); err == nil {
-			r.s = buf.String()
+			str = buf.String()
 		}
 	}
 
@@ -495,15 +768,15 @@ the receiver instance.
 */
 func (r Schema) loadSyntaxes() (err error) {
 	if !r.IsZero() {
-		for _, funk := range []func() error{
+		funks := []func() error{
 			r.loadRFC4517Syntaxes,
 			r.loadRFC4523Syntaxes,
 			r.loadRFC4530Syntaxes,
 			r.loadRFC2307Syntaxes,
-		} {
-			if err = funk(); err != nil {
-				break
-			}
+		}
+
+		for i := 0; i < len(funks) && err == nil; i++ {
+			err = funks[i]()
 		}
 	}
 

@@ -1,8 +1,7 @@
 package schemax
 
 import (
-	"text/template"
-
+	"github.com/JesseCoretta/go-shifty"
 	"github.com/JesseCoretta/go-stackage"
 )
 
@@ -20,8 +19,82 @@ const (
 )
 
 /*
+Options wraps an instance of [shifty.BitValue] allowing clean and simple
+bit shifting/unshifting to effect changes to a [Schema]'s behavior.
+
+Instances of this type are accessed and managed via the [Schema.Options]
+method. Instances of this type are not initialized by users directly.
+*/
+type Options shifty.BitValue
+
+/*
+Option represents a single configuration parameter within an instance of
+[Options].
+*/
+type Option uint16
+
+const (
+	// HangingIndents will cause all eligible string
+	// processing to include hanging intends for a
+	// given definition, as opposed to all definitions
+	// occupying a single line each.
+	HangingIndents Option = 1 << iota
+
+	// SortExtensions will cause all ANTLR-based parsing
+	// operations to sort all extensions alphabetically
+	// according to the respective XString field value.
+	//
+	// Note this does not influence definition Extensions
+	// that were manually crafted by the user.
+	SortExtensions
+
+	// SortLists will cause all ANTLR-based parsing operations
+	// to sort all extensions alphabetically according to the
+	// principal identifying string value of a slice member.
+	// This will influence stacks that represent multi-valued
+	// clauses like MAY, MUST, APPLIES and others.
+	//
+	// Note this does not influence slice members that were
+	// entered manually by the user.
+	SortLists
+
+	// AllowOverride declares that any instance of Definition
+	// may be replaced by way of its Replace method. This is
+	// reflected in all stacks in which the Definition resides.
+	AllowOverride
+
+	// As-of-yet unused bit settings
+	//_                    //     8
+	//_                    //    16
+	//_                    //    32
+	//_                    //    64
+	//_                    //   128
+	//_                    //   256
+	//_                    //   512
+	//_                    //  1024
+	//_                    //  2048
+	//_                    //  4096
+	//_                    //  8192
+	//_                    // 16384
+	//_                    // 32768
+)
+
+/*
+SyntaxQualifier is an optional closure function or method signature
+which may be honored by the end user for value verification controls
+for use with [AttributeType] instances.
+*/
+type SyntaxQualifier func(any) error
+
+/*
+Stringer is an optional function or method signature which allows
+user controlled string representation per definition.
+*/
+type Stringer func() string
+
+/*
 UseHangingIndents, when true, will result in a newline character
-(ASCII #10) being inserted prior to each field of a [Definition]
+(ASCII #10) being inserted prior to each clause of a [Definition]
 in string form followed by four space (ASCII #32) characters.
 
 Not all directory products are flexible regarding use of newlines
@@ -33,12 +106,12 @@ strings confined to a single line.
 var UseHangingIndents bool
 
 /*
-OIDList implements oidlist per § 4.1 of RFC 4512.  Instances
+oIDList implements oidlist per § 4.1 of RFC 4512.  Instances
 of this type need not be handled by users directly.
 
 	oidlist = oid *( WSP DOLLAR WSP oid )
 */
-type OIDList stackage.Stack
+type oIDList stackage.Stack
 
 /*
 RuleIDList implements ruleidlist per § 4.1.7.1 of RFC 4512.
@@ -65,27 +138,44 @@ Instances of this type need not be handled by users directly.
 type QuotedStringList stackage.Stack
 
 /*
-Collection implements a common stackage.Stack type alias and is
+collection implements a common [stackage.Stack] type alias and is
 not an RFC 4512 construct.  Instances of this type need not be
 handled by users directly.
 */
-type Collection stackage.Stack
+type collection stackage.Stack
 
 /*
-Extensions implements extensions as defined in § 4.1 of RFC 4512.
+Extensions implements extensions as defined in § 4.1 of RFC 4512:
 
 	extensions = *( SP xstring SP qdstrings )
-	xstring	   = "X" HYPHEN 1*( ALPHA / HYPHEN / USCORE )
 */
 type Extensions stackage.Stack
 
 /*
-Extension is the singular form of [Extensions], and contains a
-single string key (XString) and a QuotedStringList (Values).
+Extension is the singular (slice) form of [Extensions], and contains the following:
+
+  - One (1) instance of string (XString), declaring the effective "X-" name, AND ...
+  - One (1) [QuotedStringList] stack instance, containing one (1) or more "qdstringlist" values
+
+The ABNF production for "xstring", per § 4.1 of RFC 4512, is as follows:
+
+	xstring	     = "X" HYPHEN 1*( ALPHA / HYPHEN / USCORE )
+
+The ABNF production for "qdstringlist", per § 4.1 of RFC 4512, is as follows:
+
+	qdstringlist = [ qdstring *( SP qdstring ) ]
+	qdstring     = SQUOTE dstring SQUOTE
+	dstring      = 1*( QS / QQ / QUTF8 )   ; escaped UTF-8 string
 */
 type Extension struct {
+	*extension
+}
+
+type extension struct {
 	XString string
 	Values  QuotedStringList
+
+	stringer Stringer
 }
 
 /*
@@ -105,39 +195,41 @@ qualifier types:
   - [Schema.NameForms]
   - [Schema.DITStructureRules]
 */
-type Schema Collection
+type Schema collection
 
 type (
-	ObjectClasses     Collection // RFC 4512 § 4.2.1
-	AttributeTypes    Collection // RFC 4512 § 4.2.2
-	MatchingRules     Collection // RFC 4512 § 4.2.3
-	MatchingRuleUses  Collection // RFC 4512 § 4.2.4
-	LDAPSyntaxes      Collection // RFC 4512 § 4.2.5
-	DITContentRules   Collection // RFC 4512 § 4.2.6
-	DITStructureRules Collection // RFC 4512 § 4.2.7
-	NameForms         Collection // RFC 4512 § 4.2.8
+	ObjectClasses     collection // RFC 4512 § 4.2.1
+	AttributeTypes    collection // RFC 4512 § 4.2.2
+	MatchingRules     collection // RFC 4512 § 4.2.3
+	MatchingRuleUses  collection // RFC 4512 § 4.2.4
+	LDAPSyntaxes      collection // RFC 4512 § 4.2.5
+	DITContentRules   collection // RFC 4512 § 4.2.6
+	DITStructureRules collection // RFC 4512 § 4.2.7
+	NameForms         collection // RFC 4512 § 4.2.8
 )
 
 /*
-DefinitionMap implements a convenient map-based Definition type.  Use
+DefinitionMap implements a convenient map-based [Definition] type.  Use
 of this type is normally indicated in external processing scenarios,
 such as templating.
 
 Note that, due to the underlying map instance from which this type
-extends, ordering of fields (e.g.: NAME vs. DESC) cannot be guaranteed.
+extends, ordering of clauses (e.g.: NAME vs. DESC) cannot be guaranteed.
 */
 type DefinitionMap map[string][]string
 
 /*
-DefinitionMaps implements slices of DefinitionMap instances, collectively
-representing an entire type-specific stack (e.g.: AttributeTypes).
+DefinitionMaps implements slices of [DefinitionMap] instances, collectively
+representing an entire type-specific stack (e.g.: [AttributeTypes]).
 */
 type DefinitionMaps []DefinitionMap
 
 /*
-Name aliases the QuotedDescriptorList type.
+Name aliases the [QuotedDescriptorList] type, allowing the assignment
+of one (1) or more RFC 4512 "descr" values to a qualifying [Definition]
+instance, such as [AttributeType].
 */
-type Name QuotedDescriptorList
+//type Name QuotedDescriptorList
 
 /*
 AttributeType implements § 4.1.2 of RFC 4512.
@@ -171,11 +263,11 @@ type attributeType struct {
 	OID        string
 	Macro      []string
 	Desc       string
-	Name       Name
+	Name       QuotedDescriptorList
 	Obsolete   bool
 	Single     bool
 	Collective bool
-	Immutable  bool
+	NoUserMod  bool
 	SuperType  AttributeType
 	Equality   MatchingRule
 	Ordering   MatchingRule
@@ -185,11 +277,10 @@ type attributeType struct {
 	Usage      uint
 	Extensions Extensions
 
-	schema Schema
-
-	t        *template.Template
-	s        string
-	stringer func() string
+	schema   Schema
+	stringer Stringer
+	synQual  SyntaxQualifier
+	data     any
 }
 
 /*
@@ -212,7 +303,7 @@ type DITContentRule struct {
 
 type dITContentRule struct {
 	Desc       string
-	Name       Name
+	Name       QuotedDescriptorList
 	Obsolete   bool
 	OID        ObjectClass
 	Macro      []string
@@ -222,11 +313,9 @@ type dITContentRule struct {
 	Not        AttributeTypes
 	Extensions Extensions
 
-	schema Schema
-
-	t        *template.Template
-	s        string
-	stringer func() string
+	schema   Schema
+	stringer Stringer
+	data     any
 }
 
 /*
@@ -252,17 +341,15 @@ type DITStructureRule struct {
 type dITStructureRule struct {
 	ID         uint
 	Desc       string
-	Name       Name
+	Name       QuotedDescriptorList
 	Obsolete   bool
 	Form       NameForm
 	SuperRules DITStructureRules
 	Extensions Extensions
 
-	schema Schema
-
-	t        *template.Template
-	s        string
-	stringer func() string
+	schema   Schema
+	stringer Stringer
+	data     any
 }
 
 //	type Extensions struct {
@@ -288,11 +375,9 @@ type lDAPSyntax struct {
 	Desc       string
 	Extensions Extensions
 
-	schema Schema
-
-	t        *template.Template
-	s        string
-	stringer func() string
+	schema   Schema
+	stringer Stringer
+	data     any
 }
 
 /*
@@ -313,17 +398,15 @@ type MatchingRule struct {
 type matchingRule struct {
 	OID        string
 	Macro      []string
-	Name       Name
+	Name       QuotedDescriptorList
 	Desc       string
 	Obsolete   bool
 	Syntax     LDAPSyntax
 	Extensions Extensions
 
-	schema Schema
-
-	t        *template.Template
-	s        string
-	stringer func() string
+	schema   Schema
+	stringer Stringer
+	data     any
 }
 
 /*
@@ -343,17 +426,15 @@ type MatchingRuleUse struct {
 
 type matchingRuleUse struct {
 	OID        string
-	Name       Name
+	Name       QuotedDescriptorList
 	Desc       string
 	Obsolete   bool
 	Applies    AttributeTypes
 	Extensions Extensions
 
-	schema Schema
-
-	t        *template.Template
-	s        string
-	stringer func() string
+	schema   Schema
+	stringer Stringer
+	data     any
 }
 
 /*
@@ -377,18 +458,16 @@ type nameForm struct {
 	OID        string
 	Macro      []string
 	Desc       string
-	Name       Name
+	Name       QuotedDescriptorList
 	Obsolete   bool
 	Structural ObjectClass
 	Must       AttributeTypes
 	May        AttributeTypes
 	Extensions Extensions
 
-	schema Schema
-
-	t        *template.Template
-	s        string
-	stringer func() string
+	schema   Schema
+	stringer Stringer
+	data     any
 }
 
 /*
@@ -415,7 +494,7 @@ type objectClass struct {
 	OID          string
 	Macro        []string
 	Desc         string
-	Name         Name
+	Name         QuotedDescriptorList
 	Obsolete     bool
 	SuperClasses ObjectClasses
 	Kind         uint
@@ -423,11 +502,9 @@ type objectClass struct {
 	May          AttributeTypes
 	Extensions   Extensions
 
-	schema Schema
-
-	t        *template.Template
-	s        string
-	stringer func() string
+	schema   Schema
+	stringer Stringer
+	data     any
 }
 
 /*
@@ -450,23 +527,23 @@ type Counters struct {
 
 /*
 Inventory is a type alias of map[string][]string, and is used to
-provide a simple manifest of all members of a Collective derivative,
-such as LDAPSyntaxes.  This can be useful during activities such as
-templating.
+provide a simple manifest of all members of a collection type,
+such as [LDAPSyntaxes].  This can be useful during activities such
+as templating.
 
-Unlike the DefinitionMap type, this type is only used to manifest
+Unlike the [DefinitionMap] type, this type is only used to manifest
 the most basic details of a collection of definitions, namely the
 numerical and textual identifiers present.
 
 Keys represent the numerical identifier for a definition, whether a
-numeric OID or integer rule ID.  In the case of dITStructureRule
+numeric OID or integer rule ID.  In the case of [DITStructureRule]
 definitions, the rule ID -- an unsigned integer -- is used. In all
 other cases, a numeric OID is used.
 
 Values represent the NAME or DESC by which the definition is known.
 
-Note that DESC is only used in the case of LDAPSyntax instances, and
-NAME is used for all definition types *except* LDAPSyntax.
+Note that DESC is only used in the case of [LDAPSyntax] instances, and
+NAME is used for all definition types *except* [LDAPSyntax].
 */
 type Inventory map[string][]string
 
@@ -493,26 +570,34 @@ type Definition interface {
 	// of definition does not bear an OID.
 	NumericOID() string
 
+	// Data returns the underlying user-assigned value present
+	// within the receiver instance.
+	Data() any
+
 	// Name returns the first string NAME value present within
 	// the underlying Name stack instance.  A zero
 	// string is returned if no names were set, or if the given
 	// type instance is LDAPSyntax, which does not bear a name.
 	Name() string
 
-	// Names returns the underlying instance of Name.
-	// If executed upon an instance of LDAPSyntax, an empty
-	// instance is returned, as LDAPSyntaxes do not bear names.
-	Names() Name
+	// Names returns the underlying instance of QuotedDescriptorList.
+	// If executed upon an instance of LDAPSyntax, an empty instance
+	// is returned, as LDAPSyntaxes do not bear names.
+	Names() QuotedDescriptorList
 
 	// IsZero returns a Boolean value indicative of nilness
 	// with respect to the embedded type instance.
 	IsZero() bool
 
+	// Compliant returns a Boolean value indicative of compliance
+	// with respect to relevant RFCs, such as RFC 4512.
+	Compliant() bool
+
 	// String returns the complete string representation of the
 	// underlying definition type per § 4.1.x of RFC 4512.
 	String() string
 
-	// Description returns the DESC field of the underlying
+	// Description returns the DESC clause of the underlying
 	// definition type, else a zero string if undefined.
 	Description() string
 
@@ -531,12 +616,12 @@ type Definition interface {
 	// the contents and state of the receiver instance.
 	Map() DefinitionMap
 
-	// IsObsolete returns a Boolean value indicative of the
+	// Obsolete returns a Boolean value indicative of the
 	// condition of definition obsolescence. Executing this
 	// method upon an LDAPSyntax receiver will always return
 	// false, as the condition of obsolescence does not
 	// apply to this definition type.
-	IsObsolete() bool
+	Obsolete() bool
 
 	// Type returns the string literal name for the receiver
 	// instance. For example, if the receiver is an LDAPSyntax
@@ -583,6 +668,11 @@ type Definitions interface {
 
 	// IsZero returns a Boolean value indicative of nilness.
 	IsZero() bool
+
+	// Compliant returns a Boolean value indicative of all slices
+	// being in compliance with respect to relevant RFCs, such as
+	// RFC 4512.
+	Compliant() bool
 
 	// Contains returns a Boolean value indicative of whether the
 	// specified string value represents the RFC 4512 OID of a

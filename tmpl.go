@@ -41,6 +41,8 @@ const matchingRuleTmpl = `{{- $open:="( " -}}
 {{- $stxl:="SYNTAX " -}}
 {{- $numOID:=.Definition.OID -}}
 {{- $desc:=.Definition.Desc -}}
+{{- $obs:=(Obsolete) -}}
+{{- $obsl:="OBSOLETE" -}}
 {{- $sytx:=(Syntax) -}}
 {{- $open -}}{{- $numOID -}}
 {{if $name -}}
@@ -49,6 +51,9 @@ const matchingRuleTmpl = `{{- $open:="( " -}}
 {{if $desc -}}
 {{- $hindent -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
+{{if $obs -}}
+{{- $hindent -}}{{- $obsl -}}
+{{end -}}
 {{if $sytx -}}
 {{- $hindent -}}{{- $stxl -}} {{- $sytx -}}
 {{- end -}}
@@ -65,8 +70,8 @@ const attributeTypeTmpl = `{{- $open:="( " -}}
 {{- $eqll:="EQUALITY " -}}
 {{- $subl:="SUBSTR " -}}
 {{- $ordl:="ORDERING " -}}
-{{- $obs:=(IsObsolete) -}}
-{{- $collective:=(IsCollective) -}}
+{{- $obs:=(Obsolete) -}}
+{{- $collective:=(Collective) -}}
 {{- $single:=(IsSingleVal) -}}
 {{- $nousermod:=(IsNoUserMod) -}}
 {{- $usagel:="USAGE " -}}
@@ -132,8 +137,8 @@ const matchingRuleUseTmpl = `{{- $open:="( " -}}
 {{- $namel:="NAME " -}}
 {{- $appl:="APPLIES " -}}
 {{- $numOID:=.Definition.OID -}}
+{{- $applied:=Applied -}}
 {{- $desc:=.Definition.Desc -}}
-{{- $apps:=.Definition.Applies -}}
 {{- $open -}}{{- $numOID -}}
 {{if $name -}}
 {{- $hindent -}}{{- $namel -}}{{- $name -}}
@@ -141,9 +146,9 @@ const matchingRuleUseTmpl = `{{- $open:="( " -}}
 {{if $desc -}}
 {{- $hindent -}}{{- $descl -}}'{{- $desc -}}'
 {{- end -}}
-{{if $apps -}}
-{{- $hindent -}}{{- $appl -}} {{- $apps -}}
-{{- end -}}
+{{if $applied -}}
+{{- $hindent -}}{{- $appl -}}{{- $applied -}}
+{{end -}}
 {{if $extn -}}{{$extn}}{{- end -}}
 {{$close -}}`
 
@@ -151,7 +156,7 @@ const objectClassTmpl = `{{- $name:=.Definition.Name -}}
 {{- $open:="( " -}}
 {{- $close:=" )" -}}
 {{- $extn:=(ExtensionSet) -}}
-{{- $obs:=(IsObsolete) -}}
+{{- $obs:=(Obsolete) -}}
 {{- $hindent:=.HIndent -}}
 {{- $obsl:="OBSOLETE " -}}
 {{- $kind:=(Kind) -}}
@@ -193,7 +198,7 @@ const dITContentRuleTmpl = `{{- $name:=.Definition.Name -}}
 {{- $close:=" )" -}}
 {{- $extn:=(ExtensionSet) -}}
 {{- $hindent:=.HIndent -}}
-{{- $obs:=(IsObsolete) -}}
+{{- $obs:=(Obsolete) -}}
 {{- $obsl:="OBSOLETE " -}}
 {{- $namel:="NAME " -}}
 {{- $descl:="DESC " -}}
@@ -237,7 +242,7 @@ const nameFormTmpl = `{{- $name:=.Definition.Name -}}
 {{- $close:=" )" -}}
 {{- $extn:=(ExtensionSet) -}}
 {{- $hindent:=.HIndent -}}
-{{- $obs:=(IsObsolete) -}}
+{{- $obs:=(Obsolete) -}}
 {{- $obsl:="OBSOLETE " -}}
 {{- $namel:="NAME " -}}
 {{- $descl:="DESC " -}}
@@ -269,7 +274,7 @@ const nameFormTmpl = `{{- $name:=.Definition.Name -}}
 const dITStructureRuleTmpl = `{{- $name:=.Definition.Name -}}
 {{- $open:="( " -}}
 {{- $close:=" )" -}}
-{{- $obs:=(IsObsolete) -}}
+{{- $obs:=(Obsolete) -}}
 {{- $obsl:=" OBSOLETE " -}}
 {{- $extn:=(ExtensionSet) -}}
 {{- $hindent:=.HIndent -}}

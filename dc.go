@@ -1,8 +1,7 @@
 package schemax
 
 /*
-NewDITContentRules initializes a new [Collection] instance and
-casts it as a [DITContentRules] instance.
+NewDITContentRules initializes a new [DITContentRules] instance.
 */
 func NewDITContentRules() DITContentRules {
 	r := DITContentRules(newCollection(``))
@@ -33,15 +32,93 @@ func (r Schema) DITContentRules() (dcs DITContentRules) {
 	return
 }
 
+/*
+NewDITContentRule initializes and returns a new instance of [DITContentRule],
+ready for manual assembly.  This method need not be used when creating
+new [DITContentRule] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this method does NOT automatically push the return instance into
+the [Schema.DITContentRules] stack; this is left to the user.
+
+Unlike the package-level [NewDITContentRule] function, this method will
+automatically reference its originating [Schema] instance (the receiver).
+This negates the need for manual use of the [DITContentRule.SetSchema]
+method.
+
+This is the recommended means of creating a new [DITContentRule] instance
+wherever a single [Schema] is being used, which represents most use cases.
+*/
+func (r Schema) NewDITContentRule() DITContentRule {
+	return NewDITContentRule().SetSchema(r)
+}
+
+/*
+NewDITContentRule initializes and returns a new instance of [DITContentRule],
+ready for manual assembly.  This method need not be used when creating
+new [DITContentRule] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this function does not automatically reference the "parent" [Schema]
+instance, leaving it up to the user to invoke the [DITContentRule.SetSchema]
+method manually.
+
+When interacting with a single [Schema] instance, which represents most use
+cases, use of the [Schema.NewDITContentRule] method is PREFERRED over use of
+this package-level function.
+
+However certain migration efforts, schema audits and other such activities
+may require distinct associations of [DITContentRule] instances with specific
+[Schema] instances. Use of this function allows the user to specify the
+appropriate [Schema] instance at a later point for a specific instance of
+an [DITContentRule] instance.
+*/
+func NewDITContentRule() DITContentRule {
+	dc := DITContentRule{newDITContentRule()}
+	dc.dITContentRule.Extensions.setDefinition(dc)
+	return dc
+}
+
 func newDITContentRule() *dITContentRule {
 	return &dITContentRule{
 		Name:       NewName(),
 		Aux:        NewObjectClassOIDList(),
-		Must:       NewAttributeTypeOIDList(),
-		May:        NewAttributeTypeOIDList(),
-		Not:        NewAttributeTypeOIDList(),
+		Must:       NewAttributeTypeOIDList(`MUST`),
+		May:        NewAttributeTypeOIDList(`MAY`),
+		Not:        NewAttributeTypeOIDList(`NOT`),
 		Extensions: NewExtensions(),
 	}
+}
+
+/*
+SetData assigns x to the receiver instance. This is a general-use method and has no
+specific intent beyond convenience. The contents may be subsequently accessed via the
+[DITContentRule.Data] method.
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetData(x any) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setData(x)
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setData(x any) {
+	r.data = x
+}
+
+/*
+Data returns the underlying value (x) assigned to the receiver's data storage field. Data
+can be set within the receiver instance by way of the [DITContentRule.SetData] method.
+*/
+func (r DITContentRule) Data() (x any) {
+	if !r.IsZero() {
+		x = r.dITContentRule.data
+	}
+
+	return
 }
 
 /*
@@ -50,23 +127,37 @@ internal verification of certain actions without the need for user input of
 an instance of [Schema] manually at each juncture.
 
 Note that the underlying [Schema] instance is automatically set when creating
-instances of this type by way of parsing.
+instances of this type by way of parsing, as well as if the receiver instance
+was initialized using the [Schema.NewDITContentRule] method.
 
 This is a fluent method.
 */
-func (r *DITContentRule) SetSchema(schema Schema) *DITContentRule {
-	if r.IsZero() {
-		r.dITContentRule = newDITContentRule()
+func (r DITContentRule) SetSchema(schema Schema) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setSchema(schema)
 	}
-
-	r.dITContentRule.schema = schema
 
 	return r
 }
 
-func (r DITContentRule) schema() (s Schema) {
+func (r *dITContentRule) setSchema(schema Schema) {
+	r.schema = schema
+}
+
+/*
+Schema returns the [Schema] instance associated with the receiver instance.
+*/
+func (r DITContentRule) Schema() (s Schema) {
 	if !r.IsZero() {
-		s = r.dITContentRule.schema
+		s = r.dITContentRule.getSchema()
+	}
+
+	return
+}
+
+func (r *dITContentRule) getSchema() (s Schema) {
+	if r != nil {
+		s = r.schema
 	}
 
 	return
@@ -138,7 +229,7 @@ func (r DITContentRule) Map() (def DefinitionMap) {
 	def[`NUMERICOID`] = []string{r.NumericOID()}
 	def[`NAME`] = r.Names().List()
 	def[`DESC`] = []string{r.Description()}
-	def[`OBSOLETE`] = []string{bool2str(r.IsObsolete())}
+	def[`OBSOLETE`] = []string{bool2str(r.Obsolete())}
 	def[`AUX`] = auxs
 	def[`MUST`] = musts
 	def[`MAY`] = mays
@@ -160,6 +251,10 @@ func (r DITContentRule) Map() (def DefinitionMap) {
 Type returns the string literal "dITContentRule".
 */
 func (r DITContentRule) Type() string {
+	return r.dITContentRule.Type()
+}
+
+func (r dITContentRule) Type() string {
 	return `dITContentRule`
 }
 
@@ -190,8 +285,7 @@ func (r DITContentRules) String() string {
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r DITContentRules) IsZero() bool {
 	return r.cast().IsZero()
@@ -263,9 +357,9 @@ func (r DITContentRule) IsIdentifiedAs(id string) (ident bool) {
 }
 
 /*
-IsObsolete returns a Boolean value indicative of definition obsolescence.
+Obsolete returns a Boolean value indicative of definition obsolescence.
 */
-func (r DITContentRule) IsObsolete() (o bool) {
+func (r DITContentRule) Obsolete() (o bool) {
 	if !r.IsZero() {
 		o = r.dITContentRule.Obsolete
 	}
@@ -301,6 +395,275 @@ func (r DITContentRule) Aux() (aux ObjectClasses) {
 }
 
 /*
+SetAux assigns the provided input [ObjectClass] instance(s) -- which must
+be AUXILIARY via the [AuxiliaryKind] constant -- to the receiver's AUX clause.
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetAux(m ...any) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setAux(m...)
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setAux(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var oc ObjectClass
+		switch tv := m[i].(type) {
+		case string:
+			oc = r.schema.ObjectClasses().get(tv)
+		case ObjectClass:
+			oc = tv
+		default:
+			err = ErrInvalidType
+		}
+
+		if err == nil && oc.Kind() == AuxiliaryKind {
+			r.Aux.Push(oc)
+		}
+	}
+}
+
+/*
+Compliant returns a Boolean value indicative of every [DITContentRule]
+returning a compliant response from the [DITContentRule.Compliant] method.
+*/
+func (r DITContentRules) Compliant() bool {
+	for i := 0; i < r.Len(); i++ {
+		if !r.Index(i).Compliant() {
+			return false
+		}
+	}
+
+	return true
+}
+
+/*
+Compliant returns a Boolean value indicative of the receiver being fully
+compliant per the required clauses of § 4.1.6 of RFC 4512:
+
+  - Numeric OID must relate to a predefined [ObjectClass] in the associated [Schema] instance
+  - [ObjectClass] referenced by OID must be STRUCTURAL
+  - [ObjectClass] referenced by OID must be COMPLIANT itself
+*/
+func (r DITContentRule) Compliant() bool {
+	soc := r.schema.ObjectClasses().get(r.NumericOID())
+	if soc.IsZero() {
+		// structural OC not found in associated schema,
+		// OR was unspecified.
+		return false
+	}
+
+	if !soc.Compliant() {
+		// referenced structural OC MUST be valid itself.
+		return false
+	}
+
+	// verify all MUST clause members are valid
+	if !r.Must().Compliant() {
+		return false
+	}
+
+	// verify all MAY clause members are valid
+	if !r.May().Compliant() {
+		return false
+	}
+
+	// verify all NOT clause members are valid
+	if !r.Not().Compliant() {
+		return false
+	}
+
+	// verify all AUX clause members are valid
+	var aux ObjectClasses = r.Aux()
+	for i := 0; i < aux.Len(); i++ {
+		aoc := aux.Index(i)
+		if !aoc.Compliant() || aoc.Kind() != AuxiliaryKind {
+			return false
+		}
+	}
+
+	// OC MUST be STRUCTURAL
+	return soc.Kind() == StructuralKind
+}
+
+/*
+Parse returns an error following an attempt to parse raw into the receiver
+instance.
+
+Note that the receiver MUST possess a [Schema] reference prior to the execution
+of this method.
+
+Also note that successful execution of this method does NOT automatically push
+the receiver into any [MatchingRules] stack, nor does it automatically execute
+the [MatchingRule.SetStringer] method, leaving these tasks to the user.  If the
+automatic handling of these tasks is desired, see the [Schema.ParseMatchingRule]
+method as an alternative.
+*/
+func (r DITContentRule) Parse(raw string) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+		return
+	}
+
+	if r.getSchema().IsZero() {
+		err = ErrNilSchemaRef
+		return
+	}
+
+	err = r.dITContentRule.parse(raw)
+
+	return
+}
+
+func (r *dITContentRule) parse(raw string) error {
+	// parseLS wraps the antlr4512 DITContentRule parser/lexer
+	mp, err := parseDC(raw)
+	if err == nil {
+		// We received the parsed data from ANTLR (mp).
+		// Now we need to marshal it into the receiver.
+		var def DITContentRule
+		if def, err = r.schema.marshalDC(mp); err == nil {
+			err = ErrDefNonCompliant
+			if def.Compliant() {
+				_r := DITContentRule{r}
+				_r.replace(def)
+				err = nil
+			}
+		}
+	}
+
+	return err
+}
+
+/*
+SetName assigns the provided names to the receiver instance.
+
+Name instances must conform to RFC 4512 descriptor format but
+need not be quoted.
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetName(x ...string) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setName(x...)
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setName(x ...string) {
+	for i := 0; i < len(x); i++ {
+		r.Name.Push(x[i])
+	}
+}
+
+/*
+SetObsolete sets the receiver instance to OBSOLETE if not already set. Note that obsolescence cannot be unset.
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetObsolete() DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setObsolete()
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setObsolete() {
+	if !r.Obsolete {
+		r.Obsolete = true
+	}
+}
+
+/*
+SetDescription parses desc into the underlying DESC clause within the
+receiver instance.  Although a RFC 4512-compliant QuotedString is
+required, the outer single-quotes need not be specified literally.
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetDescription(desc string) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setDescription(desc)
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setDescription(desc string) {
+	if len(desc) < 3 {
+		return
+	}
+
+	if rune(desc[0]) == rune(39) {
+		desc = desc[1:]
+	}
+
+	if rune(desc[len(desc)-1]) == rune(39) {
+		desc = desc[:len(desc)-1]
+	}
+
+	r.Desc = desc
+
+	return
+}
+
+/*
+SetExtension assigns key x to value xstrs within the receiver's underlying
+[Extensions] instance.
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetExtension(x string, xstrs ...string) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setExtension(x, xstrs...)
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setExtension(x string, xstrs ...string) {
+	r.Extensions.Set(x, xstrs...)
+}
+
+/*
+SetNumericOID allows the manual assignment of a numeric OID to the
+receiver instance if the following are all true:
+
+  - The input id value is a syntactically valid numeric OID
+  - The receiver does not already possess a numeric OID
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetNumericOID(id string) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setNumericOID(id)
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setNumericOID(id string) {
+	if isNumericOID(id) {
+		// only set an OID when the receiver
+		// lacks one (iow: no modifications)
+		if r.OID.IsZero() {
+			oc := r.schema.ObjectClasses().Get(id)
+			if oc.Kind() == StructuralKind {
+				r.OID = oc
+			}
+		}
+	}
+
+	return
+}
+
+/*
 Must returns an [AttributeTypes] containing zero (0) or more required
 [AttributeType] definitions for use within entries governed by this rule.
 */
@@ -310,6 +673,39 @@ func (r DITContentRule) Must() (must AttributeTypes) {
 	}
 
 	return
+}
+
+/*
+SetMust assigns the provided input [AttributeType] instance(s) to the
+receiver's MUST clause.
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetMust(m ...any) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setMust(m...)
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setMust(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var at AttributeType
+		switch tv := m[i].(type) {
+		case string:
+			at = r.schema.AttributeTypes().get(tv)
+		case AttributeType:
+			at = tv
+		default:
+			err = ErrInvalidType
+		}
+
+		if err == nil && !at.IsZero() {
+			r.Must.Push(at)
+		}
+	}
 }
 
 /*
@@ -325,6 +721,39 @@ func (r DITContentRule) May() (may AttributeTypes) {
 }
 
 /*
+SetMay assigns the provided input [AttributeType] instance(s) to the
+receiver's MAY clause.
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetMay(m ...any) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setMay(m...)
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setMay(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var at AttributeType
+		switch tv := m[i].(type) {
+		case string:
+			at = r.schema.AttributeTypes().get(tv)
+		case AttributeType:
+			at = tv
+		default:
+			err = ErrInvalidType
+		}
+
+		if err == nil && !at.IsZero() {
+			r.May.Push(at)
+		}
+	}
+}
+
+/*
 Not returns an AttributeTypes containing zero (0) or more [AttributeType]
 definitions disallowed for use within entries governed by this rule.
 */
@@ -337,6 +766,62 @@ func (r DITContentRule) Not() (not AttributeTypes) {
 }
 
 /*
+SetNot assigns the provided input [AttributeType] instance(s) to the
+receiver's NOT clause.
+
+This is a fluent method.
+*/
+func (r DITContentRule) SetNot(m ...any) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setNot(m...)
+	}
+
+	return r
+}
+
+func (r *dITContentRule) setNot(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var at AttributeType
+		switch tv := m[i].(type) {
+		case string:
+			at = r.schema.AttributeTypes().get(tv)
+		case AttributeType:
+			at = tv
+		default:
+			err = ErrInvalidType
+		}
+
+		if err == nil && !at.IsZero() {
+			r.Not.Push(at)
+		}
+	}
+}
+
+/*
+SetStringer allows the assignment of an individual [Stringer] function or
+method to all [DITContentRule] slices within the receiver stack instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite all
+preexisting stringer functions with the internal closure default, which is
+based upon a one-time use of the [text/template] package by all receiver
+slice instances.
+
+Input of a non-nil closure function value will overwrite all preexisting
+stringers.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r DITContentRules) SetStringer(function ...Stringer) DITContentRules {
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		def.SetStringer(function...)
+	}
+
+	return r
+}
+
+/*
 SetStringer allows the assignment of an individual "stringer" function
 or method to the receiver instance.
 
@@ -346,16 +831,34 @@ for the receiver instance.
 Should the input stringer value be nil, the [text/template.Template]
 value will be used automatically going forward.
 
-This is a fluent method.
+This is a fluent method and may be used multiple times.
 */
-func (r *DITContentRule) SetStringer(stringer func() string) DITContentRule {
-	if r.IsZero() {
-		r.dITContentRule = newDITContentRule()
+func (r DITContentRule) SetStringer(function ...Stringer) DITContentRule {
+	if !r.IsZero() {
+		r.dITContentRule.setStringer(function...)
 	}
 
-	r.dITContentRule.stringer = stringer
+	return r
+}
 
-	return *r
+func (r *dITContentRule) setStringer(function ...Stringer) {
+	var stringer Stringer
+	if len(function) > 0 {
+		stringer = function[0]
+	}
+
+	if stringer == nil {
+		str, err := r.prepareString() // perform one-time text/template op
+		if err == nil {
+			// Save the stringer
+			r.stringer = func() string {
+				// Return a preserved value.
+				return str
+			}
+		}
+	} else {
+		r.stringer = stringer
+	}
 }
 
 /*
@@ -366,36 +869,60 @@ func (r DITContentRule) String() (dcr string) {
 	if !r.IsZero() {
 		if r.dITContentRule.stringer != nil {
 			dcr = r.dITContentRule.stringer()
-		} else {
-			dcr = r.dITContentRule.s
 		}
 	}
 
 	return
 }
 
-func (r *dITContentRule) prepareString() (err error) {
+func (r *dITContentRule) prepareString() (str string, err error) {
 	buf := newBuf()
-	r.t = newTemplate(`dITContentRule`).
+	// Create a new template instance bearing the "Type" value
+	// string literal as its name.  Declare custom templating
+	// functions enveloped within a template.FuncMap instance.
+	t := newTemplate(r.Type()).
 		Funcs(funcMap(map[string]any{
-			`ExtensionSet`:  r.Extensions.tmplFunc,
+			// ExtensionSet used by all definitions for
+			// "X-" extensions (e.g.: X-ORIGIN, X-SUBSTR)
+			`ExtensionSet`: r.Extensions.tmplFunc,
+			// StructuralOID refers to the OID shared with the
+			// structural OC upon which this rule is based
 			`StructuralOID`: r.OID.NumericOID,
-			`AuxLen`:        r.Aux.len,
-			`MayLen`:        r.May.len,
-			`MustLen`:       r.Must.len,
-			`NotLen`:        r.Not.len,
-			`IsObsolete`:    func() bool { return r.Obsolete },
+			// AuxLen refers to the number of AUXILIARY ObjectClasses
+			// present within the rule's AUX clause.
+			`AuxLen`: r.Aux.len,
+			// MayLen refers to the number of AttributeTypes
+			// present within the rule's MAY clause.
+			`MayLen`: r.May.len,
+			// MustLen refers to the number of AttributeTypes
+			// present within the rule's MUST clause.
+			`MustLen`: r.Must.len,
+			// NotLen refers to the number of AttributeTypes
+			// present within the rule's NOT clause.
+			`NotLen`: r.Not.len,
+			// Obsolete indicates definition obsolescence
+			// in the form of a Boolean value.
+			`Obsolete`: func() bool { return r.Obsolete },
 		}))
 
-	if r.t, err = r.t.Parse(dITContentRuleTmpl); err == nil {
-		if err = r.t.Execute(buf, struct {
+	// Parse raw template into *template.Template instance
+	// and ensure the raw directives represent legal, well
+	// formed and error-free templating instructions.
+	if t, err = t.Parse(dITContentRuleTmpl); err == nil {
+		// Execute the now-verified template, funnel our
+		// needed objects and settings values into an
+		// anonymous struct instance.
+		if err = t.Execute(buf, struct {
 			Definition *dITContentRule
 			HIndent    string
 		}{
 			Definition: r,
 			HIndent:    hindent(),
 		}); err == nil {
-			r.s = buf.String()
+			// Dump our templated output from
+			// the *bytes.Buffer instance into
+			// the return (string) value.
+			str = buf.String()
 		}
 	}
 
@@ -414,10 +941,10 @@ func (r DITContentRule) Name() (id string) {
 }
 
 /*
-Names returns the underlying instance of [Name] from within
+Names returns the underlying instance of [QuotedDescriptorList] from within
 the receiver.
 */
-func (r DITContentRule) Names() (names Name) {
+func (r DITContentRule) Names() (names QuotedDescriptorList) {
 	return r.dITContentRule.Name
 }
 
@@ -457,19 +984,23 @@ func (r DITContentRules) Push(dc any) error {
 	return r.push(dc)
 }
 
-func (r DITContentRules) push(dc any) (err error) {
-	err = errorf("%T instance is nil; cannot append to %T", dc, r)
-	if dc != nil {
-		r.cast().Push(dc)
-		err = nil
+func (r DITContentRules) push(x any) (err error) {
+	switch tv := x.(type) {
+	case DITContentRule:
+		if !tv.Compliant() {
+			err = ErrDefNonCompliant
+			break
+		}
+		r.cast().Push(tv)
+	default:
+		err = ErrInvalidType
 	}
 
 	return
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r DITContentRule) IsZero() bool {
 	return r.dITContentRule == nil
@@ -517,19 +1048,6 @@ func (r DITContentRules) get(id string) (dc DITContentRule) {
 	return
 }
 
-func (r *dITContentRule) check() (err error) {
-	if r == nil {
-		err = errorf("%T is nil")
-		return
-	}
-
-	if len(r.OID.NumericOID()) == 0 {
-		err = errorf("%T lacks an OID", r)
-	}
-
-	return
-}
-
 // stackage closure func - do not exec directly.
 func (r DITContentRules) canPush(x ...any) (err error) {
 	if len(x) == 0 {
@@ -537,15 +1055,55 @@ func (r DITContentRules) canPush(x ...any) (err error) {
 	}
 
 	for i := 0; i < len(x) && err == nil; i++ {
-		instance := x[i]
-		err = errorf("Type assertion for %T has failed", instance)
-		if dc, ok := instance.(DITContentRule); ok && !dc.IsZero() {
-			err = errorf("%T %s not unique", dc, dc.NumericOID())
-			if tst := r.get(dc.NumericOID()); tst.IsZero() {
-				err = nil
-			}
+		dc, ok := x[i].(DITContentRule)
+		if !ok || dc.IsZero() {
+			err = ErrTypeAssert
+		} else if tst := r.get(dc.NumericOID()); !tst.IsZero() {
+			err = mkerr(ErrNotUnique.Error() + ": " + dc.Type() + `, ` + dc.NumericOID())
 		}
 	}
 
 	return
+}
+
+/*
+Replace overrides the receiver with x. Both must bear an identical
+numeric OID and x MUST be compliant.
+
+Note that the relevant [Schema] instance must be configured to allow
+definition override by way of the [AllowOverride] bit setting.  See
+the [Schema.Options] method for a means of accessing the settings
+value.
+
+Note that this method does not reallocate a new pointer instance
+within the [DITContentRule] envelope type, thus all references to the
+receiver instance within various stacks will be preserved.
+
+This is a fluent method.
+*/
+func (r DITContentRule) Replace(x DITContentRule) DITContentRule {
+	if r.NumericOID() != x.NumericOID() {
+		return r
+	}
+	r.replace(x)
+
+	return r
+}
+
+func (r DITContentRule) replace(x DITContentRule) {
+	if x.Compliant() && !r.IsZero() {
+		r.dITContentRule.OID = x.dITContentRule.OID
+		r.dITContentRule.Name = x.dITContentRule.Name
+		r.dITContentRule.Desc = x.dITContentRule.Desc
+		r.dITContentRule.Obsolete = x.dITContentRule.Obsolete
+		r.dITContentRule.Must = x.dITContentRule.Must
+		r.dITContentRule.May = x.dITContentRule.May
+		r.dITContentRule.Not = x.dITContentRule.Not
+		r.dITContentRule.Aux = x.dITContentRule.Aux
+		r.dITContentRule.Extensions = x.dITContentRule.Extensions
+		r.dITContentRule.data = x.dITContentRule.data
+		r.dITContentRule.schema = x.dITContentRule.schema
+		r.dITContentRule.stringer = x.dITContentRule.stringer
+		r.dITContentRule.data = x.dITContentRule.data
+	}
 }

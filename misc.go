@@ -1,29 +1,29 @@
 package schemax
 
+/*
+IsNumericOID wraps [objectid.NewDotNotation] to parse input value id in
+order to assess its validity as an ASN.1 OBJECT IDENTIFIER in dot form,
+e.g.:
+
+	1.3.6.1.4.1.56521.999
+
+The qualifications are as follows:
+
+  - Must only consist of digits (arcs) and dot (ASCII FULL STOP) delimiters
+  - Must begin with a root arc: 0, 1 or 2
+  - Second-level arcs below root arcs 0 and 1 cannot be greater than 39
+  - Cannot end with a dot
+  - Dots cannot be contiguous
+  - Though arcs are unbounded, no arc may ever be negative
+  - OID must consist of at least two (2) arcs
+*/
+func IsNumericOID(id string) bool {
+	return isNumericOID(id)
+}
+
 func isNumericOID(id string) bool {
-	if len(id) == 0 {
-		return false
-	}
-
-	if !('0' <= rune(id[0]) && rune(id[0]) <= '2') || id[len(id)-1] == '.' {
-		return false
-	}
-
-	var last rune
-	for _, c := range id {
-		switch {
-		case c == '.':
-			if last == c {
-				return false
-			}
-			last = '.'
-		case isDigit(c):
-			last = c
-			continue
-		}
-	}
-
-	return true
+	_, err := parseDot(id)
+	return err == nil
 }
 
 func isAlnum(x rune) bool {
@@ -39,18 +39,18 @@ func bool2str(x bool) string {
 }
 
 /*
-IsDescriptor scans the input string val and judges whether
-it qualifies a descriptor, in that all of the following
+IsDescriptor scans the input string val and judges whether it
+qualifies as an RFC 4512 "descr", in that all of the following
 evaluate as true:
 
-  - non-zero in length
-  - begins with an alphabetical character
-  - ends in an alphanumeric character
-  - contains only alphanumeric characters or hyphens
-  - no contiguous hyphens
+  - Non-zero in length
+  - Begins with an alphabetical character
+  - Ends in an alphanumeric character
+  - Contains only alphanumeric characters or hyphens
+  - No contiguous hyphens
 
-This function is an alternative to engaging the antlr4512
-parser.
+This function is an alternative to engaging the [antlr4512]
+parsing subsystem.
 */
 func IsDescriptor(val string) bool {
 	return isDescriptor(val)

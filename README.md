@@ -1,8 +1,6 @@
 # go-schemax
 
-[![RFC 4512](https://img.shields.io/badge/RFC-4512-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4512) [![RFC4517](https://img.shields.io/badge/RFC-4517-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4517) [![RFC4519](https://img.shields.io/badge/RFC-4519-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4519) [![RFC4523](https://img.shields.io/badge/RFC-4523-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4523) [![RFC4524](https://img.shields.io/badge/RFC-4524-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4524) [![RFC4530](https://img.shields.io/badge/RFC-4530-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4530) [![RFC2307](https://img.shields.io/badge/RFC-2307-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2307) [![RFC2798](https://img.shields.io/badge/RFC-2798-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2798) [![RFC3045](https://img.shields.io/badge/RFC-3045-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3045) [![RFC3671](https://img.shields.io/badge/RFC-3671-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3671) [![RFC3672](https://img.shields.io/badge/RFC-3672-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3672)
-
-Package schemax incorporates a powerful [RFC4512](https://www.rfc-editor.org/rfc/rfc4512.txt) parser, wrapped with convenient features for creating and interrogating directory schemas.
+Package schemax incorporates a powerful [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) parser, wrapped with convenient features for creating and interrogating directory schemas.
 
 Requires Go version 1.21 or higher.
 
@@ -11,12 +9,6 @@ Requires Go version 1.21 or higher.
 ## License
 
 The schemax package is available under the terms of the MIT license.  For further details, see the LICENSE file within the root of the repository.
-
-## Schema Manifest
-
-Definitions from select RFCs -- denoted by the RFC badges above -- are available for initialization within instances of `Schema`.  These are known as "built-in" definitions within the context of this package.
-
-Users may introduce definitions from other sources -- official or not -- using the various `Parse<...>` methods extended through various types within this package.
 
 ## Releases
 
@@ -41,13 +33,13 @@ Therefore, the new build of schemax is of a simpler fundamental design thanks to
 
 The (ANTLR) parsing subsystem imported by the aforementioned sister package is flexible in terms of the following:
 
-  - Presence of header, footer and right-pane Bash comments surrounding a given definition is acceptable
+  - Presence of header, footer and line-terminating Bash comments surrounding a given definition is acceptable
     - Note that comments are entirely discarded by ANTLR and are unavailable through the imported sister package
   - Definition prefixing allows variations of the standard [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) "labels" during file and directory parsing
     - "`attributeTypes`", "`attributeType`" and other variations are permitted for `AttributeType` definitions
   - Definition delimitation -- using colon (`:`), equals (`=`) or whitespace (` `, `\t`) of any sensible combination -- are permitted for the purpose of separating a definition prefix (label) from its definition statement.
     - "attributeTypes: ...", "attributeType=...", "attributeType ..." are valid expressions
-  - Multiple files are joined using ASCII #10 (newline) during directory parsing
+  - Multiple files are joined using an [ASCII](## "American Standard Code for Information Interchange") [#10](## '0x0a') during directory parsing
     - Users need not worry about adding a trailing newline to each file to be read; schemax will do this for you if needed
 
 ## File and Directory Readers
@@ -93,19 +85,19 @@ The general rule-of-thumb is suggests that if the `ls -l` Bash command _consiste
 
 ## The Schema Itself
 
-The Schema type defined within this package is a [`stackage.Stack`](https://pkg.go.dev/github.com/JesseCoretta/go-stackage#Stack) derivative type.  An instance of a Schema can manifest in any of the following manners:
+The `Schema` type defined within this package is a [`stackage.Stack`](https://pkg.go.dev/github.com/JesseCoretta/go-stackage#Stack) derivative type.  An instance of a `Schema` can manifest in any of the following manners:
 
-  - As an empty (unpopulated) Schema, initialized by way of the `NewEmptySchema` function
-  - As a basic (minimally populated) Schema, initialized by way of the `NewBasicSchema` function
-  - As a complete (fully populated) Schema, initialized by way of the `NewSchema` function
+  - As an empty (unpopulated) `Schema`, initialized by way of the `NewEmptySchema` function
+  - As a basic (minimally populated) `Schema`, initialized by way of the `NewBasicSchema` function
+  - As a complete (fully populated) `Schema`, initialized by way of the `NewSchema` function
 
 There are certain scenarios which call for one of the above initialization procedures:
 
-  - An empty schema is ideal for LDAP professionals, and allows for the creation of a Schema of particularly narrow focus for R&D, testing or product development
-  - A basic schema resembles the foundational (starting) Schema context observed in most directory server products, in that it comes "pre-loaded" with official LDAPSyntax and MatchingRule definitions -- but few to no AttributeTypes -- making it a most suitable empty canvas upon which a new Schema may be devised from scratch
-  - A full schema is the most obvious choice for "Quick Start" scenarios, in that a Schema is produced containing a very large portion of the standard AttributeType and ObjectClass definitions used in the wild by most (if not all) directory products
+  - An empty `Schema` is ideal for LDAP professionals, and allows for the creation of a `Schema` of particularly narrow focus for R&D, testing or product development
+  - A basic `Schema` resembles the foundational (starting) `Schema` context observed in most directory server products, in that it comes "pre-loaded" with official `LDAPSyntax` and `MatchingRule` definitions -- but few to no `AttributeTypes` -- making it a most suitable empty canvas upon which a new `Schema` may be devised from scratch
+  - A full `Schema` is the most obvious choice for "Quick Start" scenarios, in that a `Schema` is produced containing a very large portion of the standard `AttributeType` and `ObjectClass` definitions used in the wild by most (if not all) directory products
 
-Regardless of the content present, a given Schema is capable of storing definitions from all eight (8) RFC 4512 "categories".  These are known as "collections", and are stored in nested [`stackage.Stack`](https://pkg.go.dev/github.com/JesseCoretta/go-stackage#Stack) derivative types, accessed using any of the following methods:
+Regardless of the content present, a given `Schema` is capable of storing definitions from all eight (8) [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) "categories".  These are known as "collections", and are stored in nested [`stackage.Stack`](https://pkg.go.dev/github.com/JesseCoretta/go-stackage#Stack) derivative types, accessed using any of the following methods:
 
   - `Schema.LDAPSyntaxes`
   - `Schema.MatchingRules`
@@ -116,8 +108,74 @@ Regardless of the content present, a given Schema is capable of storing definiti
   - `Schema.NameForms`
   - `Schema.DITStructureRules`
 
-Definition instances produced by way of parsing -- namely using one of the `Parse<Type>` functions -- will automatically gain internal access to the Schema instance in which it is stored.
+Definition instances produced by way of parsing -- namely using one of the `Parse<Type>` functions -- will automatically gain internal access to the `Schema` instance in which it is stored.
 
-However, definitions produced manually by way of the various `Set<Item>` methods extended through types defined within this package will require manual execution of the `SetSchema` method, using the intended Schema instance as the input argument.  Ideally this should occur early in the definition composition.
+However, definitions produced manually by way of the various `Set<Item>` methods extended through types defined within this package will require manual execution of the `SetSchema` method, using the intended `Schema` instance as the input argument.  Ideally this should occur early in the definition composition.
 
-In either case, this internal reference is used for seamless verification of any reference, such as an LDAPSyntax, when introduced to a given type instance.  This ensures only well-formed definitions are created.
+In either case, this internal reference is used for seamless verification of any reference, such as an `LDAPSyntax`, when introduced to a given type instance. This ensures only well-formed definitions are created.
+
+## Attribute Syntax Qualification
+
+This package supports a function/method closure implementation through the `SyntaxQualifier` type. It is based upon the following signature:
+
+	`func(any) error`
+
+Users author their own closure using this signature, and assign the instance to an appropriate instance of `AttributeType`. Once assigned, a user may test the validity of a value at will. Consider the following example:
+
+	var def AttributeType	// assume pre-populated or looked-up type
+	var val string = `myValue`
+
+	// Assign user-authored closure func to our
+	// new definition
+	def.SetSyntaxQualifier(func(any) error {                                   
+                .. custom syntax checking code ..                       
+                return err                                              
+        })
+
+	// Finally, test a value!
+	if err := def.CheckValueSyntax(val); err != nil {
+		.. handle error ..
+		return
+	}
+	// nil err indicates valid value syntax per definition
+
+The `SetSyntaxQualifier` and `CheckValueSyntax` methods are available for `AttributeType` instances only and are not accessible through the `Definition` interface type due to their fluent signature.
+
+This feature is ideal for the following scenarios:
+
+  - LDAP product maintainers or vendors needing to verify complex values, such as those assigned to a `subtreeSpecification` instance, according to a precise [ASN.1](## "Abstract Syntax Notation One") definition, or [ABNF](## "Augmented Backus Naur Form") production
+  - LDAP administrators or analysts needing to verify composition of string values according to internal company data policies (e.g.: spelling of roles, abbreviation handling, etc.)
+
+## Fluent Methods
+
+This package extends fluent methods that are write-based in nature. Typically these methods are prefaced with `Set` or `Push`.  This means such methods may be "chained" together using the standard Go command "." delimiter.
+
+Fluency does not extend to methods that are interrogative in nature, in that they return `bool`, `string` or `error` values.  Fluency also precludes use of the `Registration` interface due to unique return signatures.
+
+## String Representation Closure
+
+This package supports introduction of user-authored closure functions or methods for the purpose of influencing the return of a definition's string representation through the `Stringer` type. It is based upon the following signature:
+
+	`func() string`
+
+This form of closure support is ideal when a definition needs to be represented in a drastically different manner, such as when creating a [CSV](## "Comma-Separated Values")-based manifest of definitions.
+
+The `SetStringer` (fluent) method available for all definition types is used to invoke default or custom closure operations with ease. This form of string representation support may also be applied on the stack level.  For example, the `AttributeTypes` stack extends a similar `SetStringer` method, allowing the desired closure value to be applied to all `AttributeType` slice instances present.
+
+## Built-In Definitions
+
+The following table describes the contents and coverage of the so-called "built-in" schema definitions, all of which are sourced from recognized RFCs only.
+
+| DOCUMENT | [LS](## "LDAP Syntaxes")  | [MR](## "Matching Rules")  | [AT](## "Attribute Types")  | [OC](## "Object Classes")  | [DC](## "DIT Content Rules")  | [NF](## "Name Forms")  | [DS](## "DIT Structure Rules")  |
+| -------- | :----: | :----: | :----: | :----: | :----: | :----: | :----:  |
+| [![RFC 2307](https://img.shields.io/badge/RFC-2307-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2307)  |  ✅  |  ✅  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 2798](https://img.shields.io/badge/RFC-2798-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2798)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 3045](https://img.shields.io/badge/RFC-3045-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3045)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 3671](https://img.shields.io/badge/RFC-3671-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3671)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 3672](https://img.shields.io/badge/RFC-3672-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3672)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4512](https://img.shields.io/badge/RFC-4512-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4512)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4517](https://img.shields.io/badge/RFC-4517-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4517)  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4519](https://img.shields.io/badge/RFC-4519-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4519)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4523](https://img.shields.io/badge/RFC-4523-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4523)  |  ✅  |  ✅  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4524](https://img.shields.io/badge/RFC-4524-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4524)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4530](https://img.shields.io/badge/RFC-4530-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4530)  |  ✅  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |

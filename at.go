@@ -1,13 +1,50 @@
 package schemax
 
 /*
-NewAttributeType initializes and returns a new instance of
-[AttributeType], ready for manual population.
+NewAttributeType initializes and returns a new instance of [AttributeType],
+ready for manual assembly.  This method need not be used when creating
+new [AttributeType] instances by way of parsing, as that is handled on an
+internal basis.
 
-This function need not be used when parsing is engaged.
+Use of this method does NOT automatically push the return instance into
+the [Schema.AttributeTypes] stack; this is left to the user.
+
+Unlike the package-level [NewAttributeType] function, this method will
+automatically reference its originating [Schema] instance (the receiver).
+This negates the need for manual use of the [AttributeType.SetSchema]
+method.
+
+This is the recommended means of creating a new [AttributeType] instance
+wherever a single [Schema] is being used, which represents most use cases.
+*/
+func (r Schema) NewAttributeType() AttributeType {
+	return NewAttributeType().SetSchema(r)
+}
+
+/*
+NewAttributeType initializes and returns a new instance of [AttributeType],
+ready for manual assembly.  This method need not be used when creating
+new [AttributeType] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this function does not automatically reference the "parent" [Schema]
+instance, leaving it up to the user to invoke the [AttributeType.SetSchema]
+method manually.
+
+When interacting with a single [Schema] instance, which represents most use
+cases, use of the [Schema.NewAttributeType] method is PREFERRED over use of
+this package-level function.
+
+However certain migration efforts, schema audits and other such activities
+may require distinct associations of [AttributeType] instances with specific
+[Schema] instances. Use of this function allows the user to specify the
+appropriate [Schema] instance at a later point for a specific instance of
+an [AttributeType] instance.
 */
 func NewAttributeType() AttributeType {
-	return AttributeType{newAttributeType()}
+	at := AttributeType{newAttributeType()}
+	at.attributeType.Extensions.setDefinition(at)
+	return at
 }
 
 /*
@@ -22,23 +59,221 @@ func newAttributeType() *attributeType {
 }
 
 /*
+Parse returns an error following an attempt to parse raw into the receiver
+instance.
+
+Note that the receiver MUST possess a [Schema] reference prior to the execution
+of this method.
+
+Also note that successful execution of this method does NOT automatically push
+the receiver into any [AttributeTypes] stack, nor does it automatically execute
+the [AttributeType.SetStringer] method, leaving these tasks to the user.  If the
+automatic handling of these tasks is desired, see the [Schema.ParseAttributeType]
+method as an alternative.
+*/
+func (r AttributeType) Parse(raw string) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+		return
+	}
+
+	if r.getSchema().IsZero() {
+		err = ErrNilSchemaRef
+		return
+	}
+
+	err = r.attributeType.parse(raw)
+
+	return
+}
+
+func (r *attributeType) parse(raw string) error {
+	// parseAT wraps the antlr4512 AttributeType parser/lexer
+	mp, err := parseAT(raw)
+	if err == nil {
+		// We received the parsed data from ANTLR (mp).
+		// Now we need to marshal it into the receiver.
+		var def AttributeType
+		if def, err = r.schema.marshalAT(mp); err == nil {
+			err = ErrDefNonCompliant
+			if def.Compliant() {
+				_r := AttributeType{r}
+				_r.replace(def)
+				err = nil
+			}
+		}
+	}
+
+	return err
+}
+
+/*
+Replace overrides the receiver with x. Both must bear an identical
+numeric OID and x MUST be compliant.
+
+Note that the relevant [Schema] instance must be configured to allow
+definition override by way of the [AllowOverride] bit setting.  See
+the [Schema.Options] method for a means of accessing the settings
+value.
+
+Note that this method does not reallocate a new pointer instance
+within the [AttributeType] envelope type, thus all references to the
+receiver instance within various stacks will be preserved.
+
+This is a fluent method.
+*/
+func (r AttributeType) Replace(x AttributeType) AttributeType {
+	if r.NumericOID() != x.NumericOID() {
+		return r
+	}
+	r.replace(x)
+
+	return r
+}
+
+func (r AttributeType) replace(x AttributeType) {
+	if x.Compliant() && !r.IsZero() {
+		r.attributeType.OID = x.attributeType.OID
+		r.attributeType.Macro = x.attributeType.Macro
+		r.attributeType.Name = x.attributeType.Name
+		r.attributeType.Desc = x.attributeType.Desc
+		r.attributeType.Obsolete = x.attributeType.Obsolete
+		r.attributeType.MUB = x.attributeType.MUB
+		r.attributeType.Single = x.attributeType.Single
+		r.attributeType.Collective = x.attributeType.Collective
+		r.attributeType.NoUserMod = x.attributeType.NoUserMod
+		r.attributeType.SuperType = x.attributeType.SuperType
+		r.attributeType.Equality = x.attributeType.Equality
+		r.attributeType.Substring = x.attributeType.Substring
+		r.attributeType.Ordering = x.attributeType.Ordering
+		r.attributeType.Syntax = x.attributeType.Syntax
+		r.attributeType.Usage = x.attributeType.Usage
+		r.attributeType.Extensions = x.attributeType.Extensions
+		r.attributeType.data = x.attributeType.data
+		r.attributeType.schema = x.attributeType.schema
+		r.attributeType.stringer = x.attributeType.stringer
+		r.attributeType.synQual = x.attributeType.synQual
+		r.attributeType.data = x.attributeType.data
+	}
+}
+
+/*
 SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
 internal verification of certain actions without the need for user input of
 an instance of [Schema] manually at each juncture.
 
 Note that the underlying [Schema] instance is automatically set when creating
-instances of this type by way of parsing.
+instances of this type by way of parsing, as well as if the receiver instance
+was initialized using the [Schema.NewAttributeType] method.
 
 This is a fluent method.
 */
-func (r *AttributeType) SetSchema(schema Schema) *AttributeType {
-	if r.IsZero() {
-		r.attributeType = newAttributeType()
+func (r AttributeType) SetSchema(schema Schema) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setSchema(schema)
 	}
 
-	r.attributeType.schema = schema
+	return r
+}
+
+func (r *attributeType) setSchema(schema Schema) {
+	r.schema = schema
+}
+
+/*
+Schema returns the [Schema] instance associated with the receiver instance.
+*/
+func (r AttributeType) Schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.attributeType.getSchema()
+	}
+
+	return
+}
+
+func (r *attributeType) getSchema() (s Schema) {
+	if r != nil {
+		s = r.schema
+	}
+
+	return
+}
+
+/*
+SetSyntaxQualifier assigns an instance of [SyntaxQualifier] (funk) to the receiver
+instance. A nil value may be passed to disable syntax checking capabilities.
+
+See the [AttributeType.CheckValueSyntax] method for details on making active use
+of the [SyntaxQualifier] capability.
+
+This is a fluent method.
+*/
+func (r AttributeType) SetSyntaxQualifier(function SyntaxQualifier) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setSyntaxQualifier(function)
+	}
 
 	return r
+}
+
+func (r *attributeType) setSyntaxQualifier(function SyntaxQualifier) {
+	r.synQual = function
+}
+
+/*
+SetData assigns x to the receiver instance. This is a general-use method and has no
+specific intent beyond convenience. The contents may be subsequently accessed via the
+[AttributeType.Data] method.
+
+This is a fluent method.
+*/
+func (r AttributeType) SetData(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setData(x)
+	}
+
+	return r
+}
+
+func (r *attributeType) setData(x any) {
+	r.data = x
+}
+
+/*
+Data returns the underlying value (x) assigned to the receiver's data storage field. Data
+can be set within the receiver instance by way of the [AttributeType.SetData] method.
+*/
+func (r AttributeType) Data() (x any) {
+	if !r.IsZero() {
+		x = r.attributeType.data
+	}
+
+	return
+}
+
+/*
+CheckValueSyntax returns an error instance following an analysis of the input value using the
+[SyntaxQualifier] instance previously assigned to the receiver instance.
+
+If a [SyntaxQualifier] is not assigned to the receiver instance, the [ErrNilSyntaxQualifier]
+error is returned if and when this method is executed. Otherwise, an error is returned based
+on the custom [SyntaxQualifier] error handler devised by the author.
+
+A nil error return always indicates valid input value syntax.
+
+See the [AttributeType.SetSyntaxQualifier] for information regarding the assignment of an
+instance of [SyntaxQualifier] to the receiver.
+*/
+func (r AttributeType) CheckValueSyntax(value any) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+	} else if r.attributeType.synQual == nil {
+		err = ErrNilSyntaxQualifier
+	} else {
+		err = r.attributeType.synQual(value)
+	}
+
+	return
 }
 
 func (r AttributeType) schema() (s Schema) {
@@ -68,7 +303,21 @@ func (r AttributeTypes) Inventory() (inv Inventory) {
 }
 
 // stackage closure func - do not exec directly (use String method)
-func (r AttributeTypes) oIDsStringer(_ ...any) (present string) {
+func (r AttributeTypes) oIDsStringer(_ ...any) string {
+	slice := r.index(0)
+	hd := slice.Schema().Options().Positive(HangingIndents)
+	id := r.cast().ID()
+	if hd && id != `at_oidlist` {
+		return r.oIDsStringerPretty(len(id))
+	}
+
+	return r.oIDsStringerStd()
+}
+
+/*
+factory default stackage closure func for oid lists - do not exec directly.
+*/
+func (r AttributeTypes) oIDsStringerStd(_ ...any) (present string) {
 	var _present []string
 	for i := 0; i < r.len(); i++ {
 		_present = append(_present, r.index(i).OID())
@@ -76,7 +325,6 @@ func (r AttributeTypes) oIDsStringer(_ ...any) (present string) {
 
 	switch len(_present) {
 	case 0:
-		break
 	case 1:
 		present = _present[0]
 	default:
@@ -92,6 +340,61 @@ func (r AttributeTypes) oIDsStringer(_ ...any) (present string) {
 	return
 }
 
+/*
+prettified stackage closure func for oid lists - do not exec directly.
+
+prepare a custom [stackage.PresentationPolicy] instance for our input
+[QuotedDescriptorList] stack to convert the following:
+
+	( cn $ sn $ l $ c $ st )
+
+... into ...
+
+	( cn
+	$ sn
+	$ l
+	$ c
+	$ st )
+
+This has no effect if the stack has only one member, producing something
+like:
+
+	cn
+*/
+func (r AttributeTypes) oIDsStringerPretty(lead int) (present string) {
+	L := r.Len()
+	switch L {
+	case 0:
+		return
+	case 1:
+		present = r.Index(0).OID()
+		return
+	}
+
+	num := lead + 5
+	for idx := 0; idx < L; idx++ {
+		sl := r.Index(idx).OID()
+		if idx == 0 {
+			present += `( ` + sl + string(rune(10))
+			continue
+		}
+
+		for i := 0; i < num; i++ {
+			present += ` `
+		}
+
+		present += `$ ` + sl
+		if idx == L-1 {
+			present += ` )`
+			break // no newline on last line
+		}
+
+		present += string(rune(10))
+	}
+
+	return
+}
+
 // stackage closure func - do not exec directly.
 func (r AttributeTypes) canPush(x ...any) (err error) {
 	if len(x) == 0 {
@@ -101,10 +404,10 @@ func (r AttributeTypes) canPush(x ...any) (err error) {
 	for i := 0; i < len(x) && err == nil; i++ {
 		instance := x[i]
 		if at, ok := instance.(AttributeType); !ok || at.IsZero() {
-			err = errorf("Type assertion for %T has failed", instance)
+			err = ErrTypeAssert
 		} else {
 			if tst := r.get(at.NumericOID()); !tst.IsZero() {
-				err = errorf("%T %s not unique", at, at.NumericOID())
+				err = mkerr(ErrNotUnique.Error() + ": " + at.Type() + `, ` + at.NumericOID())
 			}
 		}
 	}
@@ -162,20 +465,24 @@ func (r AttributeTypes) index(idx int) (at AttributeType) {
 }
 
 /*
-Push returns an error following an attempt to push an AttributeType
+Push returns an error following an attempt to push an [AttributeType]
 into the receiver stack instance.
 */
 func (r AttributeTypes) Push(at any) error {
 	return r.push(at)
 }
 
-func (r AttributeTypes) push(at any) (err error) {
-	if at == nil {
-		err = errorf("%T instance is nil; cannot append to %T", at, r)
-		return
+func (r AttributeTypes) push(x any) (err error) {
+	switch tv := x.(type) {
+	case AttributeType:
+		if !tv.Compliant() {
+			err = ErrDefNonCompliant
+			break
+		}
+		r.cast().Push(tv)
+	default:
+		err = ErrInvalidType
 	}
-
-	r.cast().Push(at)
 
 	return
 }
@@ -223,8 +530,7 @@ func (r AttributeTypes) get(id string) (at AttributeType) {
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r AttributeType) IsZero() bool {
 	return r.attributeType == nil
@@ -244,24 +550,24 @@ func (r AttributeType) IsIdentifiedAs(id string) (ident bool) {
 }
 
 /*
-IsImmutable returns a Boolean value indicative of whether the receiver
+NoUserModification returns a Boolean value indicative of whether the receiver
 instance has its NO-USER-MODIFICATIONS option enabled. As such, only a
 DSA may manage values of this type when a value of true is in effect.
 */
-func (r AttributeType) IsImmutable() (o bool) {
+func (r AttributeType) NoUserModification() (o bool) {
 	if !r.IsZero() {
-		o = r.attributeType.Immutable
+		o = r.attributeType.NoUserMod
 	}
 
 	return
 }
 
 /*
-IsCollective returns a Boolean value indicative of whether the receiver
+Collective returns a Boolean value indicative of whether the receiver
 is COLLECTIVE.  A value of true is mutually exclusive of SINGLE-VALUE'd
 [AttributeType] instances.
 */
-func (r AttributeType) IsCollective() (o bool) {
+func (r AttributeType) Collective() (o bool) {
 	if !r.IsZero() {
 		o = r.attributeType.Collective
 	}
@@ -270,12 +576,12 @@ func (r AttributeType) IsCollective() (o bool) {
 }
 
 /*
-IsSingleValued returns a Boolean value indicative of whether the receiver
+SingleValue returns a Boolean value indicative of whether the receiver
 is set to only allow one (1) value to be assigned to an entry using this
 type.  A value of true is mutually exclusive of COLLECTIVE [AttributeType]
 instances.
 */
-func (r AttributeType) IsSingleValued() (o bool) {
+func (r AttributeType) SingleValue() (o bool) {
 	if !r.IsZero() {
 		o = r.attributeType.Single
 	}
@@ -284,9 +590,9 @@ func (r AttributeType) IsSingleValued() (o bool) {
 }
 
 /*
-IsObsolete returns a Boolean value indicative of definition obsolescence.
+Obsolete returns a Boolean value indicative of definition obsolescence.
 */
-func (r AttributeType) IsObsolete() (o bool) {
+func (r AttributeType) Obsolete() (o bool) {
 	if !r.IsZero() {
 		o = r.attributeType.Obsolete
 	}
@@ -306,10 +612,10 @@ func (r AttributeType) Name() (id string) {
 }
 
 /*
-Names returns the underlying instance of [Name] from within
+Names returns the underlying instance of [QuotedDescriptorList] from within
 the receiver.
 */
-func (r AttributeType) Names() (names Name) {
+func (r AttributeType) Names() (names QuotedDescriptorList) {
 	return r.attributeType.Name
 }
 
@@ -329,8 +635,13 @@ NewAttributeTypeOIDList initializes and returns a new [AttributeTypes] that has
 been cast from an instance of [OIDList] and configured to allow the storage of
 arbitrary [AttributeType] instances.
 */
-func NewAttributeTypeOIDList() AttributeTypes {
-	r := AttributeTypes(newOIDList(`at_oidlist`))
+func NewAttributeTypeOIDList(label ...string) AttributeTypes {
+	name := `at_oidlist`
+	if len(label) > 0 {
+		name = label[0]
+	}
+
+	r := AttributeTypes(newOIDList(name))
 	r.cast().
 		SetPushPolicy(r.canPush).
 		SetPresentationPolicy(r.oIDsStringer)
@@ -362,18 +673,24 @@ receiver instance if the following are all true:
 
 This is a fluent method.
 */
-func (r *AttributeType) SetNumericOID(id string) *AttributeType {
-	if r.IsZero() {
-		r.attributeType = newAttributeType()
-	}
-
-	if isNumericOID(id) {
-		if len(r.attributeType.OID) == 0 {
-			r.attributeType.OID = id
-		}
+func (r AttributeType) SetNumericOID(id string) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setNumericOID(id)
 	}
 
 	return r
+}
+
+func (r *attributeType) setNumericOID(id string) {
+	if isNumericOID(id) {
+		// only set an OID when the receiver
+		// lacks one (iow: no modifications)
+		if len(r.OID) == 0 {
+			r.OID = id
+		}
+	}
+
+	return
 }
 
 /*
@@ -382,14 +699,16 @@ SetExtension assigns key x to value xstrs within the receiver's underlying
 
 This is a fluent method.
 */
-func (r *AttributeType) SetExtension(x string, xstrs ...string) *AttributeType {
-	if r.IsZero() {
-		r.attributeType = newAttributeType()
+func (r AttributeType) SetExtension(x string, xstrs ...string) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setExtension(x, xstrs...)
 	}
 
-	r.Extensions().Set(x, xstrs...)
-
 	return r
+}
+
+func (r *attributeType) setExtension(x string, xstrs ...string) {
+	r.Extensions.Set(x, xstrs...)
 }
 
 /*
@@ -409,21 +728,21 @@ SetName assigns the provided names to the receiver instance.
 
 Name instances must conform to RFC 4512 descriptor format but
 need not be quoted.
+
+This is a fluent method.
 */
-func (r *AttributeType) SetName(x ...string) *AttributeType {
-	if len(x) == 0 {
-		return r
-	}
-
-	if r.IsZero() {
-		r.attributeType = newAttributeType()
-	}
-
-	for i := 0; i < len(x); i++ {
-		r.attributeType.Name.Push(x[i])
+func (r AttributeType) SetName(x ...string) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setName(x...)
 	}
 
 	return r
+}
+
+func (r *attributeType) setName(x ...string) {
+	for i := 0; i < len(x); i++ {
+		r.Name.Push(x[i])
+	}
 }
 
 /*
@@ -451,53 +770,114 @@ func (r AttributeType) Description() (desc string) {
 }
 
 /*
-SetDescription parses desc into the underlying Desc field within the
+SetDescription parses desc into the underlying DESC clause within the
 receiver instance.  Although a RFC 4512-compliant QuotedString is
 required, the outer single-quotes need not be specified literally.
+
+This is a fluent method.
 */
-func (r *AttributeType) SetDescription(desc string) *AttributeType {
+func (r AttributeType) SetDescription(desc string) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setDescription(desc)
+	}
+
+	return r
+}
+
+func (r *attributeType) setDescription(desc string) {
 	if len(desc) < 3 {
-		return r
+		return
 	}
 
-	if r.attributeType == nil {
-		r.attributeType = new(attributeType)
+	if rune(desc[0]) == rune(39) {
+		desc = desc[1:]
 	}
 
-	if !(rune(desc[0]) == rune(39) && rune(desc[len(desc)-1]) == rune(39)) {
-		if !r.IsZero() {
-			r.attributeType.Desc = desc
-		}
+	if rune(desc[len(desc)-1]) == rune(39) {
+		desc = desc[:len(desc)-1]
+	}
+
+	r.Desc = desc
+
+	return
+}
+
+/*
+SetStringer allows the assignment of an individual [Stringer] function or
+method to all [AttributeType] slices within the receiver stack instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite all
+preexisting stringer functions with the internal closure default, which is
+based upon a one-time use of the [text/template] package by all receiver
+slice instances.
+
+Input of a non-nil closure function value will overwrite all preexisting
+stringers.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r AttributeTypes) SetStringer(function ...Stringer) AttributeTypes {
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		def.SetStringer(function...)
 	}
 
 	return r
 }
 
 /*
-SetStringer allows the assignment of an individual "stringer" function
+SetStringer allows the assignment of an individual [Stringer] function
 or method to the receiver instance.
 
-A non-nil value will be executed for every call of the String method
-for the receiver instance.
+Input of zero (0) variadic values, or an explicit nil, will overwrite any
+preexisting stringer function with the internal closure default, which is
+based upon a one-time use of the [text/template] package by the receiver
+instance.
 
-Should the input stringer value be nil, the [text/template.Template]
-value will be used automatically going forward.
+Input of a non-nil closure function value will overwrite any preexisting
+stringer.
 
-This is a fluent method.
+This is a fluent method and may be used multiple times.
 */
-func (r *AttributeType) SetStringer(stringer func() string) *AttributeType {
-	if r.IsZero() {
-		r.attributeType = newAttributeType()
+func (r AttributeType) SetStringer(function ...Stringer) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setStringer(function...)
 	}
-
-	r.attributeType.stringer = stringer
 
 	return r
 }
 
-func (r *attributeType) prepareString() (err error) {
+func (r *attributeType) setStringer(function ...Stringer) {
+	var stringer Stringer
+	if len(function) > 0 {
+		stringer = function[0]
+	}
+
+	if stringer == nil {
+		// no user provided closure means we
+		// defer to a general use stringer.
+		str, err := r.prepareString() // perform one-time text/template op
+		if err == nil {
+			// Save the stringer
+			r.stringer = func() string {
+				// Return a preserved value.
+				return str
+			}
+		}
+		return
+	}
+
+	// assign user-provided closure
+	r.stringer = stringer
+}
+
+/*
+prepareString returns a string an an error indicative of an attempt
+to represent the receiver instance as a string using [text/template].
+*/
+func (r *attributeType) prepareString() (str string, err error) {
 	buf := newBuf()
-	r.t = newTemplate(`attributeType`).
+	t := newTemplate(`attributeType`).
 		Funcs(funcMap(map[string]any{
 			`Substring`:    func() string { return r.Substring.OID() },
 			`Ordering`:     func() string { return r.Ordering.OID() },
@@ -505,22 +885,22 @@ func (r *attributeType) prepareString() (err error) {
 			`Syntax`:       func() string { return r.Syntax.NumericOID() },
 			`SuperType`:    func() string { return r.SuperType.OID() },
 			`ExtensionSet`: r.Extensions.tmplFunc,
-			`IsObsolete`:   func() bool { return r.Obsolete },
+			`Obsolete`:     func() bool { return r.Obsolete },
 			`IsSingleVal`:  func() bool { return r.Single },
-			`IsCollective`: func() bool { return r.Collective },
-			`IsNoUserMod`:  func() bool { return r.Immutable },
+			`Collective`:   func() bool { return r.Collective },
+			`IsNoUserMod`:  func() bool { return r.NoUserMod },
 			`Usage`:        func() string { return AttributeType{r}.Usage() },
 		}))
 
-	if r.t, err = r.t.Parse(attributeTypeTmpl); err == nil {
-		if err = r.t.Execute(buf, struct {
+	if t, err = t.Parse(attributeTypeTmpl); err == nil {
+		if err = t.Execute(buf, struct {
 			Definition *attributeType
 			HIndent    string
 		}{
 			Definition: r,
 			HIndent:    hindent(),
 		}); err == nil {
-			r.s = buf.String()
+			str = buf.String()
 		}
 	}
 
@@ -528,22 +908,15 @@ func (r *attributeType) prepareString() (err error) {
 }
 
 /*
-String is a stringer method that returns the string representation
-of the receiver instance.
+String is a stringer method that returns the string representation of
+the receiver instance.  A zero-value indicates an invalid receiver, or
+that the [AttributeType.SetStringer] method was not used during MANUAL
+composition of the receiver.
 */
-func (r AttributeType) String() (at string) {
+func (r AttributeType) String() (def string) {
 	if !r.IsZero() {
-		if r.stringer != nil {
-			at = r.stringer()
-		} else {
-			if len(r.attributeType.s) == 0 {
-				var err error
-				if err = r.attributeType.prepareString(); err != nil {
-					return
-				}
-			}
-
-			at = r.attributeType.s
+		if r.attributeType.stringer != nil {
+			def = r.attributeType.stringer()
 		}
 	}
 
@@ -569,26 +942,28 @@ SetSyntax assigns x to the receiver instance as an instance of [LDAPSyntax].
 
 This is a fluent method.
 */
-func (r *AttributeType) SetSyntax(x any) *AttributeType {
-	if r.IsZero() {
-		r.attributeType = newAttributeType()
-	}
-
-	var syn LDAPSyntax
-	switch tv := x.(type) {
-	case string:
-		if sch := r.schema(); !sch.IsZero() {
-			syn = sch.LDAPSyntaxes().get(tv)
-		}
-	case LDAPSyntax:
-		syn = tv
-	}
-
-	if !syn.IsZero() {
-		r.attributeType.Syntax = syn
+func (r AttributeType) SetSyntax(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setSyntax(x)
 	}
 
 	return r
+}
+
+func (r *attributeType) setSyntax(x any) {
+	var def LDAPSyntax
+	switch tv := x.(type) {
+	case string:
+		if !r.schema.IsZero() {
+			def = r.schema.LDAPSyntaxes().get(tv)
+		}
+	case LDAPSyntax:
+		def = tv
+	}
+
+	if def.Compliant() {
+		r.Syntax = def
+	}
 }
 
 /*
@@ -618,26 +993,28 @@ bogus [MatchingRule] instances.
 
 This is a fluent method.
 */
-func (r *AttributeType) SetEquality(x any) *AttributeType {
-	if r.IsZero() {
-		r.attributeType = newAttributeType()
-	}
-
-	var mr MatchingRule
-	switch tv := x.(type) {
-	case string:
-		if sch := r.schema(); !sch.IsZero() {
-			mr = sch.MatchingRules().get(tv)
-		}
-	case MatchingRule:
-		mr = tv
-	}
-
-	if !mr.IsZero() {
-		r.attributeType.Equality = mr
+func (r AttributeType) SetEquality(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setEquality(x)
 	}
 
 	return r
+}
+
+func (r *attributeType) setEquality(x any) {
+	var def MatchingRule
+	switch tv := x.(type) {
+	case string:
+		if !r.schema.IsZero() {
+			def = r.schema.MatchingRules().get(tv)
+		}
+	case MatchingRule:
+		def = tv
+	}
+
+	if def.Compliant() {
+		r.Equality = def
+	}
 }
 
 /*
@@ -667,26 +1044,28 @@ bogus [MatchingRule] instances.
 
 This is a fluent method.
 */
-func (r *AttributeType) SetSubstring(x any) *AttributeType {
-	if r.IsZero() {
-		r.attributeType = newAttributeType()
-	}
-
-	var mr MatchingRule
-	switch tv := x.(type) {
-	case string:
-		if sch := r.schema(); !sch.IsZero() {
-			mr = sch.MatchingRules().get(tv)
-		}
-	case MatchingRule:
-		mr = tv
-	}
-
-	if !mr.IsZero() {
-		r.attributeType.Substring = mr
+func (r AttributeType) SetSubstring(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setSubstring(x)
 	}
 
 	return r
+}
+
+func (r *attributeType) setSubstring(x any) {
+	var def MatchingRule
+	switch tv := x.(type) {
+	case string:
+		if !r.schema.IsZero() {
+			def = r.schema.MatchingRules().get(tv)
+		}
+	case MatchingRule:
+		def = tv
+	}
+
+	if def.Compliant() {
+		r.Substring = def
+	}
 }
 
 /*
@@ -716,26 +1095,28 @@ bogus [MatchingRule] instances.
 
 This is a fluent method.
 */
-func (r *AttributeType) SetOrdering(x any) *AttributeType {
-	if r.IsZero() {
-		return r
-	}
-
-	var mr MatchingRule
-	switch tv := x.(type) {
-	case string:
-		if sch := r.schema(); !sch.IsZero() {
-			mr = sch.MatchingRules().get(tv)
-		}
-	case MatchingRule:
-		mr = tv
-	}
-
-	if !mr.IsZero() {
-		r.attributeType.Ordering = mr
+func (r AttributeType) SetOrdering(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setOrdering(x)
 	}
 
 	return r
+}
+
+func (r *attributeType) setOrdering(x any) {
+	var def MatchingRule
+	switch tv := x.(type) {
+	case string:
+		if !r.schema.IsZero() {
+			def = r.schema.MatchingRules().get(tv)
+		}
+	case MatchingRule:
+		def = tv
+	}
+
+	if def.Compliant() {
+		r.Ordering = def
+	}
 }
 
 /*
@@ -757,35 +1138,32 @@ input types are string, to represent an RFC 4512 OID residing in the underlying
 
 This is a fluent method.
 */
-func (r *AttributeType) SetSuperType(x any) *AttributeType {
-	if r.IsZero() {
-		r.attributeType = newAttributeType()
-	}
-
-	var sup AttributeType
-	switch tv := x.(type) {
-	case string:
-		if !r.schema().IsZero() {
-			sup = r.schema().AttributeTypes().get(tv)
-		}
-	case AttributeType:
-		sup = tv
-	}
-
-	var err error
-	//if !r.schema().IsZero() {
-	//        err = r.attributeType.verifySuperType(sup.attributeType)
-	//}
-
-	if err == nil && !sup.IsZero() {
-		r.attributeType.SuperType = sup
+func (r AttributeType) SetSuperType(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setSuperType(x)
 	}
 
 	return r
 }
 
+func (r *attributeType) setSuperType(x any) {
+	var def AttributeType
+	switch tv := x.(type) {
+	case string:
+		if !r.schema.IsZero() {
+			def = r.schema.AttributeTypes().get(tv)
+		}
+	case AttributeType:
+		def = tv
+	}
+
+	if def.Compliant() {
+		r.SuperType = def
+	}
+}
+
 /*
-SetSingleValue assigns the input value to the underlying SingleValue field
+SetSingleValue assigns the input value to the underlying SINGLE-VALUE clause
 within the receiver.
 
 Input types may be bool, or string representations of bool. When strings
@@ -796,13 +1174,16 @@ Note that a value of true will be ignored if the receiver is a collective
 
 This is a fluent method.
 */
-func (r *AttributeType) SetSingleValue(x any) *AttributeType {
-	r.setBoolean(`sv`, x)
+func (r AttributeType) SetSingleValue(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setBoolean(`sv`, x)
+	}
+
 	return r
 }
 
 /*
-SetCollective assigns the input value to the underlying Collective field
+SetCollective assigns the input value to the underlying COLLECTIVE clause
 within the receiver.
 
 Input types may be bool, or string representations of bool. When strings
@@ -813,13 +1194,16 @@ Note that a value of true will be ignored if the receiver is a single-valued
 
 This is a fluent method.
 */
-func (r *AttributeType) SetCollective(x any) *AttributeType {
-	r.setBoolean(`c`, x)
+func (r AttributeType) SetCollective(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setBoolean(`c`, x)
+	}
+
 	return r
 }
 
 /*
-SetImmutable assigns the input value to the underlying Immutable field
+SetNoUserModification assigns the input value to the underlying NO-USER-MODIFICATION clause
 within the receiver.
 
 Input types may be bool, or string representations of bool. When strings
@@ -827,13 +1211,16 @@ are used, case is not significant.
 
 This is a fluent method.
 */
-func (r *AttributeType) SetImmutable(x any) *AttributeType {
-	r.setBoolean(`num`, x)
+func (r AttributeType) SetNoUserModification(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setBoolean(`num`, x)
+	}
+
 	return r
 }
 
 /*
-SetObsolete assigns the input value to the underlying Obsolete field within
+SetObsolete assigns the input value to the underlying OBSOLETE clause within
 the receiver.
 
 Input types may be bool, or string representations of bool. When strings
@@ -843,12 +1230,15 @@ Obsolescence cannot be unset.
 
 This is a fluent method.
 */
-func (r *AttributeType) SetObsolete(x any) *AttributeType {
-	r.setBoolean(`obs`, x)
+func (r AttributeType) SetObsolete(x any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setBoolean(`obs`, x)
+	}
+
 	return r
 }
 
-func (r *AttributeType) setBoolean(t string, x any) *AttributeType {
+func (r *attributeType) setBoolean(t string, x any) {
 
 	var Bool bool
 	switch tv := x.(type) {
@@ -859,29 +1249,27 @@ func (r *AttributeType) setBoolean(t string, x any) *AttributeType {
 	case bool:
 		Bool = tv
 	default:
-		return r
+		return
 	}
 
 	switch t {
 	case `sv`:
-		if !r.attributeType.Collective {
-			r.attributeType.Single = Bool
+		if !r.Collective {
+			r.Single = Bool
 		}
 	case `c`:
-		if !r.attributeType.Single {
-			r.attributeType.Collective = Bool
+		if !r.Single {
+			r.Collective = Bool
 		}
 	case `num`:
-		if !r.attributeType.Immutable {
-			r.attributeType.Immutable = Bool
+		if !r.NoUserMod {
+			r.NoUserMod = Bool
 		}
 	case `obs`:
-		if !r.attributeType.Obsolete {
-			r.attributeType.Obsolete = Bool
+		if !r.Obsolete {
+			r.Obsolete = Bool
 		}
 	}
-
-	return r
 }
 
 /*
@@ -896,37 +1284,41 @@ Any other value results in assignment of the userApplications USAGE.
 
 This is a fluent method.
 */
-func (r *AttributeType) SetUsage(u any) *AttributeType {
+func (r AttributeType) SetUsage(u any) AttributeType {
 	if !r.IsZero() {
-		switch tv := u.(type) {
-		case string:
-			switch lc(tv) {
-			case `directoryoperation`:
-				r.attributeType.Usage = DirectoryOperationUsage
-			case `distributedoperation`:
-				r.attributeType.Usage = DistributedOperationUsage
-			case `dsaoperation`:
-				r.attributeType.Usage = DSAOperationUsage
-			default:
-				r.attributeType.Usage = UserApplicationsUsage
-			}
-		case uint:
-			r.SetUsage(int(tv))
-		case int:
-			switch tv {
-			case 1:
-				r.attributeType.Usage = DirectoryOperationUsage
-			case 2:
-				r.attributeType.Usage = DistributedOperationUsage
-			case 3:
-				r.attributeType.Usage = DSAOperationUsage
-			default:
-				r.attributeType.Usage = UserApplicationsUsage
-			}
-		}
+		r.attributeType.setUsage(u)
 	}
 
 	return r
+}
+
+func (r *attributeType) setUsage(u any) {
+	switch tv := u.(type) {
+	case string:
+		switch lc(tv) {
+		case `directoryoperation`:
+			r.Usage = DirectoryOperationUsage
+		case `distributedoperation`:
+			r.Usage = DistributedOperationUsage
+		case `dsaoperation`:
+			r.Usage = DSAOperationUsage
+		default:
+			r.Usage = UserApplicationsUsage
+		}
+	case uint:
+		r.setUsage(int(tv))
+	case int:
+		switch tv {
+		case 1:
+			r.Usage = DirectoryOperationUsage
+		case 2:
+			r.Usage = DistributedOperationUsage
+		case 3:
+			r.Usage = DSAOperationUsage
+		default:
+			r.Usage = UserApplicationsUsage
+		}
+	}
 }
 
 /*
@@ -944,8 +1336,7 @@ func (r AttributeTypes) Type() string {
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r AttributeTypes) IsZero() bool {
 	return r.cast().IsZero()
@@ -954,14 +1345,13 @@ func (r AttributeTypes) IsZero() bool {
 /*
 Usage returns the string representation of the underlying USAGE if set
 within the receiver instance. If unset, a zero string -- which implies
-use of the "userApplication" [AttributeType] USAGE value by default --
-is returned.
+use of the [UserApplicationsUsage] USAGE value by default -- is returned.
 */
 func (r AttributeType) Usage() (usage string) {
 	if !r.IsZero() {
 		switch v := r.attributeType.Usage; int(v) {
 		case 0:
-			break // zero is default (userApplication)
+			break // zero is default (userApplications)
 		case 1:
 			usage = `directoryOperation`
 		case 2:
@@ -972,6 +1362,65 @@ func (r AttributeType) Usage() (usage string) {
 	}
 
 	return
+}
+
+/*
+Compliant returns a Boolean value indicative of every [AttributeType]
+returning a compliant response from the [AttributeType.Compliant] method.
+*/
+func (r AttributeTypes) Compliant() bool {
+	for i := 0; i < r.Len(); i++ {
+		if !r.Index(i).Compliant() {
+			return false
+		}
+	}
+
+	return true
+}
+
+/*
+Compliant returns a Boolean value indicative of the receiver being fully
+compliant per the required clauses of § 4.1.2 of RFC 4512:
+
+  - Numeric OID must be present and valid
+  - Specified EQUALITY, SUBSTR and ORDERING [MatchingRule] instances must be COMPLIANT
+  - Specified [LDAPSyntax] MUST be COMPLIANT
+
+Additional consideration is given to RFC 3671 in that an [AttributeType]
+shall not be both COLLECTIVE and SINGLE-VALUE'd.
+*/
+func (r AttributeType) Compliant() bool {
+	if r.IsZero() {
+		return false
+	}
+
+	if !isNumericOID(r.attributeType.OID) {
+		return false
+	}
+
+	syn := r.schema().LDAPSyntaxes().get(r.Syntax())
+	if !syn.IsZero() && !syn.Compliant() {
+		return false
+	}
+
+	for _, mr := range []MatchingRule{
+		r.schema().MatchingRules().get(r.Equality().NumericOID()),
+		r.schema().MatchingRules().get(r.Ordering().NumericOID()),
+		r.schema().MatchingRules().get(r.Substring().NumericOID()),
+	} {
+		if !mr.IsZero() && !mr.Compliant() {
+			return false
+		}
+	}
+
+	sup := r.schema().AttributeTypes().get(r.SuperType().NumericOID())
+	if !sup.IsZero() && !sup.Compliant() {
+		return false
+	}
+
+	// Any combination of SV/C is permitted
+	// EXCEPT for BOTH.  See RFC 3671.
+	return !(r.SingleValue() && r.Collective())
 }
 
 /*
@@ -999,15 +1448,15 @@ func (r AttributeType) Map() (def DefinitionMap) {
 	def[`NUMERICOID`] = []string{r.NumericOID()}
 	def[`NAME`] = r.Names().List()
 	def[`DESC`] = []string{r.Description()}
-	def[`OBSOLETE`] = []string{bool2str(r.IsObsolete())}
+	def[`OBSOLETE`] = []string{bool2str(r.Obsolete())}
 	def[`SUP`] = []string{r.SuperType().OID()}
 	def[`EQUALITY`] = []string{r.Equality().OID()}
 	def[`SUBSTR`] = []string{r.Substring().OID()}
 	def[`ORDERING`] = []string{r.Ordering().OID()}
 	def[`SYNTAX`] = []string{r.Syntax()}
-	def[`SINGLE-VALUE`] = []string{bool2str(r.IsSingleValued())}
-	def[`COLLECTIVE`] = []string{bool2str(r.IsCollective())}
-	def[`NO-USER-MODIFICATION`] = []string{bool2str(r.IsImmutable())}
+	def[`SINGLE-VALUE`] = []string{bool2str(r.SingleValue())}
+	def[`COLLECTIVE`] = []string{bool2str(r.Collective())}
+	def[`NO-USER-MODIFICATION`] = []string{bool2str(r.NoUserModification())}
 	def[`USAGE`] = []string{r.Usage()}
 	def[`TYPE`] = []string{r.Type()}
 	def[`RAW`] = []string{r.String()}

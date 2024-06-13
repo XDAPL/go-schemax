@@ -1,6 +1,8 @@
 package schemax
 
 import (
+	"sort"
+
 	"github.com/JesseCoretta/go-antlr4512"
 )
 
@@ -17,8 +19,8 @@ var (
 )
 
 /*
-ParseLDAPSyntax parses raw into an instance of [LDAPSyntax], which is
-appended to the receiver's LS stack.
+ParseLDAPSyntax returns an error following an attempt to parse raw into an
+instance of [LDAPSyntax] and append it to the [Schema.LDAPSyntaxes] stack.
 */
 func (r Schema) ParseLDAPSyntax(raw string) error {
 	def, err := parseLS(raw)
@@ -33,8 +35,8 @@ func (r Schema) ParseLDAPSyntax(raw string) error {
 }
 
 /*
-ParseMatchingRule returns an error following an attempt to parse raw into the
-receiver instance's [MatchingRules] instance.
+ParseMatchingRule returns an error following an attempt to parse raw into an
+instance of [MatchingRule] and append it to the [Schema.MatchingRules] stack.
 */
 func (r Schema) ParseMatchingRule(raw string) error {
 	def, err := parseMR(raw)
@@ -49,28 +51,24 @@ func (r Schema) ParseMatchingRule(raw string) error {
 }
 
 /*
-ParseMatchingRuleUse returns an error following an attempt to parse raw
-into the receiver instance's [MatchingRuleUses] instance.
+ParseMatchingRuleUse returns an error following an attempt to parse raw into an
+instance of [MatchingRuleUse] and append it to the [Schema.MatchingRuleUses] stack.
 */
 func (r Schema) ParseMatchingRuleUse(raw string) error {
-        def, err := parseMU(raw)
-        if err == nil {
-                var _def MatchingRuleUse
-                if _def, err = r.marshalMU(def); err == nil {
-                        r.MatchingRuleUses().push(_def)
-                }
-        }
+	def, err := parseMU(raw)
+	if err == nil {
+		var _def MatchingRuleUse
+		if _def, err = r.marshalMU(def); err == nil {
+			r.MatchingRuleUses().push(_def)
+		}
+	}
 
-        return err
+	return err
 }
 
 /*
-ParseAttributeType parses an individual textual attribute
-type (raw) and returns an error instance.
-
-When no error occurs, the newly formed [AttributeType] instance
--- based on the parsed contents of raw -- is added to the receiver
-[AttributeTypes] slice instance.
+ParseAttributeType returns an error following an attempt to parse raw into an
+instance of [AttributeType] and append it to the [Schema.AttributeTypes] stack.
 */
 func (r Schema) ParseAttributeType(raw string) error {
 	def, err := parseAT(raw)
@@ -85,12 +83,8 @@ func (r Schema) ParseAttributeType(raw string) error {
 }
 
 /*
-ParseObjectClass parses an individual textual object class (raw) and
-returns an error instance.
-
-When no error occurs, the newly formed [ObjectClass] instance -- based
-on the parsed contents of raw -- is added to the receiver [ObjectClasses]
-instance.
+ParseObjectClass returns an error following an attempt to parse raw into an
+instance of [ObjectClass] and append it to the [Schema.ObjectClasses] stack.
 */
 func (r Schema) ParseObjectClass(raw string) error {
 	def, err := parseOC(raw)
@@ -105,12 +99,8 @@ func (r Schema) ParseObjectClass(raw string) error {
 }
 
 /*
-ParseDITContentRule parses an individual textual attribute type (raw) and
-returns an error instance.
-
-When no error occurs, the newly formed [DITContentRule] instance -- based
-on the parsed contents of raw -- is added to the receiver [DITContentRules]
-slice instance.
+ParseDITContentRule returns an error following an attempt to parse raw into an
+instance of [DITContentRule] and append it to the [Schema.DITContentRules] stack.
 */
 func (r Schema) ParseDITContentRule(raw string) error {
 	def, err := parseDC(raw)
@@ -125,12 +115,8 @@ func (r Schema) ParseDITContentRule(raw string) error {
 }
 
 /*
-ParseNameForm parses an individual textual attribute type (raw) and
-returns an error instance.
-
-When no error occurs, the newly formed [NameForm] instance -- based
-on the parsed contents of raw -- is added to the receiver [NameForms]
-slice instance.
+ParseNameForm returns an error following an attempt to parse raw into an
+instance of [NameForm] and append it to the [Schema.NameForms] stack.
 */
 func (r Schema) ParseNameForm(raw string) error {
 	def, err := parseNF(raw)
@@ -145,12 +131,8 @@ func (r Schema) ParseNameForm(raw string) error {
 }
 
 /*
-ParseDITStructureRule parses an individual textual attribute type (raw) and
-returns an error instance.
-
-When no error occurs, the newly formed [DITStructureRule] instance -- based
-on the parsed contents of raw -- is added to the receiver [DITStructureRules]
-slice instance.
+ParseDITStructureRule returns an error following an attempt to parse raw into an
+instance of [DITStructureRule] and append it to the [Schema.DITStructureRules] stack.
 */
 func (r Schema) ParseDITStructureRule(raw string) error {
 	def, err := parseDS(raw)
@@ -215,7 +197,7 @@ func (r Schema) marshalLS(s antlr4512.LDAPSyntax) (def LDAPSyntax, err error) {
 	}
 
 	if !isNumericOID(s.OID) {
-		err = errorf("Missing or invalid numeric OID for %T", def)
+		err = ErrMissingNumericOID
 		return
 	}
 
@@ -229,11 +211,16 @@ func (r Schema) marshalLS(s antlr4512.LDAPSyntax) (def LDAPSyntax, err error) {
 	_def.Desc = s.Desc
 	_def.schema = r
 
-	for k, v := range s.Extensions {
-		_def.Extensions.Set(k, v...)
-	}
+	// Marshal our extensions, taking our sorting preference into account
+	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
 
-	if err = _def.prepareString(); err == nil {
+	str, err := _def.prepareString() // perform one-time text/template op
+	if err == nil {
+		// Save the stringer
+		_def.stringer = func() string {
+			// Return a preserved value.
+			return str
+		}
 		def = LDAPSyntax{_def}
 	}
 
@@ -265,7 +252,7 @@ func (r Schema) marshalMR(s antlr4512.MatchingRule) (def MatchingRule, err error
 	}
 
 	if !isNumericOID(s.OID) {
-		err = errorf("Missing or invalid numeric OID for %T", def)
+		err = ErrMissingNumericOID
 		return
 	} else if !isNumericOID(s.Syntax) {
 		// try to resolve a quotedDescriptor to an OID
@@ -280,15 +267,10 @@ func (r Schema) marshalMR(s antlr4512.MatchingRule) (def MatchingRule, err error
 		}
 	}
 
-	if lup := r.MatchingRules().get(s.OID); !lup.IsZero() {
-		// silently ignore attempts to marshal a duplicate definition.
-		return
-	}
-
 	syn := r.LDAPSyntaxes().get(s.Syntax)
 	if syn.IsZero() {
 		// throw an error due to bad syntax ref
-		err = errorf("Unknown %T OID '%s' for %T", syn, s.Syntax, def)
+		err = mkerr(ErrLDAPSyntaxNotFound.Error() + `(` + s.Syntax + `)`)
 		return
 	}
 
@@ -299,15 +281,20 @@ func (r Schema) marshalMR(s antlr4512.MatchingRule) (def MatchingRule, err error
 	_def.schema = r
 	_def.Syntax = syn
 
-	for k, v := range s.Extensions {
-		_def.Extensions.Set(k, v...)
-	}
+	// Marshal our extensions, taking our sorting preference into account
+	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
 
 	for _, name := range s.Name {
 		_def.Name.push(name)
 	}
 
-	if err = _def.prepareString(); err == nil {
+	str, err := _def.prepareString() // perform one-time text/template op
+	if err == nil {
+		// Save the stringer
+		_def.stringer = func() string {
+			// Return a preserved value.
+			return str
+		}
 		def = MatchingRule{_def}
 	}
 
@@ -316,58 +303,65 @@ func (r Schema) marshalMR(s antlr4512.MatchingRule) (def MatchingRule, err error
 
 func (r Schema) incorporateMU(s antlr4512.MatchingRuleUses) (err error) {
 
-        for i := 0; i < len(s); i++ {
-                var def MatchingRuleUse
-                if def, err = r.marshalMU(s[i]); err != nil {
-                        break
-                }
+	for i := 0; i < len(s); i++ {
+		var def MatchingRuleUse
+		if def, err = r.marshalMU(s[i]); err != nil {
+			break
+		}
 
-                r.MatchingRuleUses().push(def)
-        }
+		r.MatchingRuleUses().push(def)
+	}
 
-        return
+	return
 }
 
 func (r Schema) marshalMU(s antlr4512.MatchingRuleUse) (def MatchingRuleUse, err error) {
-        if !isNumericOID(s.OID) {
-                err = errorf("Missing or invalid numeric OID for %T", def)
-                return
-        }
+	if !isNumericOID(s.OID) {
+		err = ErrMissingNumericOID
+		return
+	}
 
-        if lup := r.MatchingRules().get(s.OID); lup.IsZero() {
-                // silently ignore attempts to reference a bogus matchingRule OID
-                return
-        }
+	if lup := r.MatchingRules().get(s.OID); lup.IsZero() {
+		// silently ignore attempts to reference a bogus matchingRule OID
+		return
+	}
 
-        _def := newMatchingRuleUse()
-        _def.OID = s.OID
-        _def.Desc = s.Desc
-        _def.Obsolete = s.Obsolete
-        _def.schema = r
+	_def := newMatchingRuleUse()
+	_def.OID = s.OID
+	_def.Desc = s.Desc
+	_def.Obsolete = s.Obsolete
+	_def.schema = r
 
-	for i := 0; i < len(s.Applies); i++ {
+	sortL := r.Options().Positive(SortLists)
+
+	for i := 0; i < len(sortList(s.Applies, sortL)); i++ {
 		_at := s.Applies[i]
 		at := r.AttributeTypes().get(_at)
 		if at.IsZero() {
-			err = errorf("Applied attributeType '%s' not found", _at)
+			err = ErrAttributeTypeNotFound
 			return
 		}
 		_def.Applies.push(at)
 	}
 
-        for k, v := range s.Extensions {
-                _def.Extensions.Set(k, v...)
-        }
+	// Marshal our extensions, taking our sorting preference into account
+	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
 
-        for _, name := range s.Name {
-                _def.Name.push(name)
-        }
+	for _, name := range s.Name {
+		_def.Name.push(name)
+	}
 
-        if err = _def.prepareString(); err == nil {
-                def = MatchingRuleUse{_def}
-        }
+	str, err := _def.prepareString() // perform one-time text/template op
+	if err == nil {
+		// Save the stringer
+		_def.stringer = func() string {
+			// Return a preserved value.
+			return str
+		}
+		def = MatchingRuleUse{_def}
+	}
 
-        return
+	return
 }
 
 func (r Schema) incorporateAT(s antlr4512.AttributeTypes) (err error) {
@@ -394,7 +388,7 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 	}
 
 	if !isNumericOID(s.OID) {
-		err = errorf("Missing or invalid numeric OID for %T", def)
+		err = ErrMissingNumericOID
 		return
 	} else if lup := r.AttributeTypes().get(s.OID); !lup.IsZero() {
 		// silently ignore attempts to marshal a duplicate definition.
@@ -408,7 +402,7 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 	_def.OID = s.OID
 	_def.Desc = s.Desc
 	_def.Obsolete = s.Obsolete
-	_def.Immutable = s.Immutable
+	_def.NoUserMod = s.Immutable
 	_def.Collective = s.Collective
 	_def.Single = s.Single
 	_def.MUB = s.MUB
@@ -416,8 +410,7 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 
 	// avoid bogus Boolean states
 	if _def.Single && _def.Collective {
-		err = errorf("%T '%s' is both single-valued and collective; aborting",
-			s.OID, def)
+		err = mkerr("AttributeType is both single-valued and collective; aborting (" + s.OID + `)`)
 		return
 	}
 
@@ -426,7 +419,7 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 		llup := r.LDAPSyntaxes().get(syn)
 		if llup.IsZero() {
 			// throw an error due to bad syntax ref
-			err = errorf("Unknown %T OID '%s' for %T", llup, syn, def)
+			err = mkerr(ErrLDAPSyntaxNotFound.Error() + `(` + syn + `)`)
 			return
 		}
 		_def.Syntax = llup
@@ -445,7 +438,7 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 			// otherwise.
 			llup := r.MatchingRules().get(mrl)
 			if llup.IsZero() {
-				err = errorf("Unknown %T OID '%s' for %T", llup, mrl, def)
+				err = mkerr(ErrMatchingRuleNotFound.Error() + `(` + mrl + `)`)
 				return
 			}
 
@@ -464,7 +457,7 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 	if _sup := s.SuperType; len(_sup) > 0 {
 		sup := r.AttributeTypes().get(_sup)
 		if sup.IsZero() {
-			err = errorf("Unknown %T OID '%s' for %T", sup, _sup, def)
+			err = mkerr(ErrAttributeTypeNotFound.Error() + `( supertype: ` + _sup + `)`)
 			return
 		}
 		_def.SuperType = sup
@@ -483,27 +476,28 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 		}
 	}
 
-	// Process and set any extensions
-	for k, v := range s.Extensions {
-		_def.Extensions.Set(k, v...)
-	}
+	// Marshal our extensions, taking our sorting preference into account
+	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
 
 	// Process and set any names
 	for _, name := range s.Name {
 		_def.Name.push(name)
 	}
 
-	// save string representation and,
-	// if no errors, release our newly
-	// constructed instance.
-	if err = _def.prepareString(); err == nil {
+	str, err := _def.prepareString() // perform one-time text/template op
+	if err == nil {
+		// Save the stringer
+		_def.stringer = func() string {
+			// Return a preserved value.
+			return str
+		}
 		def = AttributeType{_def}
 	}
 
 	return
 }
 
-func (r *Schema) incorporateOC(s antlr4512.ObjectClasses) (err error) {
+func (r Schema) incorporateOC(s antlr4512.ObjectClasses) (err error) {
 	for i := 0; i < len(s); i++ {
 		var def ObjectClass
 		if def, err = r.marshalOC(s[i]); err != nil {
@@ -516,7 +510,7 @@ func (r *Schema) incorporateOC(s antlr4512.ObjectClasses) (err error) {
 	return
 }
 
-func (r *Schema) marshalOC(s antlr4512.ObjectClass) (oc ObjectClass, err error) {
+func (r Schema) marshalOC(s antlr4512.ObjectClass) (def ObjectClass, err error) {
 	// try to resolve a macro only if no
 	// numeric OID is present.
 	if len(s.Macro) == 2 && len(s.OID) == 0 {
@@ -527,7 +521,7 @@ func (r *Schema) marshalOC(s antlr4512.ObjectClass) (oc ObjectClass, err error) 
 	}
 
 	if !isNumericOID(s.OID) {
-		err = errorf("Missing or invalid numeric OID for %T", oc)
+		err = ErrMissingNumericOID
 		return
 	}
 
@@ -536,68 +530,76 @@ func (r *Schema) marshalOC(s antlr4512.ObjectClass) (oc ObjectClass, err error) 
 		return
 	}
 
-	_oc := newObjectClass()
-	_oc.OID = s.OID
-	_oc.Desc = s.Desc
-	_oc.Obsolete = s.Obsolete
+	_def := newObjectClass()
+	_def.OID = s.OID
+	_def.Desc = s.Desc
+	_def.Obsolete = s.Obsolete
+	_def.schema = r
+
+	sortL := r.Options().Positive(SortLists)
 
 	// verify and set kind if not default of STRUCTURAL
 	switch k := lc(s.Kind); k {
 	case `structural`, ``:
-		_oc.Kind = StructuralKind
+		_def.Kind = StructuralKind
 	case `auxiliary`:
-		_oc.Kind = AuxiliaryKind
+		_def.Kind = AuxiliaryKind
 	case `abstract`:
-		_oc.Kind = AbstractKind
+		_def.Kind = AbstractKind
 	default:
-		err = errorf("Invalid kind '%s' for %T", k, oc)
+		err = mkerr("Invalid kind for objectClass: " + k)
 		return
 	}
 
-	for _, must := range s.Must {
+	for _, must := range sortList(s.Must, sortL) {
 		m := r.AttributeTypes().get(must)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.Must clause", m, must, oc)
+			err = mkerr("Unknown AttributeType for MUST clause: " + must)
 			return
 		}
-		_oc.Must.push(m)
+		_def.Must.push(m)
 	}
 
-	for _, may := range s.May {
+	for _, may := range sortList(s.May, sortL) {
 		m := r.AttributeTypes().get(may)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.May clause", m, may, oc)
+			err = mkerr("Unknown AttributeType for MAY clause: " + may)
 			return
 		}
-		_oc.May.push(m)
+		_def.May.push(m)
 	}
 
-	for _, sup := range s.SuperClasses {
+	for _, sup := range sortList(s.SuperClasses, sortL) {
 		m := r.ObjectClasses().get(sup)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.SuperClasses clause", m, sup, oc)
+			err = mkerr("Unknown SuperClass: " + sup)
 			return
 		}
-		_oc.SuperClasses.push(m)
+		_def.SuperClasses.push(m)
 	}
 
-	for k, v := range s.Extensions {
-		_oc.Extensions.Set(k, v...)
-	}
+	// Marshal our extensions, taking our sorting preference into account
+	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
 
 	// Process and set any names
 	for _, name := range s.Name {
-		_oc.Name.push(name)
+		_def.Name.push(name)
 	}
 
-	if err = _oc.prepareString(); err == nil {
-		oc = ObjectClass{_oc}
+	str, err := _def.prepareString() // perform one-time text/template op
+	if err == nil {
+		// Save the stringer
+		_def.stringer = func() string {
+			// Return a preserved value.
+			return str
+		}
+		def = ObjectClass{_def}
 	}
 
 	return
 }
 
-func (r *Schema) incorporateDC(s antlr4512.DITContentRules) (err error) {
+func (r Schema) incorporateDC(s antlr4512.DITContentRules) (err error) {
 	for i := 0; i < len(s); i++ {
 		var def DITContentRule
 		if def, err = r.marshalDC(s[i]); err != nil {
@@ -610,76 +612,87 @@ func (r *Schema) incorporateDC(s antlr4512.DITContentRules) (err error) {
 	return
 }
 
-func (r *Schema) marshalDC(s antlr4512.DITContentRule) (dc DITContentRule, err error) {
+func (r Schema) marshalDC(s antlr4512.DITContentRule) (def DITContentRule, err error) {
 	if !isNumericOID(s.OID) {
-		err = errorf("Missing or invalid numeric OID for %T", dc)
+		err = ErrMissingNumericOID
 		return
 	}
 
-	_dc := newDITContentRule()
+	_def := newDITContentRule()
 
 	soc := r.ObjectClasses().Get(s.OID)
 	if soc.IsZero() {
-		err = errorf("Unknown structural %T '%s' for %T.OID", soc, s.OID, dc)
+		err = mkerr(ErrObjectClassNotFound.Error() + `( superclass: ` + s.OID + `)`)
 		return
 	}
-	_dc.OID = soc
 
-	_dc.Desc = s.Desc
-	_dc.Obsolete = s.Obsolete
+	_def.OID = soc
+	_def.Desc = s.Desc
+	_def.Obsolete = s.Obsolete
 
-	for _, must := range s.Must {
+	sortL := r.Options().Positive(SortLists)
+
+	for _, must := range sortList(s.Must, sortL) {
 		m := r.AttributeTypes().get(must)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.Must clause", m, must, dc)
+			err = mkerr("Unknown AttributeType for MUST clause: " + must)
 			return
 		}
-		_dc.Must.push(m)
+		_def.Must.push(m)
 	}
 
-	for _, may := range s.May {
+	for _, may := range sortList(s.May, sortL) {
 		m := r.AttributeTypes().get(may)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.May clause", m, may, dc)
+			err = mkerr("Unknown AttributeType for MAY clause: " + may)
 			return
 		}
-		_dc.May.push(m)
+		_def.May.push(m)
 	}
 
-	for _, not := range s.Not {
+	for _, not := range sortList(s.Not, sortL) {
 		m := r.AttributeTypes().get(not)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.Not clause", m, not, dc)
+			err = mkerr("Unknown AttributeType for NOT clause: " + not)
 			return
 		}
-		_dc.Not.push(m)
+		_def.Not.push(m)
 	}
 
-	for _, aux := range s.Aux {
+	for _, aux := range sortList(s.Aux, sortL) {
 		m := r.ObjectClasses().get(aux)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.Aux clause", m, aux, dc)
+			err = mkerr("Unknown ObjectClass for AUX clause: " + aux)
 			return
 		}
-		_dc.Aux.push(m)
+		_def.Aux.push(m)
 	}
 
-	for k, v := range s.Extensions {
-		_dc.Extensions.Set(k, v...)
-	}
+	// Marshal our extensions, taking our sorting preference into account
+	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
 
 	for _, name := range s.Name {
-		_dc.Name.push(name)
+		_def.Name.push(name)
 	}
 
-	if err = _dc.prepareString(); err == nil {
-		dc = DITContentRule{_dc}
+	str, err := _def.prepareString() // perform one-time text/template op
+	if err == nil {
+		// Save the stringer
+		_def.stringer = func() string {
+			// Return a preserved value.
+			return str
+		}
+
+		def = DITContentRule{_def}
+		if !def.Compliant() {
+			err = ErrDefNonCompliant
+		}
 	}
 
 	return
 }
 
-func (r *Schema) incorporateNF(s antlr4512.NameForms) (err error) {
+func (r Schema) incorporateNF(s antlr4512.NameForms) (err error) {
 	for i := 0; i < len(s); i++ {
 		var def NameForm
 		if def, err = r.marshalNF(s[i]); err != nil {
@@ -692,58 +705,65 @@ func (r *Schema) incorporateNF(s antlr4512.NameForms) (err error) {
 	return
 }
 
-func (r *Schema) marshalNF(s antlr4512.NameForm) (nf NameForm, err error) {
+func (r Schema) marshalNF(s antlr4512.NameForm) (def NameForm, err error) {
 	if !isNumericOID(s.OID) {
-		err = errorf("Missing or invalid numeric OID for %T", nf)
+		err = ErrMissingNumericOID
 		return
 	}
 
-	_nf := newNameForm()
-	_nf.OID = s.OID
-	_nf.Desc = s.Desc
-	_nf.Obsolete = s.Obsolete
+	_def := newNameForm()
+	_def.OID = s.OID
+	_def.Desc = s.Desc
+	_def.Obsolete = s.Obsolete
+
+	sortL := r.Options().Positive(SortLists)
 
 	oc := r.ObjectClasses().get(s.OC)
 	if oc.IsZero() {
-		err = errorf("Unknown structural %T '%s' for %T", oc, s.OC, nf)
+		err = mkerr(ErrObjectClassNotFound.Error() + `( structural: ` + s.OC + `)`)
 		return
 	}
-	_nf.Structural = oc
+	_def.Structural = oc
 
-	for _, must := range s.Must {
+	for _, must := range sortList(s.Must, sortL) {
 		m := r.AttributeTypes().get(must)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.Must clause", m, must, nf)
+			err = mkerr("Unknown AttributeType for MUST clause: " + must)
 			return
 		}
-		_nf.Must.push(m)
+		_def.Must.push(m)
 	}
 
-	for _, may := range s.May {
+	for _, may := range sortList(s.May, sortL) {
 		m := r.AttributeTypes().get(may)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.May clause", m, may, nf)
+			err = mkerr("Unknown AttributeType for MAY clause: " + may)
 			return
 		}
-		_nf.May.push(m)
+		_def.May.push(m)
 	}
 
-	for k, v := range s.Extensions {
-		_nf.Extensions.Set(k, v...)
-	}
+	// Marshal our extensions, taking our sorting preference into account
+	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
 
 	for _, name := range s.Name {
-		_nf.Name.push(name)
+		_def.Name.push(name)
 	}
 
-	if err = _nf.prepareString(); err == nil {
-		nf = NameForm{_nf}
+	str, err := _def.prepareString() // perform one-time text/template op
+	if err == nil {
+		// Save the stringer
+		_def.stringer = func() string {
+			// Return a preserved value.
+			return str
+		}
+		def = NameForm{_def}
 	}
 
 	return
 }
 
-func (r *Schema) incorporateDS(s antlr4512.DITStructureRules) (err error) {
+func (r Schema) incorporateDS(s antlr4512.DITStructureRules) (err error) {
 	for i := 0; i < len(s); i++ {
 		var def DITStructureRule
 		if def, err = r.marshalDS(s[i]); err != nil {
@@ -756,48 +776,88 @@ func (r *Schema) incorporateDS(s antlr4512.DITStructureRules) (err error) {
 	return
 }
 
-func (r *Schema) marshalDS(s antlr4512.DITStructureRule) (ds DITStructureRule, err error) {
+func (r Schema) marshalDS(s antlr4512.DITStructureRule) (def DITStructureRule, err error) {
 	var ruleid int
-	if ruleid, err = atoi(s.ID); err != nil {
-		err = errorf("Invalid %T ruleid '%s'", ds, s.ID)
-		return
-	} else if ruleid < 0 {
-		err = errorf("Invalid %T ruleid '%s'", ds, s.ID)
+	if ruleid, err = atoi(s.ID); err != nil || ruleid < 0 {
+		err = mkerr("Invalid structure rule ID " + s.ID)
 		return
 	}
 
-	_ds := newDITStructureRule()
-	_ds.ID = uint(ruleid)
-	_ds.Desc = s.Desc
-	_ds.Obsolete = s.Obsolete
+	_def := newDITStructureRule()
+	_def.ID = uint(ruleid)
+	_def.Desc = s.Desc
+	_def.Obsolete = s.Obsolete
+
+	sortL := r.Options().Positive(SortLists)
 
 	nf := r.NameForms().get(s.Form)
 	if nf.IsZero() {
-		err = errorf("Unknown %T '%s' for %T", nf, s.Form, ds)
+		err = mkerr(ErrNameFormNotFound.Error() + `(` + s.Form + `)`)
 		return
 	}
-	_ds.Form = nf
+	_def.Form = nf
 
-	for _, sup := range s.SuperRules {
+	for _, sup := range sortList(s.SuperRules, sortL) {
 		m := r.DITStructureRules().get(sup)
 		if m.IsZero() {
-			err = errorf("Unknown %T '%s' for %T.SuperRules clause", m, sup, ds)
+			err = mkerr("Unknown rule for SUP clause: " + sup)
 			return
 		}
-		_ds.SuperRules.push(m)
+		_def.SuperRules.push(m)
 	}
 
-	for k, v := range s.Extensions {
-		_ds.Extensions.Set(k, v...)
-	}
+	// Marshal our extensions, taking our sorting preference into account
+	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
 
 	for _, name := range s.Name {
-		_ds.Name.push(name)
+		_def.Name.push(name)
 	}
 
-	if err = _ds.prepareString(); err == nil {
-		ds = DITStructureRule{_ds}
+	str, err := _def.prepareString() // perform one-time text/template op
+	if err == nil {
+		// Save the stringer
+		_def.stringer = func() string {
+			// Return a preserved value.
+			return str
+		}
+		def = DITStructureRule{_def}
 	}
 
 	return
+}
+
+func sortList(list []string, sortBySlice bool) []string {
+	if !sortBySlice {
+		return list
+	}
+
+	sort.Strings(list)
+	return list
+}
+
+/*
+marshalExt funnels mext into ext with or without sorting.
+*/
+func marshalExt(mext map[string][]string, ext Extensions, sortByXStr bool) {
+	if !sortByXStr {
+		for k, v := range mext {
+			ext.Set(k, v...)
+		}
+		return
+	}
+
+	// Get a list of keys from mext
+	keys := make([]string, 0, len(mext))
+	for k := range mext {
+		keys = append(keys, k)
+	}
+
+	// Sort keys alphabetically
+	sort.Strings(keys)
+
+	// Use new sorting scheme to influence
+	// Extension initialization within ext.
+	for _, k := range keys {
+		ext.Set(k, mext[k]...)
+	}
 }

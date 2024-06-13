@@ -1,8 +1,7 @@
 package schemax
 
 /*
-NewMatchingRuleUses initializes a new [Collection] instance and
-casts it as an [MatchingRuleUses] instance.
+NewMatchingRuleUses initializes a new [MatchingRuleUses] instance.
 */
 func NewMatchingRuleUses() MatchingRuleUses {
 	r := MatchingRuleUses(newCollection(`matchingRuleUses`))
@@ -12,67 +11,308 @@ func NewMatchingRuleUses() MatchingRuleUses {
 }
 
 /*
-NewMatchingRuleUse initializes and returns a new instance of [MatchingRuleUse].
+NewMatchingRuleUse initializes and returns a new instance of [MatchingRuleUse],
+ready for manual assembly.  This method need not be used when creating
+new [MatchingRuleUse] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this method does NOT automatically push the return instance into
+the [Schema.MatchingRuleUses] stack; this is left to the user.
+
+Unlike the package-level [NewMatchingRuleUse] function, this method will
+automatically reference its originating [Schema] instance (the receiver).
+This negates the need for manual use of the [MatchingRuleUse.SetSchema]
+method.
+
+This is the recommended means of creating a new [MatchingRuleUse] instance
+wherever a single [Schema] is being used, which represents most use cases.
+*/
+func (r Schema) NewMatchingRuleUse() MatchingRuleUse {
+	return NewMatchingRuleUse().SetSchema(r)
+}
+
+/*
+NewMatchingRuleUse initializes and returns a new instance of [MatchingRuleUse],
+ready for manual assembly.  This method need not be used when creating
+new [MatchingRuleUse] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this function does not automatically reference the "parent" [Schema]
+instance, leaving it up to the user to invoke the [MatchingRuleUse.SetSchema]
+method manually.
+
+When interacting with a single [Schema] instance, which represents most use
+cases, use of the [Schema.NewMatchingRuleUse] method is PREFERRED over use of
+this package-level function.
+
+However certain migration efforts, schema audits and other such activities
+may require distinct associations of [MatchingRuleUse] instances with specific
+[Schema] instances. Use of this function allows the user to specify the
+appropriate [Schema] instance at a later point for a specific instance of
+an [MatchingRuleUse] instance.
 */
 func NewMatchingRuleUse() MatchingRuleUse {
-	return MatchingRuleUse{newMatchingRuleUse()}
+	mu := MatchingRuleUse{newMatchingRuleUse()}
+	mu.matchingRuleUse.Extensions.setDefinition(mu)
+	return mu
 }
 
 func newMatchingRuleUse() *matchingRuleUse {
 	return &matchingRuleUse{
-		Name:	    NewName(),
-		Applies:    NewAttributeTypeOIDList(),
+		Name:       NewName(),
+		Applies:    NewAttributeTypeOIDList(`APPLIES`),
 		Extensions: NewExtensions(),
 	}
 }
 
 /*
-SetStringer allows the assignment of an individual "stringer" function
-or method to the receiver instance.
+Parse returns an error following an attempt to parse raw into the receiver
+instance.
 
-A non-nil value will be executed for every call of the String method
-for the receiver instance.
+Note that the receiver MUST possess a [Schema] reference prior to the execution
+of this method.
 
-Should the input stringer value be nil, the [text/template.Template]
-value will be used automatically going forward.
-
-This is a fluent method.
+Also note that successful execution of this method does NOT automatically push
+the receiver into any [MatchingRuleUses] stack, nor does it automatically execute
+the [MatchingRuleUse.SetStringer] method, leaving these tasks to the user.  If the
+automatic handling of these tasks is desired, see the [Schema.ParseMatchingRuleUse]
+method as an alternative.
 */
-func (r *MatchingRuleUse) SetStringer(stringer func() string) MatchingRuleUse {
-	if !r.IsZero() {
-		r.matchingRuleUse.stringer = stringer
+func (r MatchingRuleUse) Parse(raw string) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+		return
 	}
 
-	return *r
+	if r.getSchema().IsZero() {
+		err = ErrNilSchemaRef
+		return
+	}
+
+	err = r.matchingRuleUse.parse(raw)
+
+	return
 }
 
-/*                                                                      
-String is a stringer method that returns the string representation      
-of the receiver instance.                                               
-*/                                                                      
-func (r MatchingRuleUse) String() (mu string) {                            
-        if !r.IsZero() {                                                
-                if r.stringer != nil {                                  
-                        mu = r.stringer()                               
-                } else {                                                
-                        if len(r.matchingRuleUse.s) == 0 {                 
-                                var err error                           
-                                if err = r.matchingRuleUse.prepareString(); err != nil {
-                                        return                          
-                                }                                       
-                        }                                               
-                                                                        
-                        mu = r.matchingRuleUse.s                           
-                }                                                       
-        }                                                               
-                                                                        
-        return                                                          
+func (r *matchingRuleUse) parse(raw string) error {
+	// parseLS wraps the antlr4512 LDAPSyntax parser/lexer
+	mp, err := parseMU(raw)
+	if err == nil {
+		// We received the parsed data from ANTLR (mp).
+		// Now we need to marshal it into the receiver.
+		var def MatchingRuleUse
+		if def, err = r.schema.marshalMU(mp); err == nil {
+			err = ErrDefNonCompliant
+			if def.Compliant() {
+				_r := MatchingRuleUse{r}
+				_r.replace(def)
+				err = nil
+			}
+		}
+	}
+
+	return err
 }
 
 /*
-IsObsolete returns a Boolean value indicative of definition obsolescence.
+Replace overrides the receiver with x. Both must bear an identical
+numeric OID and x MUST be compliant.
+
+Note that the relevant [Schema] instance must be configured to allow
+definition override by way of the [AllowOverride] bit setting.  See
+the [Schema.Options] method for a means of accessing the settings
+value.
+
+Note that this method does not reallocate a new pointer instance
+within the [MatchingRuleUse] envelope type, thus all references to the
+receiver instance within various stacks will be preserved.
+
+This is a fluent method.
 */
-func (r MatchingRuleUse) IsObsolete() (o bool) {
+func (r MatchingRuleUse) Replace(x MatchingRuleUse) MatchingRuleUse {
+	if r.NumericOID() != x.NumericOID() {
+		return r
+	}
+	r.replace(x)
+
+	return r
+}
+
+func (r MatchingRuleUse) replace(x MatchingRuleUse) {
+	if x.Compliant() && !r.IsZero() {
+		r.matchingRuleUse.OID = x.matchingRuleUse.OID
+		r.matchingRuleUse.Name = x.matchingRuleUse.Name
+		r.matchingRuleUse.Desc = x.matchingRuleUse.Desc
+		r.matchingRuleUse.Obsolete = x.matchingRuleUse.Obsolete
+		r.matchingRuleUse.Applies = x.matchingRuleUse.Applies
+		r.matchingRuleUse.Extensions = x.matchingRuleUse.Extensions
+		r.matchingRuleUse.data = x.matchingRuleUse.data
+		r.matchingRuleUse.schema = x.matchingRuleUse.schema
+		r.matchingRuleUse.stringer = x.matchingRuleUse.stringer
+		r.matchingRuleUse.data = x.matchingRuleUse.data
+	}
+}
+
+/*
+Compliant returns a Boolean value indicative of every [MatchingRuleUse]
+returning a compliant response from the [MatchingRuleUse.Compliant] method.
+*/
+func (r MatchingRuleUses) Compliant() bool {
+	for i := 0; i < r.Len(); i++ {
+		if !r.Index(i).Compliant() {
+			return false
+		}
+	}
+
+	return true
+}
+
+/*
+Compliant returns a Boolean value indicative of the receiver being fully
+compliant per the required clauses of § 4.1.4 of RFC 4512:
+
+  - Numeric OID must be present and valid
+*/
+func (r MatchingRuleUse) Compliant() bool {
+	var (
+		appl AttributeTypes = r.Applies()
+		act  int            // Applied AttributeType count
+	)
+
+	for i := 0; i < appl.Len(); i++ {
+		if !appl.Index(i).Compliant() {
+			return false
+		}
+		act++
+	}
+
+	if r.Schema().MatchingRules().get(r.NumericOID()).IsZero() {
+		return false
+	}
+
+	return act > 0
+}
+
+/*
+SetData assigns x to the receiver instance. This is a general-use method and has no
+specific intent beyond convenience. The contents may be subsequently accessed via the
+[MatchingRuleUse.Data] method.
+
+This is a fluent method.
+*/
+func (r MatchingRuleUse) SetData(x any) MatchingRuleUse {
+	if !r.IsZero() {
+		r.matchingRuleUse.setData(x)
+	}
+
+	return r
+}
+
+func (r *matchingRuleUse) setData(x any) {
+	r.data = x
+}
+
+/*
+Data returns the underlying value (x) assigned to the receiver's data storage field. Data
+can be set within the receiver instance by way of the [MatchingRuleUse.SetData] method.
+*/
+func (r MatchingRuleUse) Data() (x any) {
+	if !r.IsZero() {
+		x = r.matchingRuleUse.data
+	}
+
+	return
+}
+
+/*
+SetStringer allows the assignment of an individual [Stringer] function or
+method to all [MatchingRuleUse] slices within the receiver stack instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite all
+preexisting stringer functions with the internal closure default, which is
+based upon a one-time use of the [text/template] package by all receiver
+slice instances.
+
+Input of a non-nil closure function value will overwrite all preexisting
+stringers.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r MatchingRuleUses) SetStringer(function ...Stringer) MatchingRuleUses {
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		def.SetStringer(function...)
+	}
+
+	return r
+}
+
+/*
+SetStringer allows the assignment of an individual [Stringer] function
+or method to the receiver instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite any
+preexisting stringer function with the internal closure default, which is
+based upon a one-time use of the [text/template] package by the receiver
+instance.
+
+Input of a non-nil closure function value will overwrite any preexisting
+stringer.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r MatchingRuleUse) SetStringer(function ...Stringer) MatchingRuleUse {
+	if !r.IsZero() {
+		r.matchingRuleUse.setStringer(function...)
+	}
+
+	return r
+}
+
+func (r *matchingRuleUse) setStringer(function ...Stringer) {
+	var stringer Stringer
+	if len(function) > 0 {
+		stringer = function[0]
+	}
+
+	if stringer == nil {
+		// no user provided closure means we
+		// defer to a general use stringer.
+		str, err := r.prepareString() // perform one-time text/template op
+		if err == nil {
+			// Save the stringer
+			r.stringer = func() string {
+				// Return a preserved value.
+				return str
+			}
+		}
+		return
+	}
+
+	// assign user-provided closure
+	r.stringer = stringer
+}
+
+/*
+String is a stringer method that returns the string representation of
+the receiver instance.  A zero-value indicates an invalid receiver, or
+that the [ObjectClass.SetStringer] method was not used during MANUAL
+composition of the receiver.
+*/
+func (r MatchingRuleUse) String() (def string) {
+	if !r.IsZero() {
+		if r.matchingRuleUse.stringer != nil {
+			def = r.matchingRuleUse.stringer()
+		}
+	}
+
+	return
+}
+
+/*
+Obsolete returns a Boolean value indicative of definition obsolescence.
+*/
+func (r MatchingRuleUse) Obsolete() (o bool) {
 	if !r.IsZero() {
 		o = r.matchingRuleUse.Obsolete
 	}
@@ -80,21 +320,25 @@ func (r MatchingRuleUse) IsObsolete() (o bool) {
 	return
 }
 
-/*                                                                      
-SetObsolete sets the receiver instance to OBSOLETE if not already set.  
-                                                                        
-Obsolescence cannot be unset.                                           
-                                                                        
-This is a fluent method.                                                
-*/                                                                      
-func (r *MatchingRuleUse) SetObsolete() *MatchingRuleUse {                    
-        if !r.IsZero() {                                                
-                if !r.IsObsolete() {                                    
-                        r.matchingRuleUse.Obsolete = true                  
-                }                                                       
-        }                                                               
-                                                                        
-        return r                                                        
+/*
+SetObsolete sets the receiver instance to OBSOLETE if not already set.
+
+Obsolescence cannot be unset.
+
+This is a fluent method.
+*/
+func (r MatchingRuleUse) SetObsolete() MatchingRuleUse {
+	if !r.IsZero() {
+		r.matchingRuleUse.setObsolete()
+	}
+
+	return r
+}
+
+func (r *matchingRuleUse) setObsolete() {
+	if !r.Obsolete {
+		r.Obsolete = true
+	}
 }
 
 /*
@@ -115,29 +359,31 @@ instances advertised through the receiver instance.
 
 This is a fluent method.
 */
-func (r *MatchingRuleUse) SetApplies(m ...any) *MatchingRuleUse {
-        if r.IsZero() {
-                r.matchingRuleUse = newMatchingRuleUse()
-        }
+func (r MatchingRuleUse) SetApplies(m ...any) MatchingRuleUse {
+	if !r.IsZero() {
+		r.matchingRuleUse.setApplies(m...)
+	}
 
-        var err error
-        for i := 0; i < len(m) && err == nil; i++ {
-                var at AttributeType
-                switch tv := m[i].(type) {
-                case string:
-                        at = r.schema().AttributeTypes().get(tv)
-                case AttributeType:
-                        at = tv
-                default:
-                        err = errorf("Unsupported applied attributeType %T", tv)
-                }
+	return r
+}
 
-                if err == nil && !at.IsZero() {
-                        r.matchingRuleUse.Applies.Push(at)
-                }
-        }
+func (r *matchingRuleUse) setApplies(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var at AttributeType
+		switch tv := m[i].(type) {
+		case string:
+			at = r.schema.AttributeTypes().get(tv)
+		case AttributeType:
+			at = tv
+		default:
+			err = ErrInvalidInput
+		}
 
-        return r
+		if err == nil && at.Compliant() {
+			r.Applies.Push(at)
+		}
+	}
 }
 
 /*
@@ -146,26 +392,40 @@ internal verification of certain actions without the need for user input of
 an instance of [Schema] manually at each juncture.
 
 Note that the underlying [Schema] instance is automatically set when creating
-instances of this type by way of parsing.
+instances of this type by way of parsing, as well as if the receiver instance
+was initialized using the [Schema.NewMatchingRuleUse] method.
 
 This is a fluent method.
 */
-func (r *MatchingRuleUse) SetSchema(schema Schema) *MatchingRuleUse {
-        if r.IsZero() {
-                r.matchingRuleUse = newMatchingRuleUse()
-        }
+func (r MatchingRuleUse) SetSchema(schema Schema) MatchingRuleUse {
+	if !r.IsZero() {
+		r.matchingRuleUse.setSchema(schema)
+	}
 
-        r.matchingRuleUse.schema = schema
-
-        return r
+	return r
 }
 
-func (r MatchingRuleUse) schema() (s Schema) {
-        if !r.IsZero() {
-                s = r.matchingRuleUse.schema
-        }
+func (r *matchingRuleUse) setSchema(schema Schema) {
+	r.schema = schema
+}
 
-        return
+/*
+Schema returns the [Schema] instance associated with the receiver instance.
+*/
+func (r MatchingRuleUse) Schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.matchingRuleUse.getSchema()
+	}
+
+	return
+}
+
+func (r *matchingRuleUse) getSchema() (s Schema) {
+	if r != nil {
+		s = r.schema
+	}
+
+	return
 }
 
 /*
@@ -191,22 +451,27 @@ func (r Schema) MatchingRuleUses() (mus MatchingRuleUses) {
 	return
 }
 
-func (r *matchingRuleUse) prepareString() (err error) {
+/*
+prepareString returns a string an an error indicative of an attempt
+to represent the receiver instance as a string using [text/template].
+*/
+func (r *matchingRuleUse) prepareString() (str string, err error) {
 	buf := newBuf()
-	r.t = newTemplate(`matchingRuleUse`).
+	t := newTemplate(r.Type()).
 		Funcs(funcMap(map[string]any{
 			`ExtensionSet`: r.Extensions.tmplFunc,
+			`Applied`:      r.Applies.String,
+			`Obsolete`:     func() bool { return r.Obsolete },
 		}))
-
-	if r.t, err = r.t.Parse(matchingRuleUseTmpl); err == nil {
-		if err = r.t.Execute(buf, struct {
+	if t, err = t.Parse(matchingRuleUseTmpl); err == nil {
+		if err = t.Execute(buf, struct {
 			Definition *matchingRuleUse
 			HIndent    string
 		}{
 			Definition: r,
 			HIndent:    hindent(),
 		}); err == nil {
-			r.s = buf.String()
+			str = buf.String()
 		}
 	}
 
@@ -216,7 +481,6 @@ func (r *matchingRuleUse) prepareString() (err error) {
 /*
 Maps returns slices of [DefinitionMap] instances.
 */
-/*
 func (r MatchingRuleUses) Maps() (defs DefinitionMaps) {
 	defs = make(DefinitionMaps, r.Len())
 	for i := 0; i < r.Len(); i++ {
@@ -225,13 +489,11 @@ func (r MatchingRuleUses) Maps() (defs DefinitionMaps) {
 
 	return
 }
-*/
 
 /*
 Map marshals the receiver instance into an instance of
 [DefinitionMap].
 */
-/*
 func (r MatchingRuleUse) Map() (def DefinitionMap) {
 	if r.IsZero() {
 		return
@@ -247,7 +509,7 @@ func (r MatchingRuleUse) Map() (def DefinitionMap) {
 	def[`NUMERICOID`] = []string{r.NumericOID()}
 	def[`NAME`] = r.Names().List()
 	def[`DESC`] = []string{r.Description()}
-	def[`OBSOLETE`] = []string{bool2str(r.IsObsolete())}
+	def[`OBSOLETE`] = []string{bool2str(r.Obsolete())}
 	def[`APPLIES`] = applies
 	def[`RAW`] = []string{r.String()}
 
@@ -260,7 +522,6 @@ func (r MatchingRuleUse) Map() (def DefinitionMap) {
 
 	return
 }
-*/
 
 /*
 Inventory returns an instance of [Inventory] which represents the current
@@ -284,6 +545,10 @@ func (r MatchingRuleUses) Inventory() (inv Inventory) {
 Type returns the string literal "matchingRuleUse".
 */
 func (r MatchingRuleUse) Type() string {
+	return r.matchingRuleUse.Type()
+}
+
+func (r matchingRuleUse) Type() string {
 	return `matchingRuleUse`
 }
 
@@ -295,12 +560,15 @@ func (r MatchingRuleUses) Type() string {
 }
 
 func (r MatchingRuleUses) prepareStrings() (err error) {
-	for i := 0; i < r.cast().Len() && err == nil; i++ {
+	for i := 0; i < r.Len() && err == nil; i++ {
 		mu := r.index(i)
-		if mu.IsZero() {
-			mu.matchingRuleUse = new(matchingRuleUse)
+		var str string
+		str, err = mu.matchingRuleUse.prepareString()
+		if err == nil {
+			mu.matchingRuleUse.stringer = func() string {
+				return str
+			}
 		}
-		err = mu.matchingRuleUse.prepareString()
 	}
 
 	return
@@ -334,22 +602,24 @@ func (r MatchingRuleUse) Extensions() (e Extensions) {
 	return
 }
 
-/*                                                                      
+/*
 SetExtension assigns key x to value xstrs within the receiver's underlying
-[Extensions] instance.                                                  
-                                                                        
-This is a fluent method.                                                
-*/                                                                      
-func (r *MatchingRuleUse) SetExtension(x string, xstrs ...string) *MatchingRuleUse {
-        if r.IsZero() {                                                 
-                r.matchingRuleUse = newMatchingRuleUse()                      
-        }                                                               
-                                                                        
-        r.Extensions().Set(x, xstrs...)                                 
-                                                                        
-        return r                                                        
-}                                                                       
-                                                                        
+[Extensions] instance.
+
+This is a fluent method.
+*/
+func (r MatchingRuleUse) SetExtension(x string, xstrs ...string) MatchingRuleUse {
+	if !r.IsZero() {
+		r.matchingRuleUse.setExtension(x, xstrs...)
+	}
+
+	return r
+}
+
+func (r *matchingRuleUse) setExtension(x string, xstrs ...string) {
+	r.Extensions.Set(x, xstrs...)
+}
+
 /*
 NumericOID returns the string representation of the numeric OID
 held by the receiver instance.
@@ -362,27 +632,33 @@ func (r MatchingRuleUse) NumericOID() (noid string) {
 	return
 }
 
-/*                                                                      
-SetNumericOID allows the manual assignment of a numeric OID to the      
-receiver instance if the following are all true:                        
-                                                                        
-  - The input id value is a syntactically valid numeric OID             
-  - The receiver does not already possess a numeric OID                 
-                                                                        
-This is a fluent method.                                                
-*/                                                                      
-func (r *MatchingRuleUse) SetNumericOID(id string) *MatchingRuleUse {       
-        if r.IsZero() {                                                 
-                r.matchingRuleUse = newMatchingRuleUse()                    
-        }                                                               
-                                                                        
-        if isNumericOID(id) {                                           
-                if len(r.matchingRuleUse.OID) == 0 {                      
-                        r.matchingRuleUse.OID = id                        
-                }                                                       
-        }                                                               
-                                                                        
-        return r                                                        
+/*
+SetNumericOID allows the manual assignment of a numeric OID to the
+receiver instance if the following are all true:
+
+  - The input id value is a syntactically valid numeric OID
+  - The receiver does not already possess a numeric OID
+
+This is a fluent method.
+*/
+func (r MatchingRuleUse) SetNumericOID(id string) MatchingRuleUse {
+	if !r.IsZero() {
+		r.matchingRuleUse.setNumericOID(id)
+	}
+
+	return r
+}
+
+func (r *matchingRuleUse) setNumericOID(id string) {
+	if isNumericOID(id) {
+		// only set an OID when the receiver
+		// lacks one (iow: no modifications)
+		if len(r.OID) == 0 {
+			r.OID = id
+		}
+	}
+
+	return
 }
 
 /*
@@ -397,10 +673,10 @@ func (r MatchingRuleUse) Name() (id string) {
 }
 
 /*
-Names returns the underlying instance of [Name] from
+Names returns the underlying instance of [QuotedDescriptorList] from
 within the receiver.
 */
-func (r MatchingRuleUse) Names() (names Name) {
+func (r MatchingRuleUse) Names() (names QuotedDescriptorList) {
 	return r.matchingRuleUse.Name
 }
 
@@ -412,20 +688,18 @@ need not be quoted.
 
 This is a fluent method.
 */
-func (r *MatchingRuleUse) SetName(x ...string) *MatchingRuleUse {
-        if len(x) == 0 {
-                return r
-        }
+func (r MatchingRuleUse) SetName(x ...string) MatchingRuleUse {
+	if !r.IsZero() {
+		r.matchingRuleUse.setName(x...)
+	}
 
-        if r.IsZero() {
-                r.matchingRuleUse = newMatchingRuleUse()
-        }
+	return r
+}
 
-        for i := 0; i < len(x); i++ {
-                r.matchingRuleUse.Name.Push(x[i])
-        }
-
-        return r
+func (r *matchingRuleUse) setName(x ...string) {
+	for i := 0; i < len(x); i++ {
+		r.Name.Push(x[i])
+	}
 }
 
 /*
@@ -440,31 +714,38 @@ func (r MatchingRuleUse) Description() (desc string) {
 }
 
 /*
-SetDescription parses desc into the underlying Desc field within the
+SetDescription parses desc into the underlying DESC clause within the
 receiver instance.  Although a RFC 4512-compliant QuotedString is
 required, the outer single-quotes need not be specified literally.
 */
-func (r *MatchingRuleUse) SetDescription(desc string) *MatchingRuleUse {
-        if len(desc) < 3 {
-                return r
-        }
+func (r MatchingRuleUse) SetDescription(desc string) MatchingRuleUse {
+	if !r.IsZero() {
+		r.matchingRuleUse.setDescription(desc)
+	}
 
-        if r.matchingRuleUse == nil {
-                r.matchingRuleUse = newMatchingRuleUse()
-        }
+	return r
+}
 
-        if !(rune(desc[0]) == rune(39) && rune(desc[len(desc)-1]) == rune(39)) {
-                if !r.IsZero() {
-                        r.matchingRuleUse.Desc = desc
-                }
-        }
+func (r *matchingRuleUse) setDescription(desc string) {
+	if len(desc) < 3 {
+		return
+	}
 
-        return r
+	if rune(desc[0]) == rune(39) {
+		desc = desc[1:]
+	}
+
+	if rune(desc[len(desc)-1]) == rune(39) {
+		desc = desc[:len(desc)-1]
+	}
+
+	r.Desc = desc
+
+	return
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r MatchingRuleUse) IsZero() bool {
 	return r.matchingRuleUse == nil
@@ -476,13 +757,11 @@ func (r MatchingRuleUses) canPush(x ...any) (err error) {
 	}
 
 	for i := 0; i < len(x) && err == nil; i++ {
-		instance := x[i]
-		err = errorf("Type assertion for %T has failed", instance)
-		if mu, ok := instance.(MatchingRuleUse); ok && !mu.IsZero() {
-			err = errorf("%T %s not unique", mu, mu.NumericOID())
-			if tst := r.get(mu.NumericOID()); tst.IsZero() {
-				err = nil
-			}
+		mu, ok := x[i].(MatchingRuleUse)
+		if !ok || mu.IsZero() {
+			err = ErrTypeAssert
+		} else if tst := r.get(mu.NumericOID()); !tst.IsZero() {
+			err = mkerr(ErrNotUnique.Error() + ": " + mu.Type() + `, ` + mu.NumericOID())
 		}
 	}
 
@@ -509,8 +788,7 @@ func (r MatchingRuleUses) String() string {
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r MatchingRuleUses) IsZero() bool {
 	return r.cast().IsZero()
@@ -537,26 +815,6 @@ func (r MatchingRuleUses) index(idx int) (mu MatchingRuleUse) {
 }
 
 /*
-Push returns an error following an attempt to push an [AttributeType]
-instance into the receiver instance.
-*/
-func (r MatchingRuleUse) Push(at any) error {
-	return r.push(at)
-}
-
-func (r MatchingRuleUse) push(at any) (err error) {
-	err = errorf("Cannot push %T instance into %T", at, r)
-	if !r.IsZero() {
-		if at != nil {
-			r.Applies().cast().Push(at)
-			err = nil
-		}
-	}
-
-	return
-}
-
-/*
 Push returns an error following an attempt to push a [MatchingRuleUse]
 instance into the receiver instance.
 */
@@ -564,11 +822,16 @@ func (r MatchingRuleUses) Push(mu any) error {
 	return r.push(mu)
 }
 
-func (r MatchingRuleUses) push(mu any) (err error) {
-	err = errorf("Cannot push %T instance into %T", mu, r)
-	if mu != nil {
-		r.cast().Push(mu)
-		err = nil
+func (r MatchingRuleUses) push(x any) (err error) {
+	switch tv := x.(type) {
+	case MatchingRuleUse:
+		if tv.IsZero() {
+			err = ErrDefNonCompliant
+			break
+		}
+		r.cast().Push(tv)
+	default:
+		err = ErrInvalidType
 	}
 
 	return
@@ -617,23 +880,22 @@ func (r MatchingRuleUses) get(id string) (mu MatchingRuleUse) {
 /*
 makeMatchingRuleUse fashions and returns a new MatchingRuleUse instance
 based on the contents of the receiver instance.  The returned instance,
-assuming a nil error condition, may have its Applies field populated
+assuming a nil error condition, may have its APPLIES clause populated
 with "users" (AttributeType instances) of the indicated matchingRule.
 */
 func (r MatchingRule) makeMatchingRuleUse() (mu MatchingRuleUse, err error) {
-	err = errorf("%T instance is nil, cannot make %T", r, mu)
-	if !r.IsZero() {
-		_mu := new(matchingRuleUse)
-		_mu.Applies = NewAttributeTypeOIDList()
-		_mu.Name = r.matchingRule.Name
-		_mu.OID = r.matchingRule.OID
-		_mu.Desc = r.matchingRule.Desc
-		_mu.Extensions = r.matchingRule.Extensions
-		mu = MatchingRuleUse{_mu}
-		if !mu.IsZero() {
-			err = nil
-		}
+	if !r.Compliant() {
+		err = ErrNilInput
+		return
 	}
+
+	_mu := newMatchingRuleUse()
+	_mu.Name = r.matchingRule.Name
+	_mu.OID = r.matchingRule.OID
+	_mu.schema = r.Schema()
+	_mu.Extensions = r.matchingRule.Extensions
+	mu = MatchingRuleUse{_mu}
+	mu.SetStringer()
 
 	return
 }
@@ -681,19 +943,19 @@ func (r Schema) updateEqualityUses(at AttributeType) (err error) {
 		// If the MatchingRuleUse instance does not exist,
 		// create it now.
 		if mu.IsZero() {
-			err = errorf("equality matchingRule %s not found", eqty)
-			if _eqy := r.MatchingRules().get(eqty.NumericOID()); !_eqy.IsZero() {
-				if mu, err = _eqy.makeMatchingRuleUse(); err == nil {
-					r.MatchingRuleUses().push(mu)
-				}
+			_eqy := r.MatchingRules().get(eqty.NumericOID())
+			if _eqy.IsZero() {
+				err = ErrEqualityRuleNotFound
+			} else if mu, err = _eqy.makeMatchingRuleUse(); err == nil {
+				r.MatchingRuleUses().push(mu)
 			}
 		}
 
 		// Append the AttributeType instance to the
 		// MatchingRuleUse.Applies stack, assuming
 		// no errors occur.
-		if err == nil && !mu.IsZero() {
-			mu.push(at)
+		if err == nil {
+			mu.setApplies(at)
 		}
 	}
 
@@ -712,19 +974,19 @@ func (r Schema) updateSubstringUses(at AttributeType) (err error) {
 		// If the MatchingRuleUse instance does not exist,
 		// create it now.
 		if mu.IsZero() {
-			err = errorf("substring matchingRule %s not found", substr)
-			if _sub := r.MatchingRules().get(substr.NumericOID()); !_sub.IsZero() {
-				if mu, err = _sub.makeMatchingRuleUse(); err == nil {
-					r.MatchingRuleUses().push(mu)
-				}
+			_substr := r.MatchingRules().get(substr.NumericOID())
+			if _substr.IsZero() {
+				err = ErrSubstringRuleNotFound
+			} else if mu, err = _substr.makeMatchingRuleUse(); err == nil {
+				r.MatchingRuleUses().push(mu)
 			}
 		}
 
 		// Append the AttributeType instance to the
 		// MatchingRuleUse.Applies stack, assuming
 		// no errors occur.
-		if err == nil && !mu.IsZero() {
-			mu.push(at)
+		if err == nil {
+			mu.setApplies(at)
 		}
 	}
 
@@ -743,19 +1005,19 @@ func (r Schema) updateOrderingUses(at AttributeType) (err error) {
 		// If the MatchingRuleUse instance does not exist,
 		// create it now.
 		if mu.IsZero() {
-			err = errorf("ordering matchingRule %s not found", order)
-			if _ord := r.MatchingRules().get(order.NumericOID()); !_ord.IsZero() {
-				if mu, err = _ord.makeMatchingRuleUse(); err == nil {
-					r.MatchingRuleUses().push(mu)
-				}
+			_order := r.MatchingRules().get(order.NumericOID())
+			if _order.IsZero() {
+				err = ErrOrderingRuleNotFound
+			} else if mu, err = _order.makeMatchingRuleUse(); err == nil {
+				r.MatchingRuleUses().push(mu)
 			}
 		}
 
 		// Append the AttributeType instance to the
 		// MatchingRuleUse.Applies stack, assuming
 		// no errors occur.
-		if err == nil && !mu.IsZero() {
-			mu.push(at)
+		if err == nil {
+			mu.setApplies(at)
 		}
 	}
 

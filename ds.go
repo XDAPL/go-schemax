@@ -1,8 +1,7 @@
 package schemax
 
 /*
-NewDITStructureRules initializes a new [Collection] instance and casts
-it as an [DITStructureRules] instance.
+NewDITStructureRules initializes a new [DITStructureRules] instance.
 */
 func NewDITStructureRules() DITStructureRules {
 	r := DITStructureRules(newCollection(``))
@@ -38,28 +37,112 @@ func (r Schema) DITStructureRules() (dss DITStructureRules) {
 }
 
 /*
+Replace overrides the receiver with x. Both must bear an identical
+numeric OID and x MUST be compliant.
+
+Note that the relevant [Schema] instance must be configured to allow
+definition override by way of the [AllowOverride] bit setting.  See
+the [Schema.Options] method for a means of accessing the settings
+value.
+
+Note that this method does not reallocate a new pointer instance
+within the [DITStructureRule] envelope type, thus all references to the
+receiver instance within various stacks will be preserved.
+
+This is a fluent method.
+*/
+func (r DITStructureRule) Replace(x DITStructureRule) DITStructureRule {
+	if r.NumericOID() != x.NumericOID() {
+		return r
+	}
+	r.replace(x)
+
+	return r
+}
+
+func (r DITStructureRule) replace(x DITStructureRule) {
+	if x.Compliant() && !r.IsZero() {
+		r.dITStructureRule.ID = x.dITStructureRule.ID
+		r.dITStructureRule.Name = x.dITStructureRule.Name
+		r.dITStructureRule.Desc = x.dITStructureRule.Desc
+		r.dITStructureRule.Obsolete = x.dITStructureRule.Obsolete
+		r.dITStructureRule.SuperRules = x.dITStructureRule.SuperRules
+		r.dITStructureRule.Extensions = x.dITStructureRule.Extensions
+		r.dITStructureRule.data = x.dITStructureRule.data
+		r.dITStructureRule.schema = x.dITStructureRule.schema
+		r.dITStructureRule.stringer = x.dITStructureRule.stringer
+		r.dITStructureRule.data = x.dITStructureRule.data
+	}
+}
+
+/*
+SetData assigns x to the receiver instance. This is a general-use method and has no
+specific intent beyond convenience. The contents may be subsequently accessed via the
+[DITStructureRule.Data] method.
+
+This is a fluent method.
+*/
+func (r DITStructureRule) SetData(x any) DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setData(x)
+	}
+
+	return r
+}
+
+func (r *dITStructureRule) setData(x any) {
+	r.data = x
+}
+
+/*
+Data returns the underlying value (x) assigned to the receiver's data storage field. Data
+can be set within the receiver instance by way of the [DITStructureRule.SetData] method.
+*/
+func (r DITStructureRule) Data() (x any) {
+	if !r.IsZero() {
+		x = r.dITStructureRule.data
+	}
+
+	return
+}
+
+/*
 SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
 internal verification of certain actions without the need for user input of
 an instance of [Schema] manually at each juncture.
 
 Note that the underlying [Schema] instance is automatically set when creating
-instances of this type by way of parsing.
+instances of this type by way of parsing, as well as if the receiver instance
+was initialized using the [Schema.NewDITStructureRule] method.
 
 This is a fluent method.
 */
-func (r *DITStructureRule) SetSchema(schema Schema) *DITStructureRule {
-	if r.IsZero() {
-		r.dITStructureRule = newDITStructureRule()
+func (r DITStructureRule) SetSchema(schema Schema) DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setSchema(schema)
 	}
-
-	r.dITStructureRule.schema = schema
 
 	return r
 }
 
-func (r DITStructureRule) schema() (s Schema) {
+func (r *dITStructureRule) setSchema(schema Schema) {
+	r.schema = schema
+}
+
+/*
+Schema returns the [Schema] instance associated with the receiver instance.
+*/
+func (r DITStructureRule) Schema() (s Schema) {
 	if !r.IsZero() {
-		s = r.dITStructureRule.schema
+		s = r.dITStructureRule.getSchema()
+	}
+
+	return
+}
+
+func (r *dITStructureRule) getSchema() (s Schema) {
+	if r != nil {
+		s = r.schema
 	}
 
 	return
@@ -73,9 +156,9 @@ interface requirements.
 func (r DITStructureRule) NumericOID() string { return `` }
 
 /*
-IsObsolete returns a Boolean value indicative of definition obsolescence.
+Obsolete returns a Boolean value indicative of definition obsolescence.
 */
-func (r DITStructureRule) IsObsolete() (o bool) {
+func (r DITStructureRule) Obsolete() (o bool) {
 	if !r.IsZero() {
 		o = r.dITStructureRule.Obsolete
 	}
@@ -84,9 +167,47 @@ func (r DITStructureRule) IsObsolete() (o bool) {
 }
 
 /*
+Compliant returns a Boolean value indicative of every [DITStructureRule]
+returning a compliant response from the [DITStructureRule.Compliant] method.
+*/
+func (r DITStructureRules) Compliant() bool {
+	for i := 0; i < r.Len(); i++ {
+		if !r.Index(i).Compliant() {
+			return false
+		}
+	}
+
+	return true
+}
+
+/*
+Compliant returns a Boolean value indicative of the receiver being fully
+compliant per the required clauses of § 4.1.7.1 of RFC 4512:
+
+  - "rule ID" must be specified in the form of an unsigned integer of any magnitude
+  - FORM clause MUST refer to a known [NameForm] instance within the associated [Schema] instance
+  - FORM clause MUST refer to a COMPLIANT [NameForm]
+*/
+func (r DITStructureRule) Compliant() bool {
+	// presence of ruleid is guaranteed via
+	// uint default, no need to check.
+
+	if r.IsZero() {
+		return false
+	}
+
+	form := r.Schema().NameForms().get(r.Form().NumericOID())
+	return form.Compliant()
+}
+
+/*
 Type returns the string literal "dITStructureRule".
 */
 func (r DITStructureRule) Type() string {
+	return r.dITStructureRule.Type()
+}
+
+func (r dITStructureRule) Type() string {
 	return `dITStructureRule`
 }
 
@@ -115,7 +236,7 @@ the receiver instance.
 */
 func (r DITStructureRule) ID() (id string) {
 	if !r.IsZero() {
-		_id := sprintf("%d", r.RuleID()) // default
+		_id := uitoa(r.RuleID())
 		if id = r.Name(); len(id) == 0 {
 			id = _id
 		}
@@ -131,7 +252,7 @@ not significant in the matching process.
 */
 func (r DITStructureRule) IsIdentifiedAs(id string) (ident bool) {
 	if !r.IsZero() {
-		ident = id == sprintf("%d", r.RuleID()) ||
+		ident = id == uitoa(r.RuleID()) ||
 			r.dITStructureRule.Name.contains(id)
 	}
 
@@ -186,10 +307,10 @@ func (r DITStructureRule) Name() (id string) {
 }
 
 /*
-Names returns the underlying instance of [Name] from
+Names returns the underlying instance of [QuotedDescriptorList] from
 within the receiver.
 */
-func (r DITStructureRule) Names() (names Name) {
+func (r DITStructureRule) Names() (names QuotedDescriptorList) {
 	return r.dITStructureRule.Name
 }
 
@@ -206,25 +327,353 @@ func (r DITStructureRule) Description() (desc string) {
 }
 
 /*
-SetStringer allows the assignment of an individual "stringer" function
+SetStringer allows the assignment of an individual [Stringer] function or
+method to all [DITStructureRule] slices within the receiver stack instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite all
+preexisting stringer functions with the internal closure default, which is
+based upon a one-time use of the [text/template] package by all receiver
+slice instances.
+
+Input of a non-nil closure function value will overwrite all preexisting
+stringers.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r DITStructureRules) SetStringer(function ...Stringer) DITStructureRules {
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		def.SetStringer(function...)
+	}
+
+	return r
+}
+
+/*
+SetStringer allows the assignment of an individual [Stringer] function
 or method to the receiver instance.
 
-A non-nil value will be executed for every call of the String method
-for the receiver instance.
+Input of zero (0) variadic values, or an explicit nil, will overwrite any
+preexisting stringer function with the internal closure default, which is
+based upon a one-time use of the [text/template] package by the receiver
+instance.
 
-Should the input stringer value be nil, the [text/template.Template]
-value will be used automatically going forward.
+Input of a non-nil closure function value will overwrite any preexisting
+stringer.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r DITStructureRule) SetStringer(function ...Stringer) DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setStringer(function...)
+	}
+
+	return r
+}
+
+func (r *dITStructureRule) setStringer(function ...Stringer) {
+	var stringer Stringer
+	if len(function) > 0 {
+		stringer = function[0]
+	}
+
+	if stringer == nil {
+		str, err := r.prepareString() // perform one-time text/template op
+		if err == nil {
+			// Save the stringer
+			r.stringer = func() string {
+				// Return a preserved value.
+				return str
+			}
+		}
+	} else {
+		r.stringer = stringer
+	}
+}
+
+/*
+SetName assigns the provided names to the receiver instance.
+
+Name instances must conform to RFC 4512 descriptor format but
+need not be quoted.
 
 This is a fluent method.
 */
-func (r *DITStructureRule) SetStringer(stringer func() string) DITStructureRule {
-	if r.IsZero() {
-		r.dITStructureRule = newDITStructureRule()
+func (r DITStructureRule) SetName(x ...string) DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setName(x...)
 	}
 
-	r.dITStructureRule.stringer = stringer
+	return r
+}
 
-	return *r
+func (r *dITStructureRule) setName(x ...string) {
+	for i := 0; i < len(x); i++ {
+		r.Name.Push(x[i])
+	}
+}
+
+/*
+SetObsolete sets the receiver instance to OBSOLETE if not already set. Note that obsolescence cannot be unset.
+
+This is a fluent method.
+*/
+func (r DITStructureRule) SetObsolete() DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setObsolete()
+	}
+
+	return r
+}
+
+func (r *dITStructureRule) setObsolete() {
+	if !r.Obsolete {
+		r.Obsolete = true
+	}
+}
+
+/*
+SetDescription parses desc into the underlying DESC clause within the
+receiver instance.  Although a RFC 4512-compliant QuotedString is
+required, the outer single-quotes need not be specified literally.
+
+This is a fluent method.
+*/
+func (r DITStructureRule) SetDescription(desc string) DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setDescription(desc)
+	}
+
+	return r
+}
+
+func (r *dITStructureRule) setDescription(desc string) {
+	if len(desc) < 3 {
+		return
+	}
+
+	if rune(desc[0]) == rune(39) {
+		desc = desc[1:]
+	}
+
+	if rune(desc[len(desc)-1]) == rune(39) {
+		desc = desc[:len(desc)-1]
+	}
+
+	r.Desc = desc
+
+	return
+}
+
+/*
+SetExtension assigns key x to value xstrs within the receiver's underlying
+[Extensions] instance.
+
+This is a fluent method.
+*/
+func (r DITStructureRule) SetExtension(x string, xstrs ...string) DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setExtension(x, xstrs...)
+	}
+
+	return r
+}
+
+func (r *dITStructureRule) setExtension(x string, xstrs ...string) {
+	r.Extensions.Set(x, xstrs...)
+}
+
+/*
+SetNumericOID allows the manual assignment of a numeric OID to the
+receiver instance if the following are all true:
+
+  - The input id value is a syntactically valid numeric OID
+  - The receiver does not already possess a numeric OID
+
+This is a fluent method.
+*/
+func (r DITStructureRule) SetRuleID(id any) DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setRuleID(id)
+	}
+
+	return r
+}
+
+func (r *dITStructureRule) setRuleID(x any) {
+	switch tv := x.(type) {
+	case uint64:
+		r.ID = uint(tv)
+	case uint:
+		r.ID = tv
+	case int:
+		if tv >= 0 {
+			r.ID = uint(tv)
+		}
+	case string:
+		r.ID = atoui(tv)
+	}
+
+	return
+}
+
+/*
+SetSuperRule assigns the provided input [DITStructureRule] instance(s) to the
+receiver's SUP clause.
+
+This is a fluent method.
+*/
+func (r DITStructureRule) SetSuperRule(m ...any) DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setSuperRule(m...)
+	}
+
+	return r
+}
+
+func (r *dITStructureRule) setSuperRule(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var oc ObjectClass
+		switch tv := m[i].(type) {
+		case string:
+			oc = r.schema.ObjectClasses().get(tv)
+		case ObjectClass:
+			oc = tv
+		default:
+			err = ErrInvalidType
+		}
+
+		if oc.Compliant() {
+			r.SuperRules.Push(oc)
+		}
+	}
+}
+
+/*
+Parse returns an error following an attempt to parse raw into the receiver
+instance.
+
+Note that the receiver MUST possess a [Schema] reference prior to the execution
+of this method.
+
+Also note that successful execution of this method does NOT automatically push
+the receiver into any [MatchingRules] stack, nor does it automatically execute
+the [MatchingRule.SetStringer] method, leaving these tasks to the user.  If the
+automatic handling of these tasks is desired, see the [Schema.ParseMatchingRule]
+method as an alternative.
+*/
+func (r DITStructureRule) Parse(raw string) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+		return
+	}
+
+	if r.getSchema().IsZero() {
+		err = ErrNilSchemaRef
+		return
+	}
+
+	err = r.dITStructureRule.parse(raw)
+
+	return
+}
+
+func (r *dITStructureRule) parse(raw string) error {
+	// parseLS wraps the antlr4512 DITStructureRule parser/lexer
+	mp, err := parseDS(raw)
+	if err == nil {
+		// We received the parsed data from ANTLR (mp).
+		// Now we need to marshal it into the receiver.
+		var def DITStructureRule
+		if def, err = r.schema.marshalDS(mp); err == nil {
+			err = ErrDefNonCompliant
+			if def.Compliant() {
+				_r := DITStructureRule{r}
+				_r.replace(def)
+				err = nil
+			}
+		}
+	}
+
+	return err
+}
+
+/*
+SetForm assigns x to the receiver instance as an instance of [NameForm].
+
+This is a fluent method.
+*/
+func (r DITStructureRule) SetForm(x any) DITStructureRule {
+	if !r.IsZero() {
+		r.dITStructureRule.setForm(x)
+	}
+
+	return r
+}
+
+func (r *dITStructureRule) setForm(x any) {
+	var def NameForm
+	switch tv := x.(type) {
+	case string:
+		if !r.schema.IsZero() {
+			def = r.schema.NameForms().get(tv)
+		}
+	case NameForm:
+		def = tv
+	}
+
+	if !def.IsZero() {
+		r.Form = def
+	}
+}
+
+/*
+NewDITStructureRule initializes and returns a new instance of [DITStructureRule],
+ready for manual assembly.  This method need not be used when creating
+new [DITStructureRule] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this method does NOT automatically push the return instance into
+the [Schema.DITStructureRules] stack; this is left to the user.
+
+Unlike the package-level [NewDITStructureRule] function, this method will
+automatically reference its originating [Schema] instance (the receiver).
+This negates the need for manual use of the [DITStructureRule.SetSchema]
+method.
+
+This is the recommended means of creating a new [DITStructureRule] instance
+wherever a single [Schema] is being used, which represents most use cases.
+*/
+func (r Schema) NewDITStructureRule() DITStructureRule {
+	return NewDITStructureRule().SetSchema(r)
+}
+
+/*
+NewDITStructureRule initializes and returns a new instance of [DITStructureRule],
+ready for manual assembly.  This method need not be used when creating
+new [DITStructureRule] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this function does not automatically reference the "parent" [Schema]
+instance, leaving it up to the user to invoke the [DITStructureRule.SetSchema]
+method manually.
+
+When interacting with a single [Schema] instance, which represents most use
+cases, use of the [Schema.NewDITStructureRule] method is PREFERRED over use of
+this package-level function.
+
+However certain migration efforts, schema audits and other such activities
+may require distinct associations of [DITStructureRule] instances with specific
+[Schema] instances. Use of this function allows the user to specify the
+appropriate [Schema] instance at a later point for a specific instance of
+an [DITStructureRule] instance.
+*/
+func NewDITStructureRule() DITStructureRule {
+	ds := DITStructureRule{newDITStructureRule()}
+	ds.dITStructureRule.Extensions.setDefinition(ds)
+	return ds
+
 }
 
 func newDITStructureRule() *dITStructureRule {
@@ -243,8 +692,6 @@ func (r DITStructureRule) String() (dsr string) {
 	if !r.IsZero() {
 		if r.dITStructureRule.stringer != nil {
 			dsr = r.dITStructureRule.stringer()
-		} else {
-			dsr = r.dITStructureRule.s
 		}
 	}
 
@@ -289,11 +736,8 @@ func (r DITStructureRules) iDsStringer(_ ...any) (present string) {
 			padchar = ``
 		}
 
-		joined := join(_present, sprintf("%s %s",
-			padchar, padchar))
-
-		present = sprintf("(%s%s%s)",
-			padchar, joined, padchar)
+		joined := join(_present, padchar+` `+padchar)
+		present = `(` + padchar + joined + padchar + `)`
 	}
 
 	return
@@ -308,9 +752,9 @@ func (r DITStructureRules) canPush(x ...any) (err error) {
 	for i := 0; i < len(x) && err == nil; i++ {
 		instance := x[i]
 		if ds, ok := instance.(DITStructureRule); !ok || ds.IsZero() {
-			err = errorf("Type assertion for %T has failed", instance)
+			err = ErrTypeAssert
 		} else if tst := r.get(ds.RuleID()); !tst.IsZero() {
-			err = errorf("%T %d not unique", ds, ds.RuleID())
+			err = mkerr(ErrNotUnique.Error() + ": " + ds.Type() + `, ` + ds.NumericOID())
 		}
 	}
 
@@ -337,8 +781,7 @@ func (r DITStructureRules) String() string {
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r DITStructureRules) IsZero() bool {
 	return r.cast().IsZero()
@@ -371,13 +814,17 @@ func (r DITStructureRules) Push(ds any) error {
 	return r.push(ds)
 }
 
-func (r DITStructureRules) push(ds any) (err error) {
-	if ds == nil {
-		err = errorf("%T instance is nil; cannot append to %T", ds, r)
-		return
+func (r DITStructureRules) push(x any) (err error) {
+	switch tv := x.(type) {
+	case DITStructureRule:
+		if !tv.Compliant() {
+			err = ErrDefNonCompliant
+			break
+		}
+		r.cast().Push(tv)
+	default:
+		err = ErrInvalidType
 	}
-
-	r.cast().Push(ds)
 
 	return
 }
@@ -484,7 +931,7 @@ func (r DITStructureRule) Map() (def DefinitionMap) {
 	def[`RULEID`] = []string{itoa(int(r.RuleID()))}
 	def[`NAME`] = r.Names().List()
 	def[`DESC`] = []string{r.Description()}
-	def[`OBSOLETE`] = []string{bool2str(r.IsObsolete())}
+	def[`OBSOLETE`] = []string{bool2str(r.Obsolete())}
 	def[`FORM`] = []string{r.Form().OID()}
 	def[`SUP`] = sups
 	def[`TYPE`] = []string{r.Type()}
@@ -500,46 +947,35 @@ func (r DITStructureRule) Map() (def DefinitionMap) {
 	return
 }
 
-func (r *dITStructureRule) prepareString() (err error) {
+func (r *dITStructureRule) prepareString() (str string, err error) {
 	buf := newBuf()
-	r.t = newTemplate(`dITStructureRule`).
+	t := newTemplate(r.Type()).
 		Funcs(funcMap(map[string]any{
 			`ExtensionSet`: r.Extensions.tmplFunc,
-			`SuperLen`:     r.SuperRules.len,
-			`IsObsolete`:   func() bool { return r.Obsolete },
+			// SuperLen refers to the integer number of
+			// superior dITStructureRule instances held
+			// by a dITStructureRule.
+			`SuperLen`: r.SuperRules.len,
+			`Obsolete`: func() bool { return r.Obsolete },
 		}))
 
-	if r.t, err = r.t.Parse(dITStructureRuleTmpl); err == nil {
-		if err = r.t.Execute(buf, struct {
+	if t, err = t.Parse(dITStructureRuleTmpl); err == nil {
+		if err = t.Execute(buf, struct {
 			Definition *dITStructureRule
 			HIndent    string
 		}{
 			Definition: r,
 			HIndent:    hindent(),
 		}); err == nil {
-			r.s = buf.String()
+			str = buf.String()
 		}
 	}
 
 	return
 }
 
-func (r *dITStructureRule) check() (err error) {
-	if r == nil {
-		err = errorf("%T instance is nil", r)
-		return
-	}
-
-	if r.Form.IsZero() {
-		err = errorf("%T missing %T", r, r.Form)
-	}
-
-	return
-}
-
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r DITStructureRule) IsZero() bool {
 	return r.dITStructureRule == nil

@@ -15,7 +15,7 @@ func (r Extensions) Push(x any) error {
 
 func (r Extensions) push(extn any) (err error) {
 	if extn == nil {
-		err = errorf("%T instance is nil; cannot append to %T", extn, r)
+		err = ErrNilInput
 		return
 	}
 
@@ -24,8 +24,11 @@ func (r Extensions) push(extn any) (err error) {
 	return
 }
 
-func (r *Extension) IsZero() bool {
-	return r == nil
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r Extension) IsZero() bool {
+	return r.extension == nil
 }
 
 func (r Extensions) canPush(x ...any) (err error) {
@@ -36,11 +39,31 @@ func (r Extensions) canPush(x ...any) (err error) {
 	for i := 0; i < len(x) && err == nil; i++ {
 		instance := x[i]
 		if e, ok := instance.(Extension); !ok || e.IsZero() {
-			err = errorf("Type assertion for %T has failed", instance)
+			err = ErrTypeAssert
 		}
 	}
 
 	return
+}
+
+/*
+Definition returns the [Definition] instance to which the receiver
+instance is assigned.
+*/
+func (r Extensions) Definition() Definition {
+	_m := r.cast().Auxiliary()[`def`]
+	m, _ := _m.(Definition)
+	return m
+}
+
+/*
+setDefinition assigns input [Definition] x to the receiver instance.
+
+This is a fluent method.
+*/
+func (r Extensions) setDefinition(x Definition) Extensions {
+	r.cast().Auxiliary()[`def`] = x
+	return r
 }
 
 /*
@@ -57,34 +80,7 @@ func (r Extensions) String() (s string) {
 }
 
 /*
-	if !r.IsZero() {
-		var _hindent string = hindent()
-		var _s []string
-		for _, extn := range r {
-			_s = append(_s, _hindent+extn.XString)
-			switch extn.Values.cast().Len() {
-			case 0:
-				continue
-			case 1:
-				if fst := extn.Values.index(0); len(fst) > 0 {
-					_s = append(_s, `'`+fst+`'`)
-				}
-			default:
-				_s = append(_s, extn.Values.cast().String())
-			}
-		}
-
-		if len(_s) > 0 {
-			s = join(_s, string(rune(32)))
-		}
-	}
-
-	return
-*/
-
-/*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r Extensions) IsZero() bool {
 	return r.cast().IsZero()
@@ -103,7 +99,10 @@ func (r Extensions) Set(key string, values ...string) {
 			_values.cast().Push(values[v])
 		}
 		if _values.cast().Len() > 0 {
-			r.Push(Extension{key, _values})
+			ext := new(extension)
+			ext.XString = key
+			ext.Values = _values
+			r.Push(Extension{ext})
 		}
 	} else {
 		for i := 0; i < len(values); i++ {

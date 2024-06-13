@@ -11,7 +11,7 @@ func NewNameForms() NameForms {
 }
 
 /*
-Nameforms returns the [NameForms] instance from within the receiver
+NameForms returns the [NameForms] instance from within the receiver
 instance.
 */
 func (r Schema) NameForms() (nfs NameForms) {
@@ -65,7 +65,7 @@ func (r NameForm) Map() (def DefinitionMap) {
 	def[`NUMERICOID`] = []string{r.NumericOID()}
 	def[`NAME`] = r.Names().List()
 	def[`DESC`] = []string{r.Description()}
-	def[`OBSOLETE`] = []string{bool2str(r.IsObsolete())}
+	def[`OBSOLETE`] = []string{bool2str(r.Obsolete())}
 	def[`OC`] = []string{r.OC().OID()}
 	def[`MUST`] = musts
 	def[`MAY`] = mays
@@ -83,19 +83,102 @@ func (r NameForm) Map() (def DefinitionMap) {
 }
 
 /*
-NewNameForm initializes and returns an unpopulated new instance
-of [NameForm].  Use of this function is only needed when building
-an instance of [NameForm] manually using the various Set methods,
-and without involvement of the parser.
+NewNameForm initializes and returns a new instance of [NameForm],
+ready for manual assembly.  This method need not be used when creating
+new [NameForm] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this method does NOT automatically push the return instance into
+the [Schema.NameForms] stack; this is left to the user.
+
+Unlike the package-level [NewNameForm] function, this method will
+automatically reference its originating [Schema] instance (the receiver).
+This negates the need for manual use of the [NameForm.SetSchema]
+method.
+
+This is the recommended means of creating a new [NameForm] instance
+wherever a single [Schema] is being used, which represents most use cases.
+*/
+func (r Schema) NewNameForm() NameForm {
+	a := NewNameForm()
+	a.SetSchema(r)
+	return a
+}
+
+/*
+NewNameForm initializes and returns a new instance of [NameForm],
+ready for manual assembly.  This method need not be used when creating
+new [NameForm] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this function does not automatically reference the "parent" [Schema]
+instance, leaving it up to the user to invoke the [NameForm.SetSchema]
+method manually.
+
+When interacting with a single [Schema] instance, which represents most use
+cases, use of the [Schema.NewNameForm] method is PREFERRED over use of
+this package-level function.
+
+However certain migration efforts, schema audits and other such activities
+may require distinct associations of [NameForm] instances with specific
+[Schema] instances. Use of this function allows the user to specify the
+appropriate [Schema] instance at a later point for a specific instance of
+an [NameForm] instance.
 */
 func NewNameForm() NameForm {
-	return NameForm{
-		&nameForm{
-			Name:       NewName(),
-			Must:       NewAttributeTypeOIDList(),
-			May:        NewAttributeTypeOIDList(),
-			Extensions: NewExtensions(),
-		},
+	nf := NameForm{newNameForm()}
+	nf.nameForm.Extensions.setDefinition(nf)
+	return nf
+}
+
+func newNameForm() *nameForm {
+	return &nameForm{
+		Name:       NewName(),
+		Must:       NewAttributeTypeOIDList(`MUST`),
+		May:        NewAttributeTypeOIDList(`MAY`),
+		Extensions: NewExtensions(),
+	}
+}
+
+/*
+Replace overrides the receiver with x. Both must bear an identical
+numeric OID and x MUST be compliant.
+
+Note that the relevant [Schema] instance must be configured to allow
+definition override by way of the [AllowOverride] bit setting.  See
+the [Schema.Options] method for a means of accessing the settings
+value.
+
+Note that this method does not reallocate a new pointer instance
+within the [NameForm] envelope type, thus all references to the
+receiver instance within various stacks will be preserved.
+
+This is a fluent method.
+*/
+func (r NameForm) Replace(x NameForm) NameForm {
+	if r.NumericOID() != x.NumericOID() {
+		return r
+	}
+	r.replace(x)
+
+	return r
+}
+
+func (r NameForm) replace(x NameForm) {
+	if x.Compliant() && !r.IsZero() {
+		r.nameForm.OID = x.nameForm.OID
+		r.nameForm.Macro = x.nameForm.Macro
+		r.nameForm.Name = x.nameForm.Name
+		r.nameForm.Desc = x.nameForm.Desc
+		r.nameForm.Obsolete = x.nameForm.Obsolete
+		r.nameForm.Structural = x.nameForm.Structural
+		r.nameForm.Must = x.nameForm.Must
+		r.nameForm.May = x.nameForm.May
+		r.nameForm.Extensions = x.nameForm.Extensions
+		r.nameForm.data = x.nameForm.data
+		r.nameForm.schema = x.nameForm.schema
+		r.nameForm.stringer = x.nameForm.stringer
+		r.nameForm.data = x.nameForm.data
 	}
 }
 
@@ -113,28 +196,124 @@ func (r NameForm) IsIdentifiedAs(id string) (ident bool) {
 }
 
 /*
+Compliant returns a Boolean value indicative of every [NameForm]
+returning a compliant response from the [NameForm.Compliant] method.
+*/
+func (r NameForms) Compliant() bool {
+	for i := 0; i < r.Len(); i++ {
+		if !r.Index(i).Compliant() {
+			return false
+		}
+	}
+
+	return true
+}
+
+/*
+Compliant returns a Boolean value indicative of the receiver being fully
+compliant per the required clauses of § 4.1.7.2 of RFC 4512:
+
+  - Numeric OID must be present and valid
+*/
+func (r NameForm) Compliant() bool {
+	if !isNumericOID(r.nameForm.OID) {
+		return false
+	}
+
+	if !r.OC().Compliant() {
+		return false
+	}
+
+	var (
+		mct  int
+		may  AttributeTypes = r.May()
+		must AttributeTypes = r.Must()
+	)
+
+	for i := 0; i < must.Len(); i++ {
+		if !must.Index(i).Compliant() {
+			return false
+		}
+		mct++
+	}
+
+	for i := 0; i < may.Len(); i++ {
+		if !may.Index(i).Compliant() {
+			return false
+		}
+	}
+
+	return mct > 0
+}
+
+/*
+SetData assigns x to the receiver instance. This is a general-use method and has no
+specific intent beyond convenience. The contents may be subsequently accessed via the
+[NameForm.Data] method.
+
+This is a fluent method.
+*/
+func (r NameForm) SetData(x any) NameForm {
+	if !r.IsZero() {
+		r.nameForm.setData(x)
+	}
+
+	return r
+}
+
+func (r *nameForm) setData(x any) {
+	r.data = x
+}
+
+/*
+Data returns the underlying value (x) assigned to the receiver's data storage field. Data
+can be set within the receiver instance by way of the [NameForm.SetData] method.
+*/
+func (r NameForm) Data() (x any) {
+	if !r.IsZero() {
+		x = r.nameForm.data
+	}
+
+	return
+}
+
+/*
 SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
 internal verification of certain actions without the need for user input of
 an instance of [Schema] manually at each juncture.
 
 Note that the underlying [Schema] instance is automatically set when creating
-instances of this type by way of parsing.
+instances of this type by way of parsing, as well as if the receiver instance
+was initialized using the [Schema.NewNameForm] method.
 
 This is a fluent method.
 */
-func (r *NameForm) SetSchema(schema Schema) *NameForm {
-	if r.IsZero() {
-		r.nameForm = newNameForm()
+func (r NameForm) SetSchema(schema Schema) NameForm {
+	if !r.IsZero() {
+		r.nameForm.setSchema(schema)
 	}
-
-	r.nameForm.schema = schema
 
 	return r
 }
 
-func (r NameForm) schema() (s Schema) {
+func (r *nameForm) setSchema(schema Schema) {
+	r.schema = schema
+}
+
+/*
+Schema returns the [Schema] instance associated with the receiver instance.
+*/
+func (r NameForm) Schema() (s Schema) {
 	if !r.IsZero() {
-		s = r.nameForm.schema
+		s = r.nameForm.getSchema()
+	}
+
+	return
+}
+
+func (r *nameForm) getSchema() (s Schema) {
+	if r != nil {
+		s = r.schema
 	}
 
 	return
@@ -147,21 +326,19 @@ append to -- not replace -- any preexisting names.
 
 This is a fluent method.
 */
-/*
-func (r *NameForm) SetName(name ...string) NameForm {
-	if r.nameForm == nil {
-		r.nameForm = new(nameForm)
-	}
-
+func (r NameForm) SetName(name ...string) NameForm {
 	if !r.IsZero() {
-		for _, n := range name {
-			r.nameForm.Name.cast().Push(n)
-		}
+		r.nameForm.setName(name...)
 	}
 
-	return *r
+	return r
 }
-*/
+
+func (r *nameForm) setName(x ...string) {
+	for i := 0; i < len(x); i++ {
+		r.Name.Push(x[i])
+	}
+}
 
 /*
 SetNumericOID allows the manual assignment of a numeric OID to the
@@ -172,18 +349,24 @@ receiver instance if the following are all true:
 
 This is a fluent method.
 */
-func (r *NameForm) SetNumericOID(id string) NameForm {
-	if r.nameForm == nil {
-		r.nameForm = new(nameForm)
+func (r NameForm) SetNumericOID(id string) NameForm {
+	if !r.IsZero() {
+		r.nameForm.setNumericOID(id)
 	}
 
+	return r
+}
+
+func (r *nameForm) setNumericOID(id string) {
 	if isNumericOID(id) {
-		if len(r.nameForm.OID) == 0 {
-			r.nameForm.OID = id
+		// only set an OID when the receiver
+		// lacks one (iow: no modifications)
+		if len(r.OID) == 0 {
+			r.OID = id
 		}
 	}
 
-	return *r
+	return
 }
 
 /*
@@ -210,24 +393,24 @@ way to "unset" a state of obsolescence.
 
 This is a fluent method.
 */
-func (r *NameForm) SetObsolete() NameForm {
-	if r.nameForm == nil {
-		r.nameForm = new(nameForm)
-	}
-
+func (r NameForm) SetObsolete() NameForm {
 	if !r.IsZero() {
-		if !r.nameForm.Obsolete {
-			r.nameForm.Obsolete = true
-		}
+		r.nameForm.setObsolete()
 	}
 
-	return *r
+	return r
+}
+
+func (r *nameForm) setObsolete() {
+	if !r.Obsolete {
+		r.Obsolete = true
+	}
 }
 
 /*
-IsObsolete returns a Boolean value indicative of definition obsolescence.
+Obsolete returns a Boolean value indicative of definition obsolescence.
 */
-func (r NameForm) IsObsolete() (o bool) {
+func (r NameForm) Obsolete() (o bool) {
 	if !r.IsZero() {
 		o = r.nameForm.Obsolete
 	}
@@ -236,17 +419,8 @@ func (r NameForm) IsObsolete() (o bool) {
 }
 
 /*
-SetOC assigns the referenced Structural [ObjectClass] -- which can be input in literal
-ObjectClass form, or through a numeric OID to be searched in the underlying [Schema] --
-
-This is a fluent method.
-*/
-//func (r NameForm) SetOC(x any) NameForm {
-//}
-
-/*
-Extensions returns the [Extensions] instance -- if set -- within
-the receiver.
+Extensions returns the [Extensions] instance -- if set -- within the
+receiver instance.
 
 Additions to the [Extensions] instance returned may be effected using
 the [Extensions.Set] method. Existing [Extensions] cannot be altered.
@@ -276,6 +450,39 @@ func (r NameForm) May() (may AttributeTypes) {
 }
 
 /*
+SetMay assigns the provided input [AttributeType] instance(s) to the
+receiver's MAY clause.
+
+This is a fluent method.
+*/
+func (r NameForm) SetMay(m ...any) NameForm {
+	if !r.IsZero() {
+		r.nameForm.setMay(m...)
+	}
+
+	return r
+}
+
+func (r *nameForm) setMay(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var at AttributeType
+		switch tv := m[i].(type) {
+		case string:
+			at = r.schema.AttributeTypes().get(tv)
+		case AttributeType:
+			at = tv
+		default:
+			err = ErrInvalidType
+		}
+
+		if err == nil && !at.IsZero() {
+			r.May.Push(at)
+		}
+	}
+}
+
+/*
 Must returns an [AttributeTypes] containing zero (0) or more required
 [AttributeType] definitions for use with this class.
 
@@ -289,6 +496,39 @@ func (r NameForm) Must() (must AttributeTypes) {
 	}
 
 	return
+}
+
+/*
+SetMust assigns the provided input [AttributeType] instance(s) to the
+receiver's MUST clause.
+
+This is a fluent method.
+*/
+func (r NameForm) SetMust(m ...any) NameForm {
+	if !r.IsZero() {
+		r.nameForm.setMust(m...)
+	}
+
+	return r
+}
+
+func (r *nameForm) setMust(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var at AttributeType
+		switch tv := m[i].(type) {
+		case string:
+			at = r.schema.AttributeTypes().get(tv)
+		case AttributeType:
+			at = tv
+		default:
+			err = ErrInvalidType
+		}
+
+		if err == nil && !at.IsZero() {
+			r.Must.Push(at)
+		}
+	}
 }
 
 /*
@@ -315,42 +555,76 @@ func (r NameForm) Name() (id string) {
 }
 
 /*
-Names returns the underlying instance of [Name] from within the
+Names returns the underlying instance of [QuotedDescriptorList] from within the
 receiver instance.
 */
-func (r NameForm) Names() (names Name) {
+func (r NameForm) Names() (names QuotedDescriptorList) {
 	return r.nameForm.Name
 }
 
-func newNameForm() *nameForm {
-	return &nameForm{
-		Name:       NewName(),
-		Must:       NewAttributeTypeOIDList(),
-		May:        NewAttributeTypeOIDList(),
-		Extensions: NewExtensions(),
+/*
+SetStringer allows the assignment of an individual [Stringer] function or
+method to all [NameForm] slices within the receiver stack instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite all
+preexisting stringer functions with the internal closure default, which is
+based upon a one-time use of the [text/template] package by all receiver
+slice instances.
+
+Input of a non-nil closure function value will overwrite all preexisting
+stringers.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r NameForms) SetStringer(function ...Stringer) NameForms {
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		def.SetStringer(function...)
 	}
+
+	return r
 }
 
 /*
-SetStringer allows the assignment of an individual "stringer" function
+SetStringer allows the assignment of an individual [Stringer] function
 or method to the receiver instance.
 
-A non-nil value will be executed for every call of the String method
-for the receiver instance.
+Input of zero (0) variadic values, or an explicit nil, will overwrite any
+preexisting stringer function with the internal closure default, which is
+based upon a one-time use of the [text/template] package by the receiver
+instance.
 
-Should the input stringer value be nil, the [text/template.Template]
-value will be used automatically going forward.
+Input of a non-nil closure function value will overwrite any preexisting
+stringer.
 
-This is a fluent method.
+This is a fluent method and may be used multiple times.
 */
-func (r *NameForm) SetStringer(stringer func() string) NameForm {
-	if r.IsZero() {
-		r.nameForm = newNameForm()
+func (r NameForm) SetStringer(function ...Stringer) NameForm {
+	if !r.IsZero() {
+		r.nameForm.setStringer(function...)
 	}
 
-	r.nameForm.stringer = stringer
+	return r
+}
 
-	return *r
+func (r *nameForm) setStringer(function ...Stringer) {
+	var stringer Stringer
+	if len(function) > 0 {
+		stringer = function[0]
+	}
+
+	if stringer == nil {
+		str, err := r.prepareString() // perform one-time text/template op
+		if err == nil {
+			// Save the stringer
+			r.stringer = func() string {
+				// Return a preserved value.
+				return str
+			}
+		}
+	} else {
+		r.stringer = stringer
+	}
 }
 
 /*
@@ -361,8 +635,6 @@ func (r NameForm) String() (nf string) {
 	if !r.IsZero() {
 		if r.nameForm.stringer != nil {
 			nf = r.nameForm.stringer()
-		} else {
-			nf = r.nameForm.s
 		}
 	}
 
@@ -384,27 +656,27 @@ func (r NameForm) setOID(x string) {
 }
 
 /*
-prepareString returns an error indicative of an attempt to represent
-the receiver instance as a string using text/template.
+prepareString returns a string an an error indicative of an attempt
+to represent the receiver instance as a string using [text/template].
 */
-func (r *nameForm) prepareString() (err error) {
+func (r *nameForm) prepareString() (str string, err error) {
 	buf := newBuf()
-	r.t = newTemplate(`nameForm`).
+	t := newTemplate(`nameForm`).
 		Funcs(funcMap(map[string]any{
 			`ExtensionSet`: r.Extensions.tmplFunc,
 			`MayLen`:       r.May.len,
-			`IsObsolete`:   func() bool { return r.Obsolete },
+			`Obsolete`:     func() bool { return r.Obsolete },
 		}))
 
-	if r.t, err = r.t.Parse(nameFormTmpl); err == nil {
-		if err = r.t.Execute(buf, struct {
+	if t, err = t.Parse(nameFormTmpl); err == nil {
+		if err = t.Execute(buf, struct {
 			Definition *nameForm
 			HIndent    string
 		}{
 			Definition: r,
 			HIndent:    hindent(),
 		}); err == nil {
-			r.s = buf.String()
+			str = buf.String()
 		}
 	}
 
@@ -424,30 +696,35 @@ func (r NameForm) Description() (desc string) {
 }
 
 /*
-SetDescription parses desc into the underlying Desc field within the
+SetDescription parses desc into the underlying DESC clause within the
 receiver instance.  Although a RFC 4512-compliant QuotedString is
 required, the outer single-quotes need not be specified literally.
 */
-/*
-func (r *NameForm) SetDescription(desc string) NameForm {
-	if len(desc) < 3 {
-		return *r
+func (r NameForm) SetDescription(desc string) NameForm {
+	if !r.IsZero() {
+		r.nameForm.setDescription(desc)
 	}
 
-	if r.nameForm == nil {
-		r.nameForm = new(nameForm)
-	}
-
-	if !(rune(desc[0]) == rune(39) && rune(desc[len(desc)-1]) == rune(39)) {
-		desc = `'` + desc + `'`
-		if !r.IsZero() {
-			r.nameForm.Desc = desc
-		}
-	}
-
-	return *r
+	return r
 }
-*/
+
+func (r *nameForm) setDescription(desc string) {
+	if len(desc) < 3 {
+		return
+	}
+
+	if rune(desc[0]) == rune(39) {
+		desc = desc[1:]
+	}
+
+	if rune(desc[len(desc)-1]) == rune(39) {
+		desc = desc[:len(desc)-1]
+	}
+
+	r.Desc = desc
+
+	return
+}
 
 /*
 Inventory returns an instance of [Inventory] which represents the current
@@ -489,9 +766,9 @@ func (r NameForms) canPush(x ...any) (err error) {
 	for i := 0; i < len(x) && err == nil; i++ {
 		nf, ok := x[i].(NameForm)
 		if !ok || nf.IsZero() {
-			err = errorf("Type assertion for %T has failed", x[i])
+			err = ErrTypeAssert
 		} else if tst := r.get(nf.NumericOID()); !tst.IsZero() {
-			err = errorf("%T %s not unique", nf, nf.NumericOID())
+			err = mkerr(ErrNotUnique.Error() + ": " + nf.Type() + `, ` + nf.NumericOID())
 		}
 	}
 
@@ -518,8 +795,7 @@ func (r NameForms) String() string {
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r NameForms) IsZero() bool {
 	return r.cast().IsZero()
@@ -553,12 +829,17 @@ func (r NameForms) Push(nf any) error {
 	return r.push(nf)
 }
 
-func (r NameForms) push(nf any) (err error) {
-	if nf == nil {
-		err = errorf("%T instance is nil; cannot append to %T", nf, r)
-		return
+func (r NameForms) push(x any) (err error) {
+	switch tv := x.(type) {
+	case NameForm:
+		if !tv.Compliant() {
+			err = ErrDefNonCompliant
+			break
+		}
+		r.cast().Push(tv)
+	default:
+		err = ErrInvalidType
 	}
-	r.cast().Push(nf)
 
 	return
 }
@@ -613,22 +894,39 @@ func (r NameForm) OC() ObjectClass {
 }
 
 /*
-IsZero returns a Boolean value indicative of nilness of the
-receiver instance.
+SetOC sets the structural class of the receiver to the value provided. Valid input
+types are string, to represent an RFC 4512 OID residing in the underlying [Schema]
+instance, or an actual structural [ObjectClass] instance already obtained or crafted.
+
+This is a fluent method.
+*/
+func (r NameForm) SetOC(x any) NameForm {
+	if !r.IsZero() {
+		r.nameForm.setOC(x)
+	}
+
+	return r
+}
+
+func (r *nameForm) setOC(x any) {
+	var oc ObjectClass
+	switch tv := x.(type) {
+	case string:
+		if !r.schema.IsZero() {
+			oc = r.schema.ObjectClasses().get(tv)
+		}
+	case ObjectClass:
+		oc = tv
+	}
+
+	if !oc.IsZero() && oc.Kind() == StructuralKind {
+		r.Structural = oc
+	}
+}
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r NameForm) IsZero() bool {
 	return r.nameForm == nil
-}
-
-func (r *nameForm) check() (err error) {
-	if r == nil {
-		err = errorf("%T is nil", r)
-		return
-	}
-
-	if len(r.OID) == 0 {
-		err = errorf("%T lacks an OID", r)
-	}
-
-	return
 }
