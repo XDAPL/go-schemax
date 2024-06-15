@@ -6,6 +6,7 @@ While this "library" contains a large number of definitions, this is by no means
 
 All definitions have been modified in the following manners:
 
-  - Ordering of fields per RFC 4512 -- for instance, NAME before DESC -- is enforced
+  - Ordering of REQUIRED fields (per RFC 4512) is enforced
   - Include `X-ORIGIN` values which identify standard(s) of origin
+  - Unescaped quotes (per bogus RFC2307 and RFC2307bis docs) are now escaped as mandated by RFC4512 Section 1.4 (QQ/QS)
 
