@@ -118,7 +118,7 @@ In either case, this internal reference is used for seamless verification of any
 
 ## Closure Methods
 
-This package is closure-friendly with regards to user-authored closure functions or methods meant to perform various tasks, such as:
+This package is closure-friendly with regards to user-authored closure functions or methods meant to perform specific tasks:
 
   - Assertion matching, by way of an instance of `MatchingRule` applicable to two assertion values within a `AssertionMatcher` closure (i.e.: is value1 equal to value2?)
   - Syntax qualification, by way of an instance of `LDAPSyntax` to be honored by a value within a `SyntaxQualifier` closure (i.e.: does value qualify for specified syntax?)
