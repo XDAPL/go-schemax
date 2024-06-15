@@ -30,7 +30,10 @@ func ExampleMatchingRule_Parse() {
 	}
 
 	fmt.Println(def.SetStringer())
-	// Output: ( 1.3.6.1.4.1.56521.999.88.5 NAME 'frequencyMatch' SYNTAX 1.3.6.1.4.1.56521.999.5 X-ORIGIN 'NOWHERE' )
+	// Output: ( 1.3.6.1.4.1.56521.999.88.5
+	//     NAME 'frequencyMatch'
+	//     SYNTAX 1.3.6.1.4.1.56521.999.5
+	//     X-ORIGIN 'NOWHERE' )
 }
 
 /*
@@ -275,7 +278,10 @@ index.
 func ExampleMatchingRules_Index() {
 	slice := mySchema.MatchingRules().Index(3)
 	fmt.Println(slice)
-	// Output: ( 2.5.13.2 NAME 'caseIgnoreMatch' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC4517' )
+	// Output: ( 2.5.13.2
+	//     NAME 'caseIgnoreMatch'
+	//     SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+	//     X-ORIGIN 'RFC4517' )
 }
 
 /*

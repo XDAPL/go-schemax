@@ -100,7 +100,10 @@ func ExampleLDAPSyntax_Parse() {
 	}
 
 	fmt.Println(def.SetStringer())
-	// Output: ( 1.3.6.1.4.1.56521.999.5 DESC 'pulsarFrequencySyntax' X-NOT-HUMAN-READABLE 'TRUE' X-ORIGIN 'NOWHERE' )
+	// Output: ( 1.3.6.1.4.1.56521.999.5
+	//     DESC 'pulsarFrequencySyntax'
+	//     X-NOT-HUMAN-READABLE 'TRUE'
+	//     X-ORIGIN 'NOWHERE' )
 }
 
 /*
@@ -230,7 +233,10 @@ index.
 func ExampleLDAPSyntaxes_Index() {
 	slice := mySchema.LDAPSyntaxes().Index(3)
 	fmt.Println(slice)
-	// Output: ( 1.3.6.1.4.1.1466.115.121.1.4 DESC 'Audio' X-NOT-HUMAN-READABLE 'TRUE' X-ORIGIN 'RFC4517' )
+	// Output: ( 1.3.6.1.4.1.1466.115.121.1.4
+	//     DESC 'Audio'
+	//     X-NOT-HUMAN-READABLE 'TRUE'
+	//     X-ORIGIN 'RFC4517' )
 }
 
 /*
