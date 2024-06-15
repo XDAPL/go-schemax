@@ -3,9 +3,6 @@ package schemax
 import "fmt"
 
 func ExampleNewNameForm() {
-
-	UseHangingIndents = true
-
 	// lookup and get the Directory String syntax
 	dvc := mySchema.ObjectClasses().Get(`device`)
 	if dvc.IsZero() {

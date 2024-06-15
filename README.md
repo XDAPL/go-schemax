@@ -34,12 +34,14 @@ Therefore, the new build of schemax is of a simpler fundamental design thanks to
 The (ANTLR) parsing subsystem imported by the aforementioned sister package is flexible in terms of the following:
 
   - Presence of header, footer and line-terminating Bash comments surrounding a given definition is acceptable
-    - Note that comments are entirely discarded by ANTLR and are unavailable through the imported sister package
+    - Note that comments are entirely discarded by ANTLR
+  - Support for (escaped!) `'` and `\` characters within quoted strings ('this isn\'t a bad example')
+  - Support for linebreaks within definitions
   - Definition prefixing allows variations of the standard [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) "labels" during file and directory parsing
     - "`attributeTypes`", "`attributeType`" and other variations are permitted for `AttributeType` definitions
-  - Definition delimitation -- using colon (`:`), equals (`=`) or whitespace (` `, `\t`) of any sensible combination -- are permitted for the purpose of separating a definition prefix (label) from its definition statement.
+  - Definition delimitation -- using colon (`:`), equals (`=`) or whitespace (` `, `\t`) of any sensible combination -- are permitted for the purpose of separating a definition prefix (label) from its definition statement
     - "attributeTypes: ...", "attributeType=...", "attributeType ..." are valid expressions
-  - Multiple files are joined using an [ASCII](## "American Standard Code for Information Interchange") [#10](## '0x0a') during directory parsing
+  - Multiple files are joined using an [ASCII](## "American Standard Code for Information Interchange") [#10](## '0x0a') during **directory** parsing
     - Users need not worry about adding a trailing newline to each file to be read; schemax will do this for you if needed
 
 ## File and Directory Readers
@@ -108,59 +110,32 @@ Regardless of the content present, a given `Schema` is capable of storing defini
   - `Schema.NameForms`
   - `Schema.DITStructureRules`
 
-Definition instances produced by way of parsing -- namely using one of the `Parse<Type>` functions -- will automatically gain internal access to the `Schema` instance in which it is stored.
+Definition instances produced by way of parsing -- namely using one of the `Schema.Parse<Type>` methods-- will automatically gain internal access to the `Schema` instance in which it is stored.
 
-However, definitions produced manually by way of the various `Set<Item>` methods extended through types defined within this package will require manual execution of the `SetSchema` method, using the intended `Schema` instance as the input argument.  Ideally this should occur early in the definition composition.
+However, definitions produced manually by way of the various `Set<Item>` methods or by way of localized `Parse` method  extended through types defined within this package will require manual execution of the `SetSchema` method, using the intended `Schema` instance as the input argument.  Ideally this should occur early in the definition composition.
 
-In either case, this internal reference is used for seamless verification of any reference, such as an `LDAPSyntax`, when introduced to a given type instance. This ensures only well-formed definitions are created.
+In either case, this internal reference is used for seamless verification of any reference, such as an `LDAPSyntax`, when introduced to a given type instance. This ensures definition pointer references remain valid.
 
-## Attribute Syntax Qualification
+## Closure Methods
 
-This package supports a function/method closure implementation through the `SyntaxQualifier` type. It is based upon the following signature:
+This package is closure-friendly with regards to user-authored closure functions or methods meant to perform various tasks, such as:
 
-	`func(any) error`
+  - Assertion matching, by way of an instance of `MatchingRule` applicable to two assertion values within a `AssertionMatcher` closure (i.e.: is value1 equal to value2?)
+  - Syntax qualification, by way of an instance of `LDAPSyntax` to be honored by a value within a `SyntaxQualifier` closure (i.e.: does value qualify for specified syntax?)
+  - General-use value qualification, by way of an instance of `AttributeType` to be analyzed in specialized scenarios within a `ValueQualifier` closure (i.e: company/user-specific value processing)
+  - Definition string representation, through assignment of a custom `Stringer` closure to eligible definition instances
 
-Users author their own closure using this signature, and assign the instance to an appropriate instance of `AttributeType`. Once assigned, a user may test the validity of a value at will. Consider the following example:
+Understand that assertion, syntax and general-use qualifying closures are entirely user-defined; this package does not provide such predefined instances itself, leaving that to the user or another package which may be imported and used in a "pluggable" manner in this context.
 
-	var def AttributeType	// assume pre-populated or looked-up type
-	var val string = `myValue`
+See [RFC 4517](https://www.rfc-editor.org/rfc/rfc4517.txt), et al, for some practical guidelines relating to certain syntax and assertion matching procedures that may guide users in creating such closures.
 
-	// Assign user-authored closure func to our
-	// new definition
-	def.SetSyntaxQualifier(func(any) error {                                   
-                .. custom syntax checking code ..                       
-                return err                                              
-        })
-
-	// Finally, test a value!
-	if err := def.CheckValueSyntax(val); err != nil {
-		.. handle error ..
-		return
-	}
-	// nil err indicates valid value syntax per definition
-
-The `SetSyntaxQualifier` and `CheckValueSyntax` methods are available for `AttributeType` instances only and are not accessible through the `Definition` interface type due to their fluent signature.
-
-This feature is ideal for the following scenarios:
-
-  - LDAP product maintainers or vendors needing to verify complex values, such as those assigned to a `subtreeSpecification` instance, according to a precise [ASN.1](## "Abstract Syntax Notation One") definition, or [ABNF](## "Augmented Backus Naur Form") production
-  - LDAP administrators or analysts needing to verify composition of string values according to internal company data policies (e.g.: spelling of roles, abbreviation handling, etc.)
+This package does, however, include a default `Stringer`, which can be invoked for an instance simply by running the instance's `SetStringer` method in niladic form.
 
 ## Fluent Methods
 
 This package extends fluent methods that are write-based in nature. Typically these methods are prefaced with `Set` or `Push`.  This means such methods may be "chained" together using the standard Go command "." delimiter.
 
 Fluency does not extend to methods that are interrogative in nature, in that they return `bool`, `string` or `error` values.  Fluency also precludes use of the `Registration` interface due to unique return signatures.
-
-## String Representation Closure
-
-This package supports introduction of user-authored closure functions or methods for the purpose of influencing the return of a definition's string representation through the `Stringer` type. It is based upon the following signature:
-
-	`func() string`
-
-This form of closure support is ideal when a definition needs to be represented in a drastically different manner, such as when creating a [CSV](## "Comma-Separated Values")-based manifest of definitions.
-
-The `SetStringer` (fluent) method available for all definition types is used to invoke default or custom closure operations with ease. This form of string representation support may also be applied on the stack level.  For example, the `AttributeTypes` stack extends a similar `SetStringer` method, allowing the desired closure value to be applied to all `AttributeType` slice instances present.
 
 ## Built-In Definitions
 

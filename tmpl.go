@@ -136,7 +136,7 @@ const matchingRuleUseTmpl = `{{- $open:="( " -}}
 {{- $descl:="DESC " -}}
 {{- $namel:="NAME " -}}
 {{- $appl:="APPLIES " -}}
-{{- $numOID:=.Definition.OID -}}
+{{- $numOID:=(MatchingRuleOID) -}}
 {{- $applied:=Applied -}}
 {{- $desc:=.Definition.Desc -}}
 {{- $open -}}{{- $numOID -}}

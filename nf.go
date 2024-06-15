@@ -156,30 +156,33 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r NameForm) Replace(x NameForm) NameForm {
-	if r.NumericOID() != x.NumericOID() {
-		return r
+	if !r.IsZero() && x.Compliant() {
+		r.nameForm.replace(x)
 	}
-	r.replace(x)
 
 	return r
 }
 
-func (r NameForm) replace(x NameForm) {
-	if x.Compliant() && !r.IsZero() {
-		r.nameForm.OID = x.nameForm.OID
-		r.nameForm.Macro = x.nameForm.Macro
-		r.nameForm.Name = x.nameForm.Name
-		r.nameForm.Desc = x.nameForm.Desc
-		r.nameForm.Obsolete = x.nameForm.Obsolete
-		r.nameForm.Structural = x.nameForm.Structural
-		r.nameForm.Must = x.nameForm.Must
-		r.nameForm.May = x.nameForm.May
-		r.nameForm.Extensions = x.nameForm.Extensions
-		r.nameForm.data = x.nameForm.data
-		r.nameForm.schema = x.nameForm.schema
-		r.nameForm.stringer = x.nameForm.stringer
-		r.nameForm.data = x.nameForm.data
+func (r *nameForm) replace(x NameForm) {
+	if r.OID == `` {
+		return
+	} else if r.OID != x.NumericOID() {
+		return
 	}
+
+	r.OID = x.nameForm.OID
+	r.Macro = x.nameForm.Macro
+	r.Name = x.nameForm.Name
+	r.Desc = x.nameForm.Desc
+	r.Obsolete = x.nameForm.Obsolete
+	r.Structural = x.nameForm.Structural
+	r.Must = x.nameForm.Must
+	r.May = x.nameForm.May
+	r.Extensions = x.nameForm.Extensions
+	r.data = x.nameForm.data
+	r.schema = x.nameForm.schema
+	r.stringer = x.nameForm.stringer
+	r.data = x.nameForm.data
 }
 
 /*
@@ -724,6 +727,52 @@ func (r *nameForm) setDescription(desc string) {
 	r.Desc = desc
 
 	return
+}
+
+/*
+Parse returns an error following an attempt to parse raw into the receiver
+instance.
+
+Note that the receiver MUST possess a [Schema] reference prior to the execution
+of this method.
+
+Also note that successful execution of this method does NOT automatically push
+the receiver into any [NameForms] stack, nor does it automatically execute
+the [NameForm.SetStringer] method, leaving these tasks to the user.  If the
+automatic handling of these tasks is desired, see the [Schema.ParseNameForm]
+method as an alternative.
+*/
+func (r NameForm) Parse(raw string) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+		return
+	}
+
+	if r.getSchema().IsZero() {
+		err = ErrNilSchemaRef
+		return
+	}
+
+	err = r.nameForm.parse(raw)
+
+	return
+}
+
+func (r *nameForm) parse(raw string) error {
+	// parseLS wraps the antlr4512 NameForm parser/lexer
+	mp, err := parseNF(raw)
+	if err == nil {
+		// We received the parsed data from ANTLR (mp).
+		// Now we need to marshal it into the receiver.
+		var def NameForm
+		if def, err = r.schema.marshalNF(mp); err == nil {
+			r.OID = def.nameForm.OID
+			_r := NameForm{r}
+			_r.replace(def)
+		}
+	}
+
+	return err
 }
 
 /*

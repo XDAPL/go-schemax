@@ -13,8 +13,6 @@ Note: this example assumes a legitimate schema variable is defined
 in place of the fictional "mySchema" var shown here for simplicity.
 */
 func ExampleMatchingRule_Parse() {
-	UseHangingIndents = false
-
 	// Craft and push an assembled (and fictional)
 	// LDAPSyntax instance into our schema.
 	mySchema.LDAPSyntaxes().Push(mySchema.NewLDAPSyntax().
@@ -43,9 +41,6 @@ Note: this example assumes a legitimate schema variable is defined
 in place of the fictional "mySchema" var shown here for simplicity.
 */
 func ExampleNewMatchingRule() {
-
-	UseHangingIndents = true
-
 	// Craft and push an assembled (and fictional)
 	// LDAPSyntax instance into our schema.
 	mySchema.LDAPSyntaxes().Push(mySchema.NewLDAPSyntax().
@@ -88,7 +83,7 @@ func ExampleMatchingRule_SetSyntax() {
 		SetExtension(`X-ORIGIN`, `NOWHERE`).
 		SetStringer()
 
-	fmt.Println(def.Syntax())
+	fmt.Println(def.Syntax().NumericOID())
 	// Output: 1.3.6.1.4.1.1466.115.121.1.27
 }
 

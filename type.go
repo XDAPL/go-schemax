@@ -82,28 +82,45 @@ const (
 /*
 SyntaxQualifier is an optional closure function or method signature
 which may be honored by the end user for value verification controls
-for use with [AttributeType] instances.
+within [LDAPSyntax] instances.
 */
 type SyntaxQualifier func(any) error
 
 /*
-Stringer is an optional function or method signature which allows
-user controlled string representation per definition.
+AssertionMatcher is an optional closure function or method signature which
+may be honored by the end user for assertion match controls with respect
+to a [MatchingRule] instance. This signature is used in up to three (3)
+distinct scenarios:
+
+  - Equality matching  (e.g.: jesse=Jesse / caseIgnoreMatch)
+  - Substring matching (e.g.: jess*=Jesse / caseIgnoreSubstringMatch)
+  - Ordering matching  (e.g.: 20210814135117Z>=20210428081809Z / generalizedTimeOrderingMatch)
+
+The main use case for instances of this type is to define the basis of
+comparing or evaluating two (2) values with respect to the [MatchingRule]
+indicated.
 */
-type Stringer func() string
+type AssertionMatcher func(any, any) error
 
 /*
-UseHangingIndents, when true, will result in a newline character
-(ASCII #10) being inserted prior to each clause of a [Definition]
-in string form followed by four space (ASCII #32) characters.
+ValueQualifier is an optional closure function of method signature which
+may be honored by the end user for enhanced value interrogation of any
+given value with respect to the [AttributeType] instance to which it is
+assigned.
 
-Not all directory products are flexible regarding use of newlines
-and hanging indents within schema definitions. Should difficulties
-related to parsing occur, set this variable to false prior to the
-initialization of an instance of [Schema] to keep [Definition]
-strings confined to a single line.
+This allows the implementation (or simulation) of common directory server
+features -- such as regular expression processing -- that allow for value
+constraints beyond, or instead of, those made possible through use of an
+[LDAPSyntax] alone. This is particularly useful within organizations or
+other bodies in which only specific, specialized values are to be allowed.
 */
-var UseHangingIndents bool
+type ValueQualifier func(any) error
+
+/*
+Stringer is an optional function or method signature which allows user
+controlled string representation per definition.
+*/
+type Stringer func() string
 
 /*
 oIDList implements oidlist per § 4.1 of RFC 4512.  Instances
@@ -279,7 +296,7 @@ type attributeType struct {
 
 	schema   Schema
 	stringer Stringer
-	synQual  SyntaxQualifier
+	valQual  ValueQualifier
 	data     any
 }
 
@@ -377,6 +394,7 @@ type lDAPSyntax struct {
 
 	schema   Schema
 	stringer Stringer
+	synQual  SyntaxQualifier
 	data     any
 }
 
@@ -406,6 +424,7 @@ type matchingRule struct {
 
 	schema   Schema
 	stringer Stringer
+	assMatch AssertionMatcher
 	data     any
 }
 
@@ -425,7 +444,7 @@ type MatchingRuleUse struct {
 }
 
 type matchingRuleUse struct {
-	OID        string
+	OID        MatchingRule
 	Name       QuotedDescriptorList
 	Desc       string
 	Obsolete   bool
@@ -574,6 +593,12 @@ type Definition interface {
 	// within the receiver instance.
 	Data() any
 
+	// Parse returns an error following an attempt read the string
+	// input value into the receiver instance. Note the receiver
+	// MUST be initialized and associated with an appropriate
+	// Schema instance.
+	Parse(string) error
+
 	// Name returns the first string NAME value present within
 	// the underlying Name stack instance.  A zero
 	// string is returned if no names were set, or if the given
@@ -715,8 +740,12 @@ type Definitions interface {
 	cast() stackage.Stack
 }
 
+/*
+TODO: Deprecated: get rid of me using Options.HangingIndents
+*/
 func hindent() (x string) {
 	x = string(rune(10)) + `    `
+	var UseHangingIndents bool = true
 	if !UseHangingIndents {
 		x = ` `
 	}

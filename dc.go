@@ -498,9 +498,9 @@ Note that the receiver MUST possess a [Schema] reference prior to the execution
 of this method.
 
 Also note that successful execution of this method does NOT automatically push
-the receiver into any [MatchingRules] stack, nor does it automatically execute
-the [MatchingRule.SetStringer] method, leaving these tasks to the user.  If the
-automatic handling of these tasks is desired, see the [Schema.ParseMatchingRule]
+the receiver into any [DITContentRules] stack, nor does it automatically execute
+the [DITContentRule.SetStringer] method, leaving these tasks to the user.  If the
+automatic handling of these tasks is desired, see the [Schema.ParseDITContentRule]
 method as an alternative.
 */
 func (r DITContentRule) Parse(raw string) (err error) {
@@ -527,12 +527,9 @@ func (r *dITContentRule) parse(raw string) error {
 		// Now we need to marshal it into the receiver.
 		var def DITContentRule
 		if def, err = r.schema.marshalDC(mp); err == nil {
-			err = ErrDefNonCompliant
-			if def.Compliant() {
-				_r := DITContentRule{r}
-				_r.replace(def)
-				err = nil
-			}
+			r.OID = def.dITContentRule.OID
+			_r := DITContentRule{r}
+			_r.replace(def)
 		}
 	}
 
@@ -1082,28 +1079,29 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r DITContentRule) Replace(x DITContentRule) DITContentRule {
-	if r.NumericOID() != x.NumericOID() {
-		return r
+	if !r.IsZero() && x.Compliant() {
+		r.dITContentRule.replace(x)
 	}
-	r.replace(x)
 
 	return r
 }
 
-func (r DITContentRule) replace(x DITContentRule) {
-	if x.Compliant() && !r.IsZero() {
-		r.dITContentRule.OID = x.dITContentRule.OID
-		r.dITContentRule.Name = x.dITContentRule.Name
-		r.dITContentRule.Desc = x.dITContentRule.Desc
-		r.dITContentRule.Obsolete = x.dITContentRule.Obsolete
-		r.dITContentRule.Must = x.dITContentRule.Must
-		r.dITContentRule.May = x.dITContentRule.May
-		r.dITContentRule.Not = x.dITContentRule.Not
-		r.dITContentRule.Aux = x.dITContentRule.Aux
-		r.dITContentRule.Extensions = x.dITContentRule.Extensions
-		r.dITContentRule.data = x.dITContentRule.data
-		r.dITContentRule.schema = x.dITContentRule.schema
-		r.dITContentRule.stringer = x.dITContentRule.stringer
-		r.dITContentRule.data = x.dITContentRule.data
+func (r *dITContentRule) replace(x DITContentRule) {
+	if r.OID.NumericOID() != x.NumericOID() {
+		return
 	}
+
+	r.OID = x.dITContentRule.OID
+	r.Name = x.dITContentRule.Name
+	r.Desc = x.dITContentRule.Desc
+	r.Obsolete = x.dITContentRule.Obsolete
+	r.Must = x.dITContentRule.Must
+	r.May = x.dITContentRule.May
+	r.Not = x.dITContentRule.Not
+	r.Aux = x.dITContentRule.Aux
+	r.Extensions = x.dITContentRule.Extensions
+	r.data = x.dITContentRule.data
+	r.schema = x.dITContentRule.schema
+	r.stringer = x.dITContentRule.stringer
+	r.data = x.dITContentRule.data
 }

@@ -20,6 +20,23 @@ func ExampleObjectClass_SuperClassOf() {
 	// Output: true
 }
 
+/*
+This example demonstrates the means of gathering references to every
+superior [ObjectClass] in the relevant super class chain.
+*/
+func ExampleObjectClass_SuperChain() {
+	inet := mySchema.ObjectClasses().Get(`inetOrgPerson`)
+
+	oc := inet.SuperChain()
+	for i := 0; i < oc.Len(); i++ {
+		fmt.Println(oc.Index(i).OID())
+	}
+
+	// Output: organizationalPerson
+	// person
+	// top
+}
+
 func ExampleObjectClass_IsIdentifiedAs() {
 	oc := mySchema.ObjectClasses().Get(`account`)
 	fmt.Println(oc.IsIdentifiedAs(`0.9.2342.19200300.100.4.5`))

@@ -80,28 +80,32 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r MatchingRule) Replace(x MatchingRule) MatchingRule {
-	if r.NumericOID() != x.NumericOID() {
-		return r
+	if !r.IsZero() && x.Compliant() {
+		r.matchingRule.replace(x)
 	}
-	r.replace(x)
 
 	return r
 }
 
-func (r MatchingRule) replace(x MatchingRule) {
-	if x.Compliant() && !r.IsZero() {
-		r.matchingRule.OID = x.matchingRule.OID
-		r.matchingRule.Macro = x.matchingRule.Macro
-		r.matchingRule.Name = x.matchingRule.Name
-		r.matchingRule.Desc = x.matchingRule.Desc
-		r.matchingRule.Obsolete = x.matchingRule.Obsolete
-		r.matchingRule.Syntax = x.matchingRule.Syntax
-		r.matchingRule.Extensions = x.matchingRule.Extensions
-		r.matchingRule.data = x.matchingRule.data
-		r.matchingRule.schema = x.matchingRule.schema
-		r.matchingRule.stringer = x.matchingRule.stringer
-		r.matchingRule.data = x.matchingRule.data
+func (r *matchingRule) replace(x MatchingRule) {
+	if r.OID == `` {
+		return
+	} else if r.OID != x.NumericOID() {
+		return
 	}
+
+	r.OID = x.matchingRule.OID
+	r.Macro = x.matchingRule.Macro
+	r.Name = x.matchingRule.Name
+	r.Desc = x.matchingRule.Desc
+	r.Obsolete = x.matchingRule.Obsolete
+	r.Syntax = x.matchingRule.Syntax
+	r.Extensions = x.matchingRule.Extensions
+	r.data = x.matchingRule.data
+	r.schema = x.matchingRule.schema
+	r.stringer = x.matchingRule.stringer
+	r.data = x.matchingRule.data
+	r.assMatch = x.matchingRule.assMatch
 }
 
 /*
@@ -141,12 +145,9 @@ func (r *matchingRule) parse(raw string) error {
 		// Now we need to marshal it into the receiver.
 		var def MatchingRule
 		if def, err = r.schema.marshalMR(mp); err == nil {
-			err = ErrDefNonCompliant
-			if def.Compliant() {
-				_r := MatchingRule{r}
-				_r.replace(def)
-				err = nil
-			}
+			r.OID = def.NumericOID()
+			_r := MatchingRule{r}
+			_r.replace(def)
 		}
 	}
 
@@ -241,14 +242,11 @@ func (r MatchingRule) OID() (oid string) {
 }
 
 /*
-Syntax returns the string numeric OID value associated with
-the underlying [LDAPSyntax] instance.
+Syntax returns the [LDAPSyntax] reference held by the receiver instance.
 */
-func (r MatchingRule) Syntax() (desc string) {
+func (r MatchingRule) Syntax() (syntax LDAPSyntax) {
 	if !r.IsZero() {
-		if !r.matchingRule.Syntax.IsZero() {
-			desc = r.matchingRule.Syntax.NumericOID()
-		}
+		syntax = r.matchingRule.Syntax
 	}
 
 	return
@@ -265,6 +263,55 @@ func (r MatchingRule) SetSyntax(x any) MatchingRule {
 	}
 
 	return r
+}
+
+/*
+Assertion returns an error instance following an analysis of the two
+input values provided in the context of an assertion match based on
+the receiver instance.
+
+If an [AssertionMatcher] is not assigned to the receiver instance, the
+[ErrNilAssertionMatcher] error is returned if and when this method is
+executed. Otherwise, an error is returned based on the custom
+[AssertionMatcher] error handler devised within the user provided
+closure.
+
+A nil error return always indicates valid input value syntax.
+
+See the [MatchingRule.SetAssertionMatcher] for information regarding the
+assignment of an instance of [AssertionMatcher] to the receiver.
+*/
+func (r MatchingRule) Assertion(value1, value2 any) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+	} else if r.matchingRule.assMatch == nil {
+		err = ErrNilAssertionMatcher
+	} else {
+		err = r.matchingRule.assMatch(value1, value2)
+	}
+
+	return
+}
+
+/*
+SetAssertionMatcher assigns an instance of [AssertionMatcher] to the receiver
+instance. A nil value may be passed to assertion matching capabilities.
+
+See the [MatchingRule.Assertion] method for details on making active use of
+the [AssertionMatcher] capabilities.
+
+This is a fluent method.
+*/
+func (r MatchingRule) SetAssertionMatcher(function AssertionMatcher) MatchingRule {
+	if !r.IsZero() {
+		r.matchingRule.setAssertionMatcher(function)
+	}
+
+	return r
+}
+
+func (r *matchingRule) setAssertionMatcher(function AssertionMatcher) {
+	r.assMatch = function
 }
 
 func (r *matchingRule) setSyntax(x any) {
@@ -425,7 +472,7 @@ func (r MatchingRule) Map() (def DefinitionMap) {
 	def[`NAME`] = r.Names().List()
 	def[`DESC`] = []string{r.Description()}
 	def[`OBSOLETE`] = []string{bool2str(r.Obsolete())}
-	def[`SYNTAX`] = []string{r.Syntax()}
+	def[`SYNTAX`] = []string{r.Syntax().NumericOID()}
 	def[`RAW`] = []string{r.String()}
 
 	// copy our extensions from receiver r
@@ -755,8 +802,7 @@ func (r MatchingRule) Compliant() bool {
 		return false
 	}
 
-	syn := r.schema.LDAPSyntaxes().get(r.Syntax())
-	return syn.Compliant()
+	return r.Syntax().Compliant()
 }
 
 /*

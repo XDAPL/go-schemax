@@ -38,7 +38,7 @@ func (r Schema) DITStructureRules() (dss DITStructureRules) {
 
 /*
 Replace overrides the receiver with x. Both must bear an identical
-numeric OID and x MUST be compliant.
+numeric rule ID and x MUST be compliant.
 
 Note that the relevant [Schema] instance must be configured to allow
 definition override by way of the [AllowOverride] bit setting.  See
@@ -52,27 +52,30 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r DITStructureRule) Replace(x DITStructureRule) DITStructureRule {
-	if r.NumericOID() != x.NumericOID() {
-		return r
+	if !r.IsZero() {
+		r.dITStructureRule.replace(x)
 	}
-	r.replace(x)
 
 	return r
 }
 
-func (r DITStructureRule) replace(x DITStructureRule) {
-	if x.Compliant() && !r.IsZero() {
-		r.dITStructureRule.ID = x.dITStructureRule.ID
-		r.dITStructureRule.Name = x.dITStructureRule.Name
-		r.dITStructureRule.Desc = x.dITStructureRule.Desc
-		r.dITStructureRule.Obsolete = x.dITStructureRule.Obsolete
-		r.dITStructureRule.SuperRules = x.dITStructureRule.SuperRules
-		r.dITStructureRule.Extensions = x.dITStructureRule.Extensions
-		r.dITStructureRule.data = x.dITStructureRule.data
-		r.dITStructureRule.schema = x.dITStructureRule.schema
-		r.dITStructureRule.stringer = x.dITStructureRule.stringer
-		r.dITStructureRule.data = x.dITStructureRule.data
+func (r *dITStructureRule) replace(x DITStructureRule) {
+	if r == nil {
+		r = newDITStructureRule()
+	} else if r.ID != x.RuleID() {
+		return
 	}
+
+	r.ID = x.dITStructureRule.ID
+	r.Name = x.dITStructureRule.Name
+	r.Desc = x.dITStructureRule.Desc
+	r.Form = x.dITStructureRule.Form
+	r.Obsolete = x.dITStructureRule.Obsolete
+	r.SuperRules = x.dITStructureRule.SuperRules
+	r.Extensions = x.dITStructureRule.Extensions
+	r.stringer = x.dITStructureRule.stringer
+	r.schema = x.dITStructureRule.schema
+	r.data = x.dITStructureRule.data
 }
 
 /*
@@ -558,9 +561,9 @@ Note that the receiver MUST possess a [Schema] reference prior to the execution
 of this method.
 
 Also note that successful execution of this method does NOT automatically push
-the receiver into any [MatchingRules] stack, nor does it automatically execute
-the [MatchingRule.SetStringer] method, leaving these tasks to the user.  If the
-automatic handling of these tasks is desired, see the [Schema.ParseMatchingRule]
+the receiver into any [DITStructureRules] stack, nor does it automatically execute
+the [DITStructureRule.SetStringer] method, leaving these tasks to the user.  If the
+automatic handling of these tasks is desired, see the [Schema.ParseDITStructureRule]
 method as an alternative.
 */
 func (r DITStructureRule) Parse(raw string) (err error) {
@@ -587,12 +590,9 @@ func (r *dITStructureRule) parse(raw string) error {
 		// Now we need to marshal it into the receiver.
 		var def DITStructureRule
 		if def, err = r.schema.marshalDS(mp); err == nil {
-			err = ErrDefNonCompliant
-			if def.Compliant() {
-				_r := DITStructureRule{r}
-				_r.replace(def)
-				err = nil
-			}
+			r.ID = def.RuleID()
+			_r := DITStructureRule{r}
+			_r.replace(def)
 		}
 	}
 

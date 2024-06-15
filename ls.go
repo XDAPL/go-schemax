@@ -613,14 +613,11 @@ func (r *lDAPSyntax) parse(raw string) error {
 	if err == nil {
 		// We received the parsed data from ANTLR (mp).
 		// Now we need to marshal it into the receiver.
-		var tsyn LDAPSyntax
-		if tsyn, err = r.schema.marshalLS(mp); err == nil {
-			err = ErrDefNonCompliant
-			if tsyn.Compliant() {
-				_r := LDAPSyntax{r}
-				_r.replace(tsyn)
-				err = nil
-			}
+		var def LDAPSyntax
+		if def, err = r.schema.marshalLS(mp); err == nil {
+			r.OID = def.NumericOID()
+			_r := LDAPSyntax{r}
+			_r.replace(def)
 		}
 	}
 
@@ -696,24 +693,28 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r LDAPSyntax) Replace(x LDAPSyntax) LDAPSyntax {
-	if r.NumericOID() != x.NumericOID() {
-		return r
+	if !r.IsZero() && x.Compliant() {
+		r.lDAPSyntax.replace(x)
 	}
-	r.replace(x)
 
 	return r
 }
 
-func (r LDAPSyntax) replace(x LDAPSyntax) {
-	if x.Compliant() && !r.IsZero() {
-		r.lDAPSyntax.OID = x.lDAPSyntax.OID
-		r.lDAPSyntax.Desc = x.lDAPSyntax.Desc
-		r.lDAPSyntax.Extensions = x.lDAPSyntax.Extensions
-		r.lDAPSyntax.data = x.lDAPSyntax.data
-		r.lDAPSyntax.schema = x.lDAPSyntax.schema
-		r.lDAPSyntax.stringer = x.lDAPSyntax.stringer
-		r.lDAPSyntax.data = x.lDAPSyntax.data
+func (r *lDAPSyntax) replace(x LDAPSyntax) {
+	if r.OID == `` {
+		return
+	} else if r.OID != x.NumericOID() {
+		return
 	}
+
+	r.OID = x.lDAPSyntax.OID
+	r.Desc = x.lDAPSyntax.Desc
+	r.Extensions = x.lDAPSyntax.Extensions
+	r.data = x.lDAPSyntax.data
+	r.schema = x.lDAPSyntax.schema
+	r.stringer = x.lDAPSyntax.stringer
+	r.synQual = x.lDAPSyntax.synQual
+	r.data = x.lDAPSyntax.data
 }
 
 /*
@@ -749,6 +750,55 @@ receiver instance.
 func (r Schema) LDAPSyntaxes() (lss LDAPSyntaxes) {
 	slice, _ := r.cast().Index(ldapSyntaxesIndex)
 	lss, _ = slice.(LDAPSyntaxes)
+	return
+}
+
+/*
+SetSyntaxQualifier assigns an instance of [SyntaxQualifier] to the receiver
+instance. A nil value may be passed to disable syntax checking capabilities.
+
+See the [LDAPSyntax.QualifySyntax] method for details on making active use
+of the [SyntaxQualifier] capabilities.
+
+This is a fluent method.
+*/
+func (r LDAPSyntax) SetSyntaxQualifier(function SyntaxQualifier) LDAPSyntax {
+	if !r.IsZero() {
+		r.lDAPSyntax.setSyntaxQualifier(function)
+	}
+
+	return r
+}
+
+func (r *lDAPSyntax) setSyntaxQualifier(function SyntaxQualifier) {
+	r.synQual = function
+}
+
+/*
+QualifySyntax returns an error instance following an analysis of the
+input value using the [SyntaxQualifier] instance previously assigned to
+the receiver instance.
+
+If a [SyntaxQualifier] is not assigned to the receiver instance, the
+[ErrNilSyntaxQualifier] error is returned if and when this method is
+executed. Otherwise, an error is returned based on the custom
+[SyntaxQualifier] error handler devised within the user provided
+closure.
+
+A nil error return always indicates valid input value syntax.
+
+See the [LDAPSyntax.SetSyntaxQualifier] method for information regarding
+the assignment of an instance of [SyntaxQualifier] to the receiver.
+*/
+func (r LDAPSyntax) QualifySyntax(value any) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+	} else if r.lDAPSyntax.synQual == nil {
+		err = ErrNilSyntaxQualifier
+	} else {
+		err = r.lDAPSyntax.synQual(value)
+	}
+
 	return
 }
 

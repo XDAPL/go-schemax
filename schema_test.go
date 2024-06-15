@@ -42,7 +42,7 @@ func TestLoadAttributeTypes(t *testing.T) {
 }
 
 func TestLoadObjectClasses(t *testing.T) {
-	want := 38
+	want := 52
 	if got := mySchema.ObjectClasses().Len(); got != want {
 		t.Errorf("%s failed: want '%d' objectClasses, got '%d'",
 			t.Name(), want, got)

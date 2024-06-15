@@ -1,5 +1,7 @@
 package schemax
 
+import "fmt"
+
 /*
 NewObjectClass initializes and returns a new instance of [ObjectClass],
 ready for manual assembly.  This method need not be used when creating
@@ -124,12 +126,9 @@ func (r *objectClass) parse(raw string) error {
 		// Now we need to marshal it into the receiver.
 		var def ObjectClass
 		if def, err = r.schema.marshalOC(mp); err == nil {
-			err = ErrDefNonCompliant
-			if def.Compliant() {
-				_r := ObjectClass{r}
-				_r.replace(def)
-				err = nil
-			}
+			r.OID = def.NumericOID()
+			_r := ObjectClass{r}
+			_r.replace(def)
 		}
 	}
 
@@ -148,25 +147,6 @@ func (r ObjectClass) macro() (m []string) {
 	}
 
 	return
-}
-
-func (r *ObjectClass) replace(x ObjectClass) {
-	if x.Compliant() && !r.IsZero() {
-		r.objectClass.OID = x.objectClass.OID
-		r.objectClass.Macro = x.objectClass.Macro
-		r.objectClass.Name = x.objectClass.Name
-		r.objectClass.Desc = x.objectClass.Desc
-		r.objectClass.Obsolete = x.objectClass.Obsolete
-		r.objectClass.Kind = x.objectClass.Kind
-		r.objectClass.SuperClasses = x.objectClass.SuperClasses
-		r.objectClass.Must = x.objectClass.Must
-		r.objectClass.May = x.objectClass.May
-		r.objectClass.Extensions = x.objectClass.Extensions
-		r.objectClass.data = x.objectClass.data
-		r.objectClass.schema = x.objectClass.schema
-		r.objectClass.stringer = x.objectClass.stringer
-		r.objectClass.data = x.objectClass.data
-	}
 }
 
 /*
@@ -404,12 +384,34 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r ObjectClass) Replace(x ObjectClass) ObjectClass {
-	if r.NumericOID() != x.NumericOID() {
-		return r
+	if !r.IsZero() && x.Compliant() {
+		r.objectClass.replace(x)
 	}
-	r.replace(x)
 
 	return r
+}
+
+func (r *objectClass) replace(x ObjectClass) {
+	if r.OID == `` {
+		return
+	} else if r.OID != x.NumericOID() {
+		return
+	}
+
+	r.OID = x.objectClass.OID
+	r.Macro = x.objectClass.Macro
+	r.Name = x.objectClass.Name
+	r.Desc = x.objectClass.Desc
+	r.Obsolete = x.objectClass.Obsolete
+	r.Kind = x.objectClass.Kind
+	r.SuperClasses = x.objectClass.SuperClasses
+	r.Must = x.objectClass.Must
+	r.May = x.objectClass.May
+	r.Extensions = x.objectClass.Extensions
+	r.data = x.objectClass.data
+	r.schema = x.objectClass.schema
+	r.stringer = x.objectClass.stringer
+	r.data = x.objectClass.data
 }
 
 /*
@@ -621,12 +623,42 @@ func (r ObjectClass) Kind() (kind uint) {
 }
 
 /*
-SuperClasses returns an [ObjectClasses] containing zero (0) or more
-superior [ObjectClass] instances from which the receiver extends.
+SuperClasses returns an [ObjectClasses] stack instance containing zero
+(0) or more superior [ObjectClass] instances from which the receiver
+directly extends. This method does not walk any super class chains.
 */
-func (r ObjectClass) SuperClasses() (sup ObjectClasses) {
+func (r ObjectClass) SuperClasses() (sups ObjectClasses) {
 	if !r.IsZero() {
-		sup = r.objectClass.SuperClasses
+		sups = r.objectClass.SuperClasses
+	}
+
+	return
+}
+
+/*
+SuperChain returns an [ObjectClasses] stack of [ObjectClass] instances
+which make up the super type chain of the receiver instance.
+*/
+func (r ObjectClass) SuperChain() (sups ObjectClasses) {
+	if !r.IsZero() {
+		sups = NewObjectClasses()
+		_sups := r.objectClass.SuperClasses.superChain()
+		for i := 0; i < _sups.Len(); i++ {
+			sups.Push(_sups.Index(i))
+		}
+	}
+
+	return
+}
+
+func (r ObjectClasses) superChain() (sups ObjectClasses) {
+	sups = NewObjectClasses()
+	for i := 0; i < r.Len(); i++ {
+		sups.Push(r.Index(i))
+		_sups := r.Index(i).SuperChain()
+		for j := 0; j < _sups.Len(); j++ {
+			sups.Push(_sups.Index(j))
+		}
 	}
 
 	return
@@ -1440,6 +1472,9 @@ func (r Schema) loadRFC2307ObjectClasses() (err error) {
 	for i := 0; i < len(rfc2307ObjectClasses) && err == nil; i++ {
 		oc := rfc2307ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
+		if err != nil {
+			fmt.Println(err.Error() + ": " + string(oc))
+		}
 	}
 
 	return

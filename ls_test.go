@@ -92,8 +92,6 @@ Note: this example assumes a legitimate schema variable is defined
 in place of the fictional "mySchema" var shown here for simplicity.
 */
 func ExampleLDAPSyntax_Parse() {
-	UseHangingIndents = false
-
 	var raw string = `( 1.3.6.1.4.1.56521.999.5 DESC 'pulsarFrequencySyntax' X-NOT-HUMAN-READABLE 'TRUE' X-ORIGIN 'NOWHERE' )`
 	var def LDAPSyntax = mySchema.NewLDAPSyntax()
 	if err := def.Parse(raw); err != nil {
@@ -113,9 +111,6 @@ Note: this example assumes a legitimate schema variable is defined
 in place of the fictional "mySchema" var shown here for simplicity.
 */
 func ExampleNewLDAPSyntax_fluent() {
-
-	UseHangingIndents = true
-
 	// prepare new var instance and
 	// set values in fluent form
 	def := NewLDAPSyntax().
@@ -141,9 +136,6 @@ Note: this example assumes a legitimate schema variable is defined
 in place of the fictional "mySchema" var shown here for simplicity.
 */
 func ExampleNewLDAPSyntax_piecemeal() {
-
-	UseHangingIndents = true
-
 	// prepare new var instance and
 	// set values in fluent form
 	var def LDAPSyntax = NewLDAPSyntax() // initialization always required

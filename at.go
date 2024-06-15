@@ -95,12 +95,9 @@ func (r *attributeType) parse(raw string) error {
 		// Now we need to marshal it into the receiver.
 		var def AttributeType
 		if def, err = r.schema.marshalAT(mp); err == nil {
-			err = ErrDefNonCompliant
-			if def.Compliant() {
-				_r := AttributeType{r}
-				_r.replace(def)
-				err = nil
-			}
+			r.OID = def.NumericOID()
+			_r := AttributeType{r}
+			_r.replace(def)
 		}
 	}
 
@@ -123,38 +120,41 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r AttributeType) Replace(x AttributeType) AttributeType {
-	if r.NumericOID() != x.NumericOID() {
-		return r
+	if !r.IsZero() && x.Compliant() {
+		r.attributeType.replace(x)
 	}
-	r.replace(x)
 
 	return r
 }
 
-func (r AttributeType) replace(x AttributeType) {
-	if x.Compliant() && !r.IsZero() {
-		r.attributeType.OID = x.attributeType.OID
-		r.attributeType.Macro = x.attributeType.Macro
-		r.attributeType.Name = x.attributeType.Name
-		r.attributeType.Desc = x.attributeType.Desc
-		r.attributeType.Obsolete = x.attributeType.Obsolete
-		r.attributeType.MUB = x.attributeType.MUB
-		r.attributeType.Single = x.attributeType.Single
-		r.attributeType.Collective = x.attributeType.Collective
-		r.attributeType.NoUserMod = x.attributeType.NoUserMod
-		r.attributeType.SuperType = x.attributeType.SuperType
-		r.attributeType.Equality = x.attributeType.Equality
-		r.attributeType.Substring = x.attributeType.Substring
-		r.attributeType.Ordering = x.attributeType.Ordering
-		r.attributeType.Syntax = x.attributeType.Syntax
-		r.attributeType.Usage = x.attributeType.Usage
-		r.attributeType.Extensions = x.attributeType.Extensions
-		r.attributeType.data = x.attributeType.data
-		r.attributeType.schema = x.attributeType.schema
-		r.attributeType.stringer = x.attributeType.stringer
-		r.attributeType.synQual = x.attributeType.synQual
-		r.attributeType.data = x.attributeType.data
+func (r *attributeType) replace(x AttributeType) {
+	if r.OID == `` {
+		return
+	} else if r.OID != x.NumericOID() {
+		return
 	}
+
+	r.OID = x.attributeType.OID
+	r.Macro = x.attributeType.Macro
+	r.Name = x.attributeType.Name
+	r.Desc = x.attributeType.Desc
+	r.Obsolete = x.attributeType.Obsolete
+	r.MUB = x.attributeType.MUB
+	r.Single = x.attributeType.Single
+	r.Collective = x.attributeType.Collective
+	r.NoUserMod = x.attributeType.NoUserMod
+	r.SuperType = x.attributeType.SuperType
+	r.Equality = x.attributeType.Equality
+	r.Substring = x.attributeType.Substring
+	r.Ordering = x.attributeType.Ordering
+	r.Syntax = x.attributeType.Syntax
+	r.Usage = x.attributeType.Usage
+	r.Extensions = x.attributeType.Extensions
+	r.data = x.attributeType.data
+	r.schema = x.attributeType.schema
+	r.stringer = x.attributeType.stringer
+	r.valQual = x.attributeType.valQual
+	r.data = x.attributeType.data
 }
 
 /*
@@ -200,27 +200,6 @@ func (r *attributeType) getSchema() (s Schema) {
 }
 
 /*
-SetSyntaxQualifier assigns an instance of [SyntaxQualifier] (funk) to the receiver
-instance. A nil value may be passed to disable syntax checking capabilities.
-
-See the [AttributeType.CheckValueSyntax] method for details on making active use
-of the [SyntaxQualifier] capability.
-
-This is a fluent method.
-*/
-func (r AttributeType) SetSyntaxQualifier(function SyntaxQualifier) AttributeType {
-	if !r.IsZero() {
-		r.attributeType.setSyntaxQualifier(function)
-	}
-
-	return r
-}
-
-func (r *attributeType) setSyntaxQualifier(function SyntaxQualifier) {
-	r.synQual = function
-}
-
-/*
 SetData assigns x to the receiver instance. This is a general-use method and has no
 specific intent beyond convenience. The contents may be subsequently accessed via the
 [AttributeType.Data] method.
@@ -252,28 +231,118 @@ func (r AttributeType) Data() (x any) {
 }
 
 /*
-CheckValueSyntax returns an error instance following an analysis of the input value using the
-[SyntaxQualifier] instance previously assigned to the receiver instance.
-
-If a [SyntaxQualifier] is not assigned to the receiver instance, the [ErrNilSyntaxQualifier]
-error is returned if and when this method is executed. Otherwise, an error is returned based
-on the custom [SyntaxQualifier] error handler devised by the author.
-
-A nil error return always indicates valid input value syntax.
-
-See the [AttributeType.SetSyntaxQualifier] for information regarding the assignment of an
-instance of [SyntaxQualifier] to the receiver.
+QualifySyntax wraps [LDAPSyntax.QualifySyntax].
 */
-func (r AttributeType) CheckValueSyntax(value any) (err error) {
+func (r AttributeType) QualifySyntax(value any) (err error) {
 	if r.IsZero() {
 		err = ErrNilReceiver
-	} else if r.attributeType.synQual == nil {
-		err = ErrNilSyntaxQualifier
+	} else if esyn := r.EffectiveSyntax(); esyn.IsZero() {
+		err = ErrNilDef
 	} else {
-		err = r.attributeType.synQual(value)
+		err = esyn.QualifySyntax(value)
 	}
 
 	return
+}
+
+/*
+EqualityAssertion returns an error following an attempt to perform an
+EQUALITY assertion match upon value1 and value2 using the effective
+[MatchingRule] honored by the receiver instance.
+*/
+func (r AttributeType) EqualityAssertion(value1, value2 any) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+	} else if emr := r.EffectiveEquality(); emr.IsZero() {
+		err = ErrNilDef
+	} else {
+		err = emr.Assertion(value1, value2)
+	}
+
+	return
+}
+
+/*
+SubstringAssertion returns an error following an attempt to perform an
+SUBSTR assertion match upon value1 and value2 using the effective
+[MatchingRule] honored by the receiver instance.
+*/
+func (r AttributeType) SubstringAssertion(value1, value2 any) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+	} else if emr := r.EffectiveSubstring(); emr.IsZero() {
+		err = ErrNilDef
+	} else {
+		err = emr.Assertion(value1, value2)
+	}
+
+	return
+}
+
+/*
+OrderingAssertion returns an error following an attempt to perform an
+ORDERING assertion match upon value1 and value2 using the effective
+[MatchingRule] honored by the receiver instance.
+*/
+func (r AttributeType) OrderingAssertion(value1, value2 any) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+	} else if emr := r.EffectiveOrdering(); emr.IsZero() {
+		err = ErrNilDef
+	} else {
+		err = emr.Assertion(value1, value2)
+	}
+
+	return
+}
+
+/*
+QualifyValue returns an error instance following an analysis of the input
+value using the [ValueQualifier] instance previously assigned to the receiver
+instance.
+
+If a [ValueQualifier] is not assigned to the receiver instance, the
+[ErrNilValueQualifier] error is returned if and when this method is
+executed. Otherwise, an error is returned based on the custom
+[ValueQualifier] error handler devised by the author.
+
+A nil error return always indicates valid input value syntax.
+
+See the [AttributeType.SetValueQualifier] for information regarding
+the assignment of an instance of [ValueQualifier] to the receiver.
+*/
+func (r AttributeType) QualifyValue(value any) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+	} else if r.attributeType.valQual == nil {
+		err = ErrNilValueQualifier
+	} else {
+		err = r.attributeType.valQual(value)
+	}
+
+	return
+}
+
+/*
+SetValueQualifier assigns an instance of [ValueQualifier] to the receiver
+instance. A nil value may be passed to disable general value qualification
+capabilities.
+
+See the [AttributeType.QualifyValue] method for details on making active
+use of the [ValueQualifier] capabilities.
+
+This is a fluent method.
+*/
+func (r AttributeType) SetValueQualifier(function ValueQualifier) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setValueQualifier(function)
+	}
+
+	return r
+}
+
+func (r *attributeType) setValueQualifier(function ValueQualifier) {
+	r.valQual = function
 }
 
 func (r AttributeType) schema() (s Schema) {
@@ -924,17 +993,36 @@ func (r AttributeType) String() (def string) {
 }
 
 /*
-Syntax returns the string representation of the [LDAPSyntax] numeric if
-set within the receiver instance. If unset, a zero string is returned.
+Syntax returns the [LDAPSyntax] instance held (directly) by the receiver.
 */
-func (r AttributeType) Syntax() (syn string) {
+func (r AttributeType) Syntax() (syntax LDAPSyntax) {
 	if !r.IsZero() {
-		if !r.attributeType.Syntax.IsZero() {
-			syn = r.attributeType.Syntax.NumericOID()
-		}
+		syntax = r.attributeType.Syntax
 	}
 
 	return
+}
+
+/*
+EffectiveSyntax returns the [LDAPSyntax] instance held (directly or indirectly)
+by the receiver.
+
+If the receiver does not directly reference an [LDAPSyntax] instance, this method
+walks the super type chain until it encounters a superior [AttributeType] which
+directly references an [LDAPSyntax].
+
+If the return instance returns a Boolean value of true following an execution
+of [LDAPSyntax.IsZero], this means there is NO effective [LDAPSyntax] specified
+anywhere in the receiver's super type chain.
+*/
+func (r AttributeType) EffectiveSyntax() LDAPSyntax {
+	if syntax := r.Syntax(); !syntax.IsZero() {
+		return syntax
+	} else if r.SuperType().IsZero() {
+		return syntax
+	}
+
+	return r.SuperType().EffectiveSyntax()
 }
 
 /*
@@ -976,6 +1064,29 @@ func (r AttributeType) Equality() (eql MatchingRule) {
 	}
 
 	return
+}
+
+/*
+EffectiveEquality returns the EQUALITY [MatchingRule] instance held (directly or
+indirectly) by the receiver.
+
+If the receiver does not directly reference an [MatchingRule] instance, this method
+walks the super type chain until it encounters a superior [AttributeType] which
+directly references an EQUALITY [MatchingRule].
+
+If the return instance returns a Boolean value of true following an execution of
+[MatchingRule.IsZero], this means there is NO effective EQUALITY [MatchingRule]
+specified anywhere in the receiver's super type chain.
+*/
+func (r AttributeType) EffectiveEquality() MatchingRule {
+	if mr := r.Equality(); !mr.IsZero() {
+		return mr
+	} else if r.SuperType().IsZero() {
+		// end of the chain
+		return mr
+	}
+
+	return r.SuperType().EffectiveEquality()
 }
 
 /*
@@ -1030,6 +1141,29 @@ func (r AttributeType) Substring() (sub MatchingRule) {
 }
 
 /*
+EffectiveSubstring returns the SUBSTR [MatchingRule] instance held (directly or
+indirectly) by the receiver.
+
+If the receiver does not directly reference an [MatchingRule] instance, this method
+walks the super type chain until it encounters a superior [AttributeType] which
+directly references a SUBSTR [MatchingRule].
+
+If the return instance returns a Boolean value of true following an execution of
+[MatchingRule.IsZero], this means there is NO effective SUBSTR [MatchingRule]
+specified anywhere in the receiver's super type chain.
+*/
+func (r AttributeType) EffectiveSubstring() MatchingRule {
+	if mr := r.Substring(); !mr.IsZero() {
+		return mr
+	} else if r.SuperType().IsZero() {
+		// end of the chain
+		return mr
+	}
+
+	return r.SuperType().EffectiveSubstring()
+}
+
+/*
 SetSubstring sets the substring [MatchingRule] of the receiver instance.
 
 Input x may be the string representation of the desired substring matchingRule,
@@ -1081,6 +1215,29 @@ func (r AttributeType) Ordering() (ord MatchingRule) {
 }
 
 /*
+EffectiveOrdering returns the ORDERING [MatchingRule] instance held (directly or
+indirectly) by the receiver.
+
+If the receiver does not directly reference an [MatchingRule] instance, this method
+walks the super type chain until it encounters a superior [AttributeType] which
+directly references an ORDERING [MatchingRule].
+
+If the return instance returns a Boolean value of true following an execution of
+[MatchingRule.IsZero], this means there is NO effective ORDERING [MatchingRule]
+specified anywhere in the receiver's super type chain.
+*/
+func (r AttributeType) EffectiveOrdering() MatchingRule {
+	if mr := r.Ordering(); !mr.IsZero() {
+		return mr
+	} else if r.SuperType().IsZero() {
+		// end of the chain
+		return mr
+	}
+
+	return r.SuperType().EffectiveOrdering()
+}
+
+/*
 SetOrdering sets the ordering [MatchingRule] of the receiver instance.
 
 Input x may be the string representation of the desired ordering matchingRule,
@@ -1128,6 +1285,30 @@ func (r AttributeType) SuperType() (sup AttributeType) {
 		sup = r.attributeType.SuperType
 	}
 
+	return
+}
+
+/*
+SuperChain returns an [AttributeTypes] stack of [AttributeType] instances
+which make up the super type chain of the receiver instance.
+*/
+func (r AttributeType) SuperChain() (sups AttributeTypes) {
+	if !r.IsZero() {
+		sups = r.attributeType.SuperType.superChain()
+	}
+
+	return
+}
+
+func (r AttributeType) superChain() (sups AttributeTypes) {
+	sups = NewAttributeTypes()
+	sups.Push(r)
+	if !r.SuperType().IsZero() {
+		x := r.SuperType().SuperChain()
+		for i := 0; i < x.Len(); i++ {
+			sups.Push(x.Index(i))
+		}
+	}
 	return
 }
 
@@ -1398,7 +1579,7 @@ func (r AttributeType) Compliant() bool {
 		return false
 	}
 
-	syn := r.schema().LDAPSyntaxes().get(r.Syntax())
+	syn := r.schema().LDAPSyntaxes().get(r.Syntax().NumericOID())
 	if !syn.IsZero() && !syn.Compliant() {
 		return false
 	}
@@ -1453,7 +1634,7 @@ func (r AttributeType) Map() (def DefinitionMap) {
 	def[`EQUALITY`] = []string{r.Equality().OID()}
 	def[`SUBSTR`] = []string{r.Substring().OID()}
 	def[`ORDERING`] = []string{r.Ordering().OID()}
-	def[`SYNTAX`] = []string{r.Syntax()}
+	def[`SYNTAX`] = []string{r.Syntax().NumericOID()}
 	def[`SINGLE-VALUE`] = []string{bool2str(r.SingleValue())}
 	def[`COLLECTIVE`] = []string{bool2str(r.Collective())}
 	def[`NO-USER-MODIFICATION`] = []string{bool2str(r.NoUserModification())}

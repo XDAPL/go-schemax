@@ -108,6 +108,11 @@ func atoui(x string) (ui uint) {
 	return
 }
 
+/*
+these private variables contain sourced textual definitions from myriad
+RFC implementations found within the internal package directory.  These
+are used anytime a Load<Type> method is called.
+*/
 var (
 	rfc2307Macros map[string]string = rfc2307.Macros
 

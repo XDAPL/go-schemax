@@ -95,19 +95,20 @@ func (r MatchingRuleUse) Parse(raw string) (err error) {
 }
 
 func (r *matchingRuleUse) parse(raw string) error {
-	// parseLS wraps the antlr4512 LDAPSyntax parser/lexer
+	// parseLS wraps the antlr4512 MatchingRuleUse parser/lexer
 	mp, err := parseMU(raw)
 	if err == nil {
 		// We received the parsed data from ANTLR (mp).
 		// Now we need to marshal it into the receiver.
 		var def MatchingRuleUse
 		if def, err = r.schema.marshalMU(mp); err == nil {
-			err = ErrDefNonCompliant
-			if def.Compliant() {
-				_r := MatchingRuleUse{r}
-				_r.replace(def)
-				err = nil
+			mr := r.schema.MatchingRules().Get(def.NumericOID())
+			if mr.IsZero() {
+				return ErrMatchingRuleNotFound
 			}
+			r.OID = mr
+			_r := MatchingRuleUse{r}
+			_r.replace(def)
 		}
 	}
 
@@ -130,27 +131,30 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r MatchingRuleUse) Replace(x MatchingRuleUse) MatchingRuleUse {
-	if r.NumericOID() != x.NumericOID() {
-		return r
+	if !r.IsZero() && r.Compliant() {
+		r.matchingRuleUse.replace(x)
 	}
-	r.replace(x)
 
 	return r
 }
 
-func (r MatchingRuleUse) replace(x MatchingRuleUse) {
-	if x.Compliant() && !r.IsZero() {
-		r.matchingRuleUse.OID = x.matchingRuleUse.OID
-		r.matchingRuleUse.Name = x.matchingRuleUse.Name
-		r.matchingRuleUse.Desc = x.matchingRuleUse.Desc
-		r.matchingRuleUse.Obsolete = x.matchingRuleUse.Obsolete
-		r.matchingRuleUse.Applies = x.matchingRuleUse.Applies
-		r.matchingRuleUse.Extensions = x.matchingRuleUse.Extensions
-		r.matchingRuleUse.data = x.matchingRuleUse.data
-		r.matchingRuleUse.schema = x.matchingRuleUse.schema
-		r.matchingRuleUse.stringer = x.matchingRuleUse.stringer
-		r.matchingRuleUse.data = x.matchingRuleUse.data
+func (r *matchingRuleUse) replace(x MatchingRuleUse) {
+	if r.OID.IsZero() {
+		return
+	} else if r.OID.NumericOID() != x.NumericOID() {
+		return
 	}
+
+	r.OID = x.matchingRuleUse.OID
+	r.Name = x.matchingRuleUse.Name
+	r.Desc = x.matchingRuleUse.Desc
+	r.Obsolete = x.matchingRuleUse.Obsolete
+	r.Applies = x.matchingRuleUse.Applies
+	r.Extensions = x.matchingRuleUse.Extensions
+	r.data = x.matchingRuleUse.data
+	r.schema = x.matchingRuleUse.schema
+	r.stringer = x.matchingRuleUse.stringer
+	r.data = x.matchingRuleUse.data
 }
 
 /*
@@ -459,9 +463,10 @@ func (r *matchingRuleUse) prepareString() (str string, err error) {
 	buf := newBuf()
 	t := newTemplate(r.Type()).
 		Funcs(funcMap(map[string]any{
-			`ExtensionSet`: r.Extensions.tmplFunc,
-			`Applied`:      r.Applies.String,
-			`Obsolete`:     func() bool { return r.Obsolete },
+			`MatchingRuleOID`: r.OID.NumericOID,
+			`ExtensionSet`:    r.Extensions.tmplFunc,
+			`Applied`:         r.Applies.String,
+			`Obsolete`:        func() bool { return r.Obsolete },
 		}))
 	if t, err = t.Parse(matchingRuleUseTmpl); err == nil {
 		if err = t.Execute(buf, struct {
@@ -626,7 +631,7 @@ held by the receiver instance.
 */
 func (r MatchingRuleUse) NumericOID() (noid string) {
 	if !r.IsZero() {
-		noid = r.matchingRuleUse.OID
+		noid = r.matchingRuleUse.OID.NumericOID()
 	}
 
 	return
@@ -637,6 +642,7 @@ SetNumericOID allows the manual assignment of a numeric OID to the
 receiver instance if the following are all true:
 
   - The input id value is a syntactically valid numeric OID
+  - The input id relates to a known [MatchingRule] instance within the associated [Schema]
   - The receiver does not already possess a numeric OID
 
 This is a fluent method.
@@ -650,12 +656,12 @@ func (r MatchingRuleUse) SetNumericOID(id string) MatchingRuleUse {
 }
 
 func (r *matchingRuleUse) setNumericOID(id string) {
-	if isNumericOID(id) {
-		// only set an OID when the receiver
-		// lacks one (iow: no modifications)
-		if len(r.OID) == 0 {
-			r.OID = id
-		}
+	mr := r.schema.MatchingRules().Get(id)
+	// only set an OID when the receiver
+	// lacks one (iow: no modifications)
+	// and when the MR has been found.
+	if !mr.IsZero() && r.OID.IsZero() {
+		r.OID = mr
 	}
 
 	return
@@ -891,7 +897,7 @@ func (r MatchingRule) makeMatchingRuleUse() (mu MatchingRuleUse, err error) {
 
 	_mu := newMatchingRuleUse()
 	_mu.Name = r.matchingRule.Name
-	_mu.OID = r.matchingRule.OID
+	_mu.OID = r
 	_mu.schema = r.Schema()
 	_mu.Extensions = r.matchingRule.Extensions
 	mu = MatchingRuleUse{_mu}

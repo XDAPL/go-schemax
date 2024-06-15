@@ -321,13 +321,14 @@ func (r Schema) marshalMU(s antlr4512.MatchingRuleUse) (def MatchingRuleUse, err
 		return
 	}
 
-	if lup := r.MatchingRules().get(s.OID); lup.IsZero() {
+	lup := r.MatchingRules().get(s.OID)
+	if lup.IsZero() {
 		// silently ignore attempts to reference a bogus matchingRule OID
 		return
 	}
 
 	_def := newMatchingRuleUse()
-	_def.OID = s.OID
+	_def.OID = lup
 	_def.Desc = s.Desc
 	_def.Obsolete = s.Obsolete
 	_def.schema = r
