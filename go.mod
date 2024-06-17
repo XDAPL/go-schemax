@@ -1,5 +1,7 @@
 module github.com/JesseCoretta/go-schemax
 
+replace internal/x501 => ./internal/x501
+
 replace internal/rfc2079 => ./internal/rfc2079
 
 replace internal/rfc2307 => ./internal/rfc2307
@@ -28,7 +30,7 @@ require (
 	github.com/JesseCoretta/go-antlr4512 v1.0.4
 	github.com/JesseCoretta/go-objectid v1.0.4
 	github.com/JesseCoretta/go-shifty v1.0.1
-	github.com/JesseCoretta/go-stackage v1.0.3
+	github.com/JesseCoretta/go-stackage v1.0.4
 	internal/rfc2079 v1.0.0
 	internal/rfc2307 v1.0.0
 	internal/rfc2798 v1.0.0
@@ -41,10 +43,12 @@ require (
 	internal/rfc4523 v1.0.0
 	internal/rfc4524 v1.0.0
 	internal/rfc4530 v1.0.0
+	internal/x501 v1.0.0
 )
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
 )
 

@@ -10,7 +10,11 @@ github.com/JesseCoretta/go-shifty v1.0.1 h1:+AaQbNfVtWxWwI9jo0Hke6Jv1mBlOD/bAooa
 github.com/JesseCoretta/go-shifty v1.0.1/go.mod h1:vnqi9wCMnLDDD4XU3NmL2fF7dz4HiaAuI/M3bqB2bQE=
 github.com/JesseCoretta/go-stackage v1.0.3 h1:NhLG5LaRo8uFYjpWW/36Rpg2RVJS50KCgkmo5yenk5U=
 github.com/JesseCoretta/go-stackage v1.0.3/go.mod h1:QnPSyIRAMp4VWZNwBOOF7IcBGu+rWVUMDcAeATlRikI=
+github.com/JesseCoretta/go-stackage v1.0.4 h1:VGW2KA5XKuuH+h7thZiQkd4C/eWBdhKkRvBJZ16zuck=
+github.com/JesseCoretta/go-stackage v1.0.4/go.mod h1:QnPSyIRAMp4VWZNwBOOF7IcBGu+rWVUMDcAeATlRikI=
 github.com/antlr4-go/antlr/v4 v4.13.0 h1:lxCg3LAv+EUK6t1i0y1V6/SLeUi0eKEKdhQAlS8TVTI=
 github.com/antlr4-go/antlr/v4 v4.13.0/go.mod h1:pfChB/xh/Unjila75QW7+VU4TSnWnnk9UTnmpPaOR2g=
+github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
+github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
 golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 h1:985EYyeCOxTpcgOTJpflJUwOeEz0CQOdPt73OzpE9F8=
 golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0/go.mod h1:/lliqkxwWAhPjf5oSOIJup2XcqJaw8RGS6k3TGEc7GI=
