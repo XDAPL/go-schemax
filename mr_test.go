@@ -322,7 +322,7 @@ func TestMatchingRule_codecov(t *testing.T) {
 	_ = mySchema.MatchingRules().SetStringer().Contains(``)
 	mySchema.MatchingRules().Push(rune(10))
 	mySchema.MatchingRules().IsZero()
-	mySchema.MatchingRules().String()
+	_ = mySchema.MatchingRules().String()
 	cim := mySchema.MatchingRules().Get(`caseIgnoreMatch`)
 	mySchema.MatchingRules().canPush()
 	mySchema.MatchingRules().canPush(``, ``, ``, ``, cim)

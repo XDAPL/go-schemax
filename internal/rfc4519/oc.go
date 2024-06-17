@@ -3,6 +3,10 @@ package rfc4519
 type ObjectClassDefinitions []ObjectClassDefinition
 type ObjectClassDefinition string
 
+func (r ObjectClassDefinitions) Len() int {
+	return len(r)
+}
+
 /*
 AllObjectClasses contains slices of all instances of ObjectClassDefinition defined in this package.
 */

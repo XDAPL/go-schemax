@@ -605,12 +605,11 @@ func (r MatchingRule) setOID(x string) {
 }
 
 /*
-LoadMatchingRules will load all package-included [MatchingRule] definitions
-into the receiver instance.
+LoadMatchingRules returns an error following to attempt to load all
+built-in [MatchingRule] definitions into the receiver instance.
 */
-func (r Schema) LoadMatchingRules() Schema {
-	_ = r.loadMatchingRules()
-	return r
+func (r Schema) LoadMatchingRules() error {
+	return r.loadMatchingRules()
 }
 
 /*
@@ -639,19 +638,25 @@ func (r Schema) loadMatchingRules() (err error) {
 LoadRFC2307MatchingRules returns an error following an attempt to load
 all RFC 2307 [MatchingRule] slices into the receiver instance.
 */
-func (r Schema) LoadRFC2307MatchingRules() Schema {
-	_ = r.loadRFC2307MatchingRules()
-	return r
+func (r Schema) LoadRFC2307MatchingRules() error {
+	return r.loadRFC2307MatchingRules()
 }
 
 func (r Schema) loadRFC2307MatchingRules() (err error) {
 	for k, v := range rfc2307Macros {
-		r.SetMacro(k, v)
+		r.Macros().Set(k, v)
 	}
 
-	for i := 0; i < len(rfc2307MatchingRules) && err == nil; i++ {
+	var i int
+	for i = 0; i < len(rfc2307MatchingRules) && err == nil; i++ {
 		mr := rfc2307MatchingRules[i]
 		err = r.ParseMatchingRule(string(mr))
+	}
+
+	if want := rfc2307MatchingRules.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2307 MatchingRules parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -661,15 +666,22 @@ func (r Schema) loadRFC2307MatchingRules() (err error) {
 LoadRFC4517MatchingRules returns an error following an attempt to load
 all RFC 4517 [MatchingRule] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4517MatchingRules() Schema {
-	_ = r.loadRFC4517MatchingRules()
-	return r
+func (r Schema) LoadRFC4517MatchingRules() error {
+	return r.loadRFC4517MatchingRules()
 }
 
 func (r Schema) loadRFC4517MatchingRules() (err error) {
-	for i := 0; i < len(rfc4517MatchingRules) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4517MatchingRules) && err == nil; i++ {
 		mr := rfc4517MatchingRules[i]
 		err = r.ParseMatchingRule(string(mr))
+	}
+
+	if want := rfc4517MatchingRules.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4517 MatchingRules parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -679,15 +691,22 @@ func (r Schema) loadRFC4517MatchingRules() (err error) {
 LoadRFC4523MatchingRules returns an error following an attempt to load
 all RFC 4523 [MatchingRule] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4523MatchingRules() Schema {
-	_ = r.loadRFC4523MatchingRules()
-	return r
+func (r Schema) LoadRFC4523MatchingRules() error {
+	return r.loadRFC4523MatchingRules()
 }
 
 func (r Schema) loadRFC4523MatchingRules() (err error) {
-	for i := 0; i < len(rfc4523MatchingRules) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4523MatchingRules) && err == nil; i++ {
 		mr := rfc4523MatchingRules[i]
 		err = r.ParseMatchingRule(string(mr))
+	}
+
+	if want := rfc4523MatchingRules.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4523 MatchingRules parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -697,15 +716,22 @@ func (r Schema) loadRFC4523MatchingRules() (err error) {
 LoadRFC4530MatchingRules returns an error following an attempt to load
 all RFC 4530 [MatchingRule] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4530MatchingRules() Schema {
-	_ = r.loadRFC4530MatchingRules()
-	return r
+func (r Schema) LoadRFC4530MatchingRules() error {
+	return r.loadRFC4530MatchingRules()
 }
 
 func (r Schema) loadRFC4530MatchingRules() (err error) {
-	for i := 0; i < len(rfc4530MatchingRules) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4530MatchingRules) && err == nil; i++ {
 		mr := rfc4530MatchingRules[i]
 		err = r.ParseMatchingRule(string(mr))
+	}
+
+	if want := rfc4530MatchingRules.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4530 MatchingRules parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -729,7 +755,7 @@ func (r *matchingRule) prepareString() (str string, err error) {
 			HIndent    string
 		}{
 			Definition: r,
-			HIndent:    hindent(),
+			HIndent:    hindent(r.schema.Options().Positive(HangingIndents)),
 		}); err == nil {
 			str = buf.String()
 		}
@@ -969,6 +995,24 @@ Type returns the string literal "matchingRules".
 */
 func (r MatchingRules) Type() string {
 	return `matchingRules`
+}
+
+/*
+Inventory returns an instance of [Inventory] which represents the current
+inventory of [MatchingRule] instances within the receiver.
+
+The keys are numeric OIDs, while the values are zero (0) or more string
+slices, each representing a name by which the definition is known.
+*/
+func (r MatchingRules) Inventory() (inv Inventory) {
+	inv = make(Inventory, 0)
+	for i := 0; i < r.len(); i++ {
+		def := r.index(i)
+		inv[def.NumericOID()] = def.Names().List()
+
+	}
+
+	return
 }
 
 /*

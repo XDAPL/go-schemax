@@ -190,7 +190,7 @@ func (r Schema) marshalLS(s antlr4512.LDAPSyntax) (def LDAPSyntax, err error) {
 	// try to resolve a macro only if no
 	// numeric OID is present.
 	if len(s.Macro) == 2 && len(s.OID) == 0 {
-		mc, found := r.GetMacro(s.Macro[0])
+		mc, found := r.Macros().Resolve(s.Macro[0])
 		if found {
 			s.OID = mc + `.` + s.Macro[1]
 		}
@@ -245,7 +245,7 @@ func (r Schema) marshalMR(s antlr4512.MatchingRule) (def MatchingRule, err error
 	// try to resolve a macro only if no
 	// numeric OID is present.
 	if len(s.Macro) == 2 && len(s.OID) == 0 {
-		mc, found := r.GetMacro(s.Macro[0])
+		mc, found := r.Macros().Resolve(s.Macro[0])
 		if found {
 			s.OID = mc + `.` + s.Macro[1]
 		}
@@ -379,16 +379,8 @@ func (r Schema) incorporateAT(s antlr4512.AttributeTypes) (err error) {
 }
 
 func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err error) {
-	// try to resolve a macro only if no
-	// numeric OID is present.
-	if len(s.Macro) == 2 && len(s.OID) == 0 {
-		mc, found := r.GetMacro(s.Macro[0])
-		if found {
-			s.OID = mc + `.` + s.Macro[1]
-		}
-	}
-
-	if !isNumericOID(s.OID) {
+	// try to resolve a macro only if no numeric OID is present.
+	if s.OID = handleMacro(r, s.Macro, s.OID); !isNumericOID(s.OID) {
 		err = ErrMissingNumericOID
 		return
 	} else if lup := r.AttributeTypes().get(s.OID); !lup.IsZero() {
@@ -426,32 +418,10 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 		_def.Syntax = llup
 	}
 
-	// verify any non-zero matchingrule references
-	for idx, mrl := range []string{
-		s.Equality,  // EQUALITY
-		s.Substring, // SUBSTR
-		s.Ordering,  // ORDERING
-	} {
-		if len(mrl) > 0 {
-			// If mrl was non-zero, lookup using its
-			// text value (name or OID). Fail if not
-			// found, assign to appropriate field
-			// otherwise.
-			llup := r.MatchingRules().get(mrl)
-			if llup.IsZero() {
-				err = mkerr(ErrMatchingRuleNotFound.Error() + `(` + mrl + `)`)
-				return
-			}
-
-			switch idx {
-			case 1:
-				_def.Substring = llup
-			case 2:
-				_def.Ordering = llup
-			default:
-				_def.Equality = llup
-			}
-		}
+	// Attempt to marshal any (EQ/ORD/SS) matching rules
+	// from the antlr instance into the destination instance
+	if err = _def.marshalMRs(s); err != nil {
+		return
 	}
 
 	// verify and set supertype, if specified.
@@ -464,18 +434,8 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 		_def.SuperType = sup
 	}
 
-	// verify and set usage if not default
-	// "userApplications"
-	if len(s.Usage) > 0 {
-		switch lc(s.Usage) {
-		case `directoryoperation`:
-			_def.Usage = DirectoryOperationUsage
-		case `distributedoperation`:
-			_def.Usage = DistributedOperationUsage
-		case `dsaoperation`:
-			_def.Usage = DSAOperationUsage
-		}
-	}
+	// marshal our intended attribute usage
+	_def.marshalUsage(s)
 
 	// Marshal our extensions, taking our sorting preference into account
 	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
@@ -498,6 +458,53 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 	return
 }
 
+func (r *attributeType) marshalMRs(s antlr4512.AttributeType) (err error) {
+	// verify any non-zero matchingrule references
+	for idx, mrl := range []string{
+		s.Equality,  // EQUALITY
+		s.Substring, // SUBSTR
+		s.Ordering,  // ORDERING
+	} {
+		if len(mrl) > 0 {
+			// If mrl was non-zero, lookup using its
+			// text value (name or OID). Fail if not
+			// found, assign to appropriate field
+			// otherwise.
+			llup := r.schema.MatchingRules().get(mrl)
+			if llup.IsZero() {
+				err = mkerr(ErrMatchingRuleNotFound.Error() + `(` + mrl + `)`)
+				break
+			}
+
+			switch idx {
+			case 1:
+				r.Substring = llup
+			case 2:
+				r.Ordering = llup
+			default:
+				r.Equality = llup
+			}
+		}
+	}
+
+	return
+}
+
+func (r *attributeType) marshalUsage(s antlr4512.AttributeType) {
+	// verify and set usage if not default
+	// "userApplications"
+	if len(s.Usage) > 0 {
+		switch lc(s.Usage) {
+		case `directoryoperation`:
+			r.Usage = DirectoryOperationUsage
+		case `distributedoperation`:
+			r.Usage = DistributedOperationUsage
+		case `dsaoperation`:
+			r.Usage = DSAOperationUsage
+		}
+	}
+}
+
 func (r Schema) incorporateOC(s antlr4512.ObjectClasses) (err error) {
 	for i := 0; i < len(s); i++ {
 		var def ObjectClass
@@ -512,16 +519,8 @@ func (r Schema) incorporateOC(s antlr4512.ObjectClasses) (err error) {
 }
 
 func (r Schema) marshalOC(s antlr4512.ObjectClass) (def ObjectClass, err error) {
-	// try to resolve a macro only if no
-	// numeric OID is present.
-	if len(s.Macro) == 2 && len(s.OID) == 0 {
-		mc, found := r.GetMacro(s.Macro[0])
-		if found {
-			s.OID = mc + `.` + s.Macro[1]
-		}
-	}
-
-	if !isNumericOID(s.OID) {
+	// try to resolve a macro only if no numeric OID is present.
+	if s.OID = handleMacro(r, s.Macro, s.OID); !isNumericOID(s.OID) {
 		err = ErrMissingNumericOID
 		return
 	}
@@ -861,4 +860,20 @@ func marshalExt(mext map[string][]string, ext Extensions, sortByXStr bool) {
 	for _, k := range keys {
 		ext.Set(k, mext[k]...)
 	}
+}
+
+func handleMacro(r Schema, m []string, o string) (resv string) {
+	if len(o) > 0 {
+		resv = o
+		return
+	}
+
+	if len(m) == 2 && len(o) == 0 {
+		mc, found := r.Macros().Resolve(m[0])
+		if found {
+			resv = mc + `.` + m[1]
+		}
+	}
+
+	return
 }

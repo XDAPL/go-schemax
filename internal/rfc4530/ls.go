@@ -5,6 +5,10 @@ LDAPSyntaxDefinitiones is a slice type designed to store LDAPSyntaxDefinition in
 */
 type LDAPSyntaxDefinitions []LDAPSyntaxDefinition
 
+func (r LDAPSyntaxDefinitions) Len() int {
+	return len(r)
+}
+
 /*
 RFC4530Syntax is a struct type that stores the raw RFC4530 syntax definition, along with a boolean value indicative of whether the syntax is considered human-readable.
 */

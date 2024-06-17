@@ -66,53 +66,15 @@ func newMatchingRuleUse() *matchingRuleUse {
 }
 
 /*
-Parse returns an error following an attempt to parse raw into the receiver
-instance.
+Parse always returns an error, as parsing does not apply to [MatchingRuleUse]
+instances, as they are meant to be dynamically generated -- not parsed.
 
-Note that the receiver MUST possess a [Schema] reference prior to the execution
-of this method.
-
-Also note that successful execution of this method does NOT automatically push
-the receiver into any [MatchingRuleUses] stack, nor does it automatically execute
-the [MatchingRuleUse.SetStringer] method, leaving these tasks to the user.  If the
-automatic handling of these tasks is desired, see the [Schema.ParseMatchingRuleUse]
-method as an alternative.
+See the [Schema.UpdateMatchingRuleUses] method for a means of refreshing
+the current [Schema.MatchingRuleUses] stack based upon the [AttributeType]
+instances present within the [Schema] instance at runtime.
 */
-func (r MatchingRuleUse) Parse(raw string) (err error) {
-	if r.IsZero() {
-		err = ErrNilReceiver
-		return
-	}
-
-	if r.getSchema().IsZero() {
-		err = ErrNilSchemaRef
-		return
-	}
-
-	err = r.matchingRuleUse.parse(raw)
-
-	return
-}
-
-func (r *matchingRuleUse) parse(raw string) error {
-	// parseLS wraps the antlr4512 MatchingRuleUse parser/lexer
-	mp, err := parseMU(raw)
-	if err == nil {
-		// We received the parsed data from ANTLR (mp).
-		// Now we need to marshal it into the receiver.
-		var def MatchingRuleUse
-		if def, err = r.schema.marshalMU(mp); err == nil {
-			mr := r.schema.MatchingRules().Get(def.NumericOID())
-			if mr.IsZero() {
-				return ErrMatchingRuleNotFound
-			}
-			r.OID = mr
-			_r := MatchingRuleUse{r}
-			_r.replace(def)
-		}
-	}
-
-	return err
+func (r MatchingRuleUse) Parse(raw string) error {
+	return mkerr("Parsing is not applicable to a MatchingRuleUse")
 }
 
 /*
@@ -178,6 +140,10 @@ compliant per the required clauses of § 4.1.4 of RFC 4512:
   - Numeric OID must be present and valid
 */
 func (r MatchingRuleUse) Compliant() bool {
+	if r.IsZero() {
+		return false
+	}
+
 	var (
 		appl AttributeTypes = r.Applies()
 		act  int            // Applied AttributeType count
@@ -474,7 +440,7 @@ func (r *matchingRuleUse) prepareString() (str string, err error) {
 			HIndent    string
 		}{
 			Definition: r,
-			HIndent:    hindent(),
+			HIndent:    hindent(r.schema.Options().Positive(HangingIndents)),
 		}); err == nil {
 			str = buf.String()
 		}

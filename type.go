@@ -23,9 +23,28 @@ Options wraps an instance of [shifty.BitValue] allowing clean and simple
 bit shifting/unshifting to effect changes to a [Schema]'s behavior.
 
 Instances of this type are accessed and managed via the [Schema.Options]
-method. Instances of this type are not initialized by users directly.
+method.
+
+Users should NOT attempt to instantiate instances of this type manually
+for any reason.
 */
 type Options shifty.BitValue
+
+/*
+Macros contains user-defined macros for parsing OID-referencing macros
+used within definitions, such as those found within RFC 2307.
+
+Instances of this type are accessed and managed via the [Schema.Macros]
+method.
+
+Users should NOT attempt to instantiate instances of this type manually
+for any reason.
+*/
+type Macros struct {
+	macros
+}
+
+type macros map[string]string
 
 /*
 Option represents a single configuration parameter within an instance of
@@ -192,6 +211,8 @@ type extension struct {
 	XString string
 	Values  QuotedStringList
 
+	hindent  bool
+	sortExts bool
 	stringer Stringer
 }
 
@@ -242,13 +263,6 @@ representing an entire type-specific stack (e.g.: [AttributeTypes]).
 type DefinitionMaps []DefinitionMap
 
 /*
-Name aliases the [QuotedDescriptorList] type, allowing the assignment
-of one (1) or more RFC 4512 "descr" values to a qualifying [Definition]
-instance, such as [AttributeType].
-*/
-//type Name QuotedDescriptorList
-
-/*
 AttributeType implements § 4.1.2 of RFC 4512.
 
 	AttributeTypeDescription = LPAREN WSP
@@ -271,6 +285,52 @@ AttributeType implements § 4.1.2 of RFC 4512.
 	        "directoryOperation"   /  ; directory operational
 	        "distributedOperation" /  ; DSA-shared operational
 	        "dSAOperation"            ; DSA-specific operational
+
+From clause 13.4.8 of [ITU-T Rec. X.501]:
+
+	ATTRIBUTE ::= CLASS {
+		&derivation ATTRIBUTE OPTIONAL,
+		&Type OPTIONAL, -- either &Type or &derivation required
+		&equality-match MATCHING-RULE OPTIONAL,
+		&ordering-match MATCHING-RULE OPTIONAL,
+		&substrings-match MATCHING-RULE OPTIONAL,
+		&single-valued BOOLEAN DEFAULT FALSE,
+		&collective BOOLEAN DEFAULT FALSE,
+		&dummy BOOLEAN DEFAULT FALSE,
+		-- operational extensions
+		&no-user-modification BOOLEAN DEFAULT FALSE,
+		&usage AttributeUsage DEFAULT userApplications,
+		&ldapSyntax SYNTAX-NAME.&id OPTIONAL,
+		&ldapName SEQUENCE SIZE(1..MAX) OF UTF8String OPTIONAL,
+		&ldapDesc UTF8String OPTIONAL,
+		&obsolete BOOLEAN DEFAULT FALSE,
+		&id OBJECT IDENTIFIER UNIQUE }
+
+	WITH SYNTAX {
+		[SUBTYPE OF &derivation]
+		[WITH SYNTAX &Type]
+		[EQUALITY MATCHING RULE &equality-match]
+		[ORDERING MATCHING RULE &ordering-match]
+		[SUBSTRINGS MATCHING RULE &substrings-match]
+		[SINGLE VALUE &single-valued]
+		[COLLECTIVE &collective]
+		[DUMMY &dummy]
+		[NO USER MODIFICATION &no-user-modification]
+		[USAGE &usage]
+		[LDAP-SYNTAX &ldapSyntax]
+		[LDAP-NAME &ldapName]
+		[LDAP-DESC &ldapDesc]
+		[OBSOLETE &obsolete]
+		ID &id }
+
+		AttributeUsage ::= ENUMERATED {
+			userApplications (0),
+			directoryOperation (1),
+			distributedOperation (2),
+			dSAOperation (3),
+			... }
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
 */
 type AttributeType struct {
 	*attributeType
@@ -313,6 +373,24 @@ DITContentRule implements § 4.1.6 of RFC 4512.
 	    [ SP "MAY" SP oids ]       ; attribute types
 	    [ SP "NOT" SP oids ]       ; attribute types
 	    extensions WSP RPAREN      ; extensions
+
+From clause 13.8.2 of [ITU-T Rec. X.501]:
+
+	CONTENT-RULE ::= CLASS {
+		&structuralClass OBJECT-CLASS.&id UNIQUE,
+		&Auxiliaries OBJECT-CLASS OPTIONAL,
+		&Mandatory ATTRIBUTE OPTIONAL,
+		&Optional ATTRIBUTE OPTIONAL,
+		&Precluded ATTRIBUTE OPTIONAL }
+
+	WITH SYNTAX {
+		STRUCTURAL OBJECT-CLASS &structuralClass
+		[AUXILIARY OBJECT-CLASSES &Auxiliaries]
+		[MUST CONTAIN &Mandatory]
+		[MAY CONTAIN &Optional]
+		[MUST-NOT CONTAIN &Precluded] }
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
 */
 type DITContentRule struct {
 	*dITContentRule
@@ -350,6 +428,29 @@ DITStructureRule implements § 4.1.7.1 of RFC 4512.
 	ruleids = ruleid / ( LPAREN WSP ruleidlist WSP RPAREN )
 	ruleidlist = ruleid *( SP ruleid )
 	ruleid = number
+
+From clause 13.7.6 of [ITU-T Rec. X.501]:
+
+	DITStructureRule ::= SEQUENCE {
+		ruleIdentifier RuleIdentifier,
+		-- shall be unique within the scope of the subschema
+		nameForm NAME-FORM.&id,
+		superiorStructureRules SET SIZE (1..MAX) OF RuleIdentifier OPTIONAL,
+		... }
+
+	RuleIdentifier ::= INTEGER
+
+	STRUCTURE-RULE ::= CLASS {
+		&nameForm NAME-FORM,
+		&SuperiorStructureRules STRUCTURE-RULE.&id OPTIONAL,
+		&id RuleIdentifier }
+
+	WITH SYNTAX {
+		NAME FORM &nameForm
+		[SUPERIOR RULES &SuperiorStructureRules]
+		ID &id }
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
 */
 type DITStructureRule struct {
 	*dITStructureRule
@@ -369,9 +470,6 @@ type dITStructureRule struct {
 	data     any
 }
 
-//	type Extensions struct {
-//		extensions
-//	}
 type extensions map[string]QuotedStringList
 
 /*
@@ -381,6 +479,20 @@ LDAPSyntax implements § 4.1.5 of RFC 4512.
 	    numericoid                 ; object identifier
 	    [ SP "DESC" SP qdstring ]  ; description
 	    extensions WSP RPAREN      ; extensions
+
+From clause 13.12 of [ITU-T Rec. X.501]:
+
+	SYNTAX-NAME ::= CLASS {
+		&desc UTF8String,
+		&Type,
+		&id OBJECT IDENTIFIER UNIQUE }
+
+	WITH SYNTAX {
+		DESC &desc
+		DIRECTORY SYNTAX &Type
+		ID &id }
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
 */
 type LDAPSyntax struct {
 	*lDAPSyntax
@@ -408,6 +520,28 @@ MatchingRule implements § 4.1.3 of RFC 4512.
 	    [ SP "OBSOLETE" ]          ; not active
 	    SP "SYNTAX" SP numericoid  ; assertion syntax
 	    extensions WSP RPAREN      ; extensions
+
+From clause 13.5.2 of [ITU-T Rec. X.501]:
+
+	MATCHING-RULE ::= CLASS {
+		&ParentMatchingRules MATCHING-RULE OPTIONAL,
+		&AssertionType OPTIONAL,
+		&uniqueMatchIndicator ATTRIBUTE OPTIONAL,
+		&ldapSyntax SYNTAX-NAME.&id OPTIONAL,
+		&ldapName SEQUENCE SIZE(1..MAX) OF UTF8String OPTIONAL,
+		&ldapDesc UTF8String OPTIONAL,
+		&id OBJECT IDENTIFIER UNIQUE }
+
+	WITH SYNTAX {
+		[PARENT &ParentMatchingRules]
+		[SYNTAX &AssertionType]
+		[UNIQUE-MATCH-INDICATOR &uniqueMatchIndicator]
+		[LDAP-SYNTAX &ldapSyntax]
+		[LDAP-NAME &ldapName]
+		[LDAP-DESC &ldapDesc]
+		ID &id }
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
 */
 type MatchingRule struct {
 	*matchingRule
@@ -438,6 +572,33 @@ MatchingRuleUse implements § 4.1.4 of RFC 4512.
 	    [ SP "OBSOLETE" ]          ; not active
 	    SP "APPLIES" SP oids       ; attribute types
 	    extensions WSP RPAREN      ; extensions
+
+From clause 13.6.2 of [ITU-T Rec. X.501]:
+
+	MAPPING-BASED-MATCHING
+	{SelectedBy, BOOLEAN:combinable, MappingResult, OBJECT IDENTIFIER:matchingRule} ::= CLASS {
+		&selectBy SelectedBy OPTIONAL,
+		&ApplicableTo ATTRIBUTE,
+		&subtypesIncluded BOOLEAN DEFAULT TRUE,
+		&combinable BOOLEAN(combinable),
+		&mappingResults MappingResult OPTIONAL,
+		&userControl BOOLEAN DEFAULT FALSE,
+		&exclusive BOOLEAN DEFAULT TRUE,
+		&matching-rule MATCHING-RULE.&id(matchingRule),
+		&id OBJECT IDENTIFIER UNIQUE }
+
+	WITH SYNTAX {
+		[SELECT BY &selectBy]
+		APPLICABLE TO &ApplicableTo
+		[SUBTYPES INCLUDED &subtypesIncluded]
+		COMBINABLE &combinable
+		[MAPPING RESULTS &mappingResults]
+		[USER CONTROL &userControl]
+		[EXCLUSIVE &exclusive]
+		MATCHING RULE &matching-rule
+		ID &id }
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
 */
 type MatchingRuleUse struct {
 	*matchingRuleUse
@@ -468,6 +629,26 @@ NameForm implements § 4.1.7.2 of RFC 4512.
 	    SP "MUST" SP oids          ; attribute types
 	    [ SP "MAY" SP oids ]       ; attribute types
 	    extensions WSP RPAREN      ; extensions
+
+From clause 13.7.3 of [ITU-T Rec. X.501]:
+
+	NAME-FORM ::= CLASS {
+		&namedObjectClass OBJECT-CLASS,
+		&MandatoryAttributes ATTRIBUTE,
+		&OptionalAttributes ATTRIBUTE OPTIONAL,
+		&ldapName SEQUENCE SIZE(1..MAX) OF UTF8String OPTIONAL,
+		&ldapDesc UTF8String OPTIONAL,
+		&id OBJECT IDENTIFIER UNIQUE }
+
+	WITH SYNTAX {
+		NAMES &namedObjectClass
+		WITH ATTRIBUTES &MandatoryAttributes
+		[AND OPTIONALLY &OptionalAttributes]
+		[LDAP-NAME &ldapName]
+		[LDAP-DESC &ldapDesc]
+		ID &id }
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
 */
 type NameForm struct {
 	*nameForm
@@ -504,6 +685,28 @@ ObjectClass implements § 4.1.1 of RFC 4512.
 	    extensions WSP RPAREN
 
 	kind = "ABSTRACT" / "STRUCTURAL" / "AUXILIARY"
+
+From clause 13.4.8 of [ITU-T Rec. X.501]:
+
+	OBJECT-CLASS ::= CLASS {
+		&Superclasses OBJECT-CLASS OPTIONAL,
+		&kind ObjectClassKind DEFAULT structural,
+		&MandatoryAttributes ATTRIBUTE OPTIONAL,
+		&OptionalAttributes ATTRIBUTE OPTIONAL,
+		&ldapName SEQUENCE SIZE(1..MAX) OF UTF8String OPTIONAL,
+		&ldapDesc UTF8String OPTIONAL,
+		&id OBJECT IDENTIFIER UNIQUE }
+
+	WITH SYNTAX {
+		[SUBCLASS OF &Superclasses]
+		[KIND &kind]
+		[MUST CONTAIN &MandatoryAttributes]
+		[MAY CONTAIN &OptionalAttributes]
+		[LDAP-NAME &ldapName]
+		[LDAP-DESC &ldapDesc]
+		ID &id }
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
 */
 type ObjectClass struct {
 	*objectClass
@@ -527,11 +730,10 @@ type objectClass struct {
 }
 
 /*
-Counters is a simple struct type defined to store current number
+Counters is a simple struct type defined to store the current number
 of definition instances within an instance of [Schema].
 
-Instances of this type are not thread-safe. Users should implement
-another metrics system if thread-safety for counters is required.
+Instances of this type are NOT thread-safe.
 */
 type Counters struct {
 	LS int
@@ -594,9 +796,13 @@ type Definition interface {
 	Data() any
 
 	// Parse returns an error following an attempt read the string
-	// input value into the receiver instance. Note the receiver
-	// MUST be initialized and associated with an appropriate
-	// Schema instance.
+	// input value into the receiver instance.
+	//
+	// Please note:
+	//
+	//   - The receiver MUST be initialized and associated with an
+	//     appropriate Schema instance
+	//   - MatchingRuleUse instances are NOT eligible for this method
 	Parse(string) error
 
 	// Name returns the first string NAME value present within
@@ -625,6 +831,10 @@ type Definition interface {
 	// Description returns the DESC clause of the underlying
 	// definition type, else a zero string if undefined.
 	Description() string
+
+	// Schema returns the associated Schema instance with which
+	// the receiver instance is associated.
+	Schema() Schema
 
 	// IsIdentifiedAs returns a Boolean value indicative of
 	// whether the input string represents an identifying
@@ -743,10 +953,9 @@ type Definitions interface {
 /*
 TODO: Deprecated: get rid of me using Options.HangingIndents
 */
-func hindent() (x string) {
+func hindent(use bool) (x string) {
 	x = string(rune(10)) + `    `
-	var UseHangingIndents bool = true
-	if !UseHangingIndents {
+	if !use {
 		x = ` `
 	}
 

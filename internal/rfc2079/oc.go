@@ -3,6 +3,10 @@ package rfc2079
 type ObjectClassDefinitions []ObjectClassDefinition
 type ObjectClassDefinition string
 
+func (r ObjectClassDefinitions) Len() int {
+	return len(r)
+}
+
 var (
 	AllObjectClasses ObjectClassDefinitions
 )

@@ -19,9 +19,11 @@ const (
 NewSchema returns a new instance of [Schema] containing ALL
 package-included definitions. See the internal directory
 contents for a complete manifest.
+
+[Option] instances may be input in variadic form.
 */
-func NewSchema() (r Schema) {
-	r = initSchema()
+func NewSchema(o ...Option) (r Schema) {
+	r = initSchema(o...)
 	var err error
 
 	for _, funk := range []func() error{
@@ -64,9 +66,11 @@ and [MatchingRule] definitions generally are not loaded by the
 end user, however they are pre-loaded to allow immediate creation
 of other (dependent) definition types, namely [AttributeType]
 instances.
+
+[Option] instances may be input in variadic form.
 */
-func NewBasicSchema() (r Schema) {
-	r = initSchema()
+func NewBasicSchema(o ...Option) (r Schema) {
+	r = initSchema(o...)
 	var err error
 
 	for _, funk := range []func() error{
@@ -90,25 +94,32 @@ func NewBasicSchema() (r Schema) {
 NewEmptySchema initializes and returns an instance of [Schema] completely
 initialized but devoid of any definitions whatsoever.
 
+[Option] instances may be input in variadic form.
+
 This function is intended for advanced users building a very specialized
 [Schema] instance.
 */
-func NewEmptySchema() (s Schema) {
-	s = initSchema()
+func NewEmptySchema(o ...Option) (r Schema) {
+	r = initSchema(o...)
 	return
 }
 
 /*
 initSchema returns an initialized instance of Schema.
 */
-func initSchema() Schema {
+func initSchema(o ...Option) Schema {
+	opts := newOpts()
+	for i := 0; i < len(o); i++ {
+		opts.Shift(o[i])
+	}
+
 	return Schema(stackageList().
 		SetID(`cn=schema`).
 		SetCategory(`subschemaSubentry`).
 		SetDelimiter(rune(10)).
 		SetAuxiliary(map[string]any{
-			`macros`:  make(map[string]string, 0),
-			`options`: newOpts(),
+			`macros`:  newMacros(),
+			`options`: opts,
 		}).
 		Mutex().
 		Push(NewLDAPSyntaxes(), // 0
@@ -122,22 +133,35 @@ func initSchema() Schema {
 }
 
 /*
-SetMacro returns an error following an attempt to associate x with y.
-
-x must be an RFC 4512-compliant descriptor, and y must be a legal numeric
-OID.
+DN returns the distinguished name by which the relevant subschemaSubentry
+may be accessed via the relevant DSA(s).
 */
-func (r Schema) SetMacro(x, y string) (err error) {
-	if !isDescriptor(x) || !isNumericOID(y) {
-		err = mkerr("Descriptor and/or numeric OID are zero length")
-		return
+func (r Schema) DN() string {
+	return r.cast().ID()
+}
+
+/*
+SetDN assigns dn (e.g.: "cn=subSchema") to the receiver instance.  By
+default, the value is set to "cn=schema" for new instances of [Schema].
+
+This is a fluent method.
+*/
+func (r Schema) SetDN(dn string) Schema {
+	if !r.IsZero() {
+		r.cast().SetID(dn)
 	}
 
-	_m := r.cast().Auxiliary()[`macros`]
-	m, _ := _m.(map[string]string)
-	m[x] = y
+	return r
+}
 
-	return
+/*
+UpdateMatchingRuleUses returns an error following an attempt to refresh
+the current manifest of [MatchingRuleUse] instances using all of the
+[AttributeType] instances present within the receiver instance at the
+time of execution.
+*/
+func (r Schema) UpdateMatchingRuleUses() error {
+	return r.updateMatchingRuleUses(r.AttributeTypes())
 }
 
 /*
@@ -151,44 +175,13 @@ func (r Schema) Options() Options {
 }
 
 /*
-GetMacro returns value y if associated with x.  A Boolean value, found,
-is returned indicative of a match.
-
-Case is not significant in the matching process.
+Macros returns the current instance of [Macros] found within the receiver
+instance.
 */
-func (r Schema) GetMacro(x string) (y string, found bool) {
+func (r Schema) Macros() Macros {
 	_m := r.cast().Auxiliary()[`macros`]
-	m, _ := _m.(map[string]string)
-
-	for k, v := range m {
-		if eq(x, k) {
-			y = v
-			found = true
-		}
-	}
-
-	return
-}
-
-/*
-GetMacroName returns value x if associated with numeric OID y. A
-Boolean value, found, is returned indicative of a match.
-
-Case is not applicable in the numeric OID matching process.
-*/
-func (r Schema) GetMacroName(y string) (x string, found bool) {
-	_m := r.cast().Auxiliary()[`macros`]
-	m, _ := _m.(map[string]string)
-
-	for k, v := range m {
-		if eq(y, v) {
-			found = true
-			x = k
-			break
-		}
-	}
-
-	return
+	m, _ := _m.(Macros)
+	return m
 }
 
 /*
@@ -256,6 +249,25 @@ IsZero returns a Boolean value indicative of a nil receiver instance.
 */
 func (r Schema) IsZero() bool {
 	return r.cast().IsZero()
+}
+
+/*
+Counters returns an instance of [Counters] bearing the current number
+of definitions by category.
+
+The return instance is NOT thread-safe.
+*/
+func (r Schema) Counters() Counters {
+	return Counters{
+		LS: r.LDAPSyntaxes().Len(),
+		MR: r.MatchingRules().Len(),
+		AT: r.AttributeTypes().Len(),
+		MU: r.MatchingRuleUses().Len(),
+		OC: r.ObjectClasses().Len(),
+		DC: r.DITContentRules().Len(),
+		NF: r.NameForms().Len(),
+		DS: r.DITStructureRules().Len(),
+	}
 }
 
 /*

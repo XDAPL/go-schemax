@@ -165,7 +165,8 @@ func ExampleNewAttributeType() {
 	var def AttributeType = NewAttributeType()
 
 	// set values in fluent form
-	def.SetNumericOID(`1.3.6.1.4.1.56521.999.5`).
+	def.SetSchema(mySchema).
+		SetNumericOID(`1.3.6.1.4.1.56521.999.5`).
 		SetName(`cb`).
 		SetDescription(`Celestial Body`).
 		SetSyntax(dStr).

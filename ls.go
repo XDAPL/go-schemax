@@ -24,6 +24,24 @@ func (r LDAPSyntax) IsIdentifiedAs(id string) (ident bool) {
 }
 
 /*
+Inventory returns an instance of [Inventory] which represents the current
+inventory of [LDAPSyntaxes] instances within the receiver.
+
+The keys are numeric OIDs, while the values are zero (0) or more string
+slices, each representing a name by which the definition is known.
+*/
+func (r LDAPSyntaxes) Inventory() (inv Inventory) {
+	inv = make(Inventory, 0)
+	for i := 0; i < r.len(); i++ {
+		def := r.index(i)
+		inv[def.NumericOID()] = []string{def.Description()}
+
+	}
+
+	return
+}
+
+/*
 Len returns the current integer length of the receiver instance.
 */
 func (r LDAPSyntaxes) Len() int {
@@ -734,7 +752,7 @@ func (r *lDAPSyntax) prepareString() (str string, err error) {
 			HIndent    string
 		}{
 			Definition: r,
-			HIndent:    hindent(),
+			HIndent:    hindent(r.schema.Options().Positive(HangingIndents)),
 		}); err == nil {
 			str = buf.String()
 		}
@@ -803,12 +821,11 @@ func (r LDAPSyntax) QualifySyntax(value any) (err error) {
 }
 
 /*
-LoadLDAPSyntaxes will load all package-included [LDAPSyntax] definitions
-into the receiver instance.
+LoadLDAPSyntaxes returns an error following an attempt to load all
+built-in [LDAPSyntax] definitions into the receiver instance.
 */
-func (r Schema) LoadLDAPSyntaxes() Schema {
-	_ = r.loadSyntaxes()
-	return r
+func (r Schema) LoadLDAPSyntaxes() error {
+	return r.loadSyntaxes()
 }
 
 /*
@@ -837,73 +854,100 @@ func (r Schema) loadSyntaxes() (err error) {
 LoadRFC2307Syntaxes returns an error following an attempt to load
 all RFC 2307 [LDAPSyntax] slices into the receiver instance.
 */
-func (r Schema) LoadRFC2307Syntaxes() Schema {
-	_ = r.loadRFC2307Syntaxes()
-	return r
+func (r Schema) LoadRFC2307Syntaxes() error {
+	return r.loadRFC2307Syntaxes()
 }
 
 func (r Schema) loadRFC2307Syntaxes() (err error) {
 	for k, v := range rfc2307Macros {
-		r.SetMacro(k, v)
+		r.Macros().Set(k, v)
 	}
 
-	for i := 0; i < len(rfc2307LDAPSyntaxes) && err == nil; i++ {
+	var i int
+	for i = 0; i < len(rfc2307LDAPSyntaxes) && err == nil; i++ {
 		ls := rfc2307LDAPSyntaxes[i]
 		err = r.ParseLDAPSyntax(string(ls))
 	}
 
+	if want := rfc2307LDAPSyntaxes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2307 LDAPSyntaxes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
+
 	return
 }
 
 /*
-LoadRFC4517Syntaxes returns an error following an attempt to
-load all RFC 4517 [LDAPSyntax] slices into the receiver instance.
+LoadRFC4517Syntaxes returns an error following an attempt to load
+all RFC 4517 [LDAPSyntax] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4517Syntaxes() Schema {
-	_ = r.loadRFC4517Syntaxes()
-	return r
+func (r Schema) LoadRFC4517Syntaxes() error {
+	return r.loadRFC4517Syntaxes()
 }
 
 func (r Schema) loadRFC4517Syntaxes() (err error) {
-	for i := 0; i < len(rfc4517LDAPSyntaxes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4517LDAPSyntaxes) && err == nil; i++ {
 		ls := rfc4517LDAPSyntaxes[i]
 		err = r.ParseLDAPSyntax(string(ls))
 	}
 
-	return
-}
-
-/*
-LoadRFC4523Syntaxes returns an error following an attempt to
-load all RFC 4523 [LDAPSyntax] slices into the receiver instance.
-*/
-func (r Schema) LoadRFC4523Syntaxes() Schema {
-	_ = r.loadRFC4523Syntaxes()
-	return r
-}
-
-func (r Schema) loadRFC4523Syntaxes() (err error) {
-	for i := 0; i < len(rfc4523LDAPSyntaxes) && err == nil; i++ {
-		ls := rfc4523LDAPSyntaxes[i]
-		err = r.ParseLDAPSyntax(string(ls))
+	if want := rfc4517LDAPSyntaxes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4517 LDAPSyntaxes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
 }
 
 /*
-LoadRFC4530Syntaxes returns an error following an attempt to
-load all RFC 4530 [LDAPSyntax] slices into the receiver instance.
+LoadRFC4523Syntaxes returns an error following an attempt to load
+all RFC 4523 [LDAPSyntax] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4530Syntaxes() Schema {
-	_ = r.loadRFC4530Syntaxes()
-	return r
+func (r Schema) LoadRFC4523Syntaxes() error {
+	return r.loadRFC4523Syntaxes()
+}
+
+func (r Schema) loadRFC4523Syntaxes() (err error) {
+
+	var i int
+	for i = 0; i < len(rfc4523LDAPSyntaxes) && err == nil; i++ {
+		ls := rfc4523LDAPSyntaxes[i]
+		err = r.ParseLDAPSyntax(string(ls))
+	}
+
+	if want := rfc4523LDAPSyntaxes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4523 LDAPSyntaxes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
+
+	return
+}
+
+/*
+LoadRFC4530Syntaxes returns an error following an attempt to load
+all RFC 4530 [LDAPSyntax] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4530Syntaxes() error {
+	return r.loadRFC4530Syntaxes()
 }
 
 func (r Schema) loadRFC4530Syntaxes() (err error) {
-	for i := 0; i < len(rfc4530LDAPSyntaxes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4530LDAPSyntaxes) && err == nil; i++ {
 		ls := rfc4530LDAPSyntaxes[i]
 		err = r.ParseLDAPSyntax(string(ls))
+	}
+
+	if want := rfc4530LDAPSyntaxes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4530 LDAPSyntaxes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return

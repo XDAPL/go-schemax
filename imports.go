@@ -17,6 +17,7 @@ import (
 	"internal/rfc4523"
 	"internal/rfc4524"
 	"internal/rfc4530"
+	"internal/x501"
 
 	"github.com/JesseCoretta/go-objectid"
 	"github.com/JesseCoretta/go-shifty"
@@ -116,6 +117,7 @@ are used anytime a Load<Type> method is called.
 var (
 	rfc2307Macros map[string]string = rfc2307.Macros
 
+	x501AttributeTypes    x501.AttributeTypeDefinitions    = x501.AllAttributeTypes
 	rfc2079AttributeTypes rfc2079.AttributeTypeDefinitions = rfc2079.AllAttributeTypes
 	rfc2307AttributeTypes rfc2307.AttributeTypeDefinitions = rfc2307.AllAttributeTypes
 	rfc2798AttributeTypes rfc2798.AttributeTypeDefinitions = rfc2798.AllAttributeTypes

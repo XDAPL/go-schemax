@@ -70,11 +70,16 @@ func newOIDList(name string) oIDList {
 		Mutex())
 }
 
-func newExtensions() Extensions {
+func newExtensions(o ...Option) Extensions {
+	opts := newOpts()
+	for i := 0; i < len(o); i++ {
+		opts.Shift(o[i])
+	}
+
 	return Extensions(stackageList().
 		SetID(`extensions`).
 		SetAuxiliary(map[string]any{
-			`options`:  newOpts(),
+			`options`:  opts,
 			`stringer`: nil,
 		}).
 		SetCategory(`extensions`).

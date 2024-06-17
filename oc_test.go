@@ -279,7 +279,7 @@ func TestObjectClass_codecov(t *testing.T) {
 	_ = mySchema.ObjectClasses().SetStringer().Contains(``)
 	mySchema.ObjectClasses().Push(rune(10))
 	mySchema.ObjectClasses().IsZero()
-	mySchema.ObjectClasses().String()
+	_ = mySchema.ObjectClasses().String()
 	cim := mySchema.ObjectClasses().Get(`account`)
 	mySchema.ObjectClasses().canPush()
 	mySchema.ObjectClasses().canPush(``, ``, ``, ``, cim)

@@ -620,8 +620,8 @@ func (r AttributeType) IsIdentifiedAs(id string) (ident bool) {
 
 /*
 NoUserModification returns a Boolean value indicative of whether the receiver
-instance has its NO-USER-MODIFICATIONS option enabled. As such, only a
-DSA may manage values of this type when a value of true is in effect.
+instance's NO-USER-MODIFICATION clause evaluates as TRUE.  In such a scenario,
+only the DSA may manage such values.
 */
 func (r AttributeType) NoUserModification() (o bool) {
 	if !r.IsZero() {
@@ -967,7 +967,7 @@ func (r *attributeType) prepareString() (str string, err error) {
 			HIndent    string
 		}{
 			Definition: r,
-			HIndent:    hindent(),
+			HIndent:    hindent(r.schema.Options().Positive(HangingIndents)),
 		}); err == nil {
 			str = buf.String()
 		}
@@ -1668,21 +1668,21 @@ func (r AttributeType) setOID(x string) {
 
 /*
 LoadAttributeTypes returns an error following an attempt to load all
-package-included [AttributeType] slices into the receiver instance.
+built-in [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadAttributeTypes() Schema {
-	_ = r.loadAttributeTypes()
-	return r
+func (r Schema) LoadAttributeTypes() error {
+	return r.loadAttributeTypes()
 }
 
 /*
 loadAttributeTypes returns an error following an attempt to load
-all package-included [AttributeType] slices into the receiver instance.
+all built-in [AttributeType] slices into the receiver instance.
 */
 func (r Schema) loadAttributeTypes() (err error) {
 	if !r.IsZero() {
-		for _, funk := range []func() error{
+		funks := []func() error{
 			r.loadRFC4512AttributeTypes,
+			r.loadX501AttributeTypes,
 			r.loadRFC2079AttributeTypes,
 			r.loadRFC2798AttributeTypes,
 			r.loadRFC3045AttributeTypes,
@@ -1693,10 +1693,35 @@ func (r Schema) loadAttributeTypes() (err error) {
 			r.loadRFC4523AttributeTypes,
 			r.loadRFC4524AttributeTypes,
 			r.loadRFC4530AttributeTypes,
-		} {
-			if err = funk(); err != nil {
-				break
-			}
+		}
+
+		for i := 0; i < len(funks) && err == nil; i++ {
+			err = funks[i]()
+		}
+	}
+
+	return
+}
+
+/*
+LoadX501AttributeTypes returns an error following an attempt to
+load all X.501 [AttributeType] slices into the receiver instance.
+*/
+func (r Schema) LoadX501AttributeTypes() error {
+	return r.loadX501AttributeTypes()
+}
+
+func (r Schema) loadX501AttributeTypes() (err error) {
+
+	var i int
+	for i = 0; i < len(x501AttributeTypes) && err == nil; i++ {
+		at := x501AttributeTypes[i]
+		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := x501AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of X.501 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
 		}
 	}
 
@@ -1707,15 +1732,22 @@ func (r Schema) loadAttributeTypes() (err error) {
 LoadRFC2079AttributeTypes returns an error following an attempt to
 load all RFC 2079 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC2079AttributeTypes() Schema {
-	_ = r.loadRFC2079AttributeTypes()
-	return r
+func (r Schema) LoadRFC2079AttributeTypes() error {
+	return r.loadRFC2079AttributeTypes()
 }
 
 func (r Schema) loadRFC2079AttributeTypes() (err error) {
-	for i := 0; i < len(rfc2079AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc2079AttributeTypes) && err == nil; i++ {
 		at := rfc2079AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc2079AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2079 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1725,19 +1757,25 @@ func (r Schema) loadRFC2079AttributeTypes() (err error) {
 LoadRFC2307AttributeTypes returns an error following an attempt to
 load all RFC 2307 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC2307AttributeTypes() Schema {
-	_ = r.loadRFC2307AttributeTypes()
-	return r
+func (r Schema) LoadRFC2307AttributeTypes() error {
+	return r.loadRFC2307AttributeTypes()
 }
 
 func (r Schema) loadRFC2307AttributeTypes() (err error) {
 	for k, v := range rfc2307Macros {
-		r.SetMacro(k, v)
+		r.Macros().Set(k, v)
 	}
 
-	for i := 0; i < len(rfc2307AttributeTypes) && err == nil; i++ {
+	var i int
+	for i = 0; i < len(rfc2307AttributeTypes) && err == nil; i++ {
 		at := rfc2307AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc2307AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2307 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1747,15 +1785,22 @@ func (r Schema) loadRFC2307AttributeTypes() (err error) {
 LoadRFC2798AttributeTypes returns an error following an attempt to
 load all RFC 2798 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC2798AttributeTypes() Schema {
-	_ = r.loadRFC2798AttributeTypes()
-	return r
+func (r Schema) LoadRFC2798AttributeTypes() error {
+	return r.loadRFC2798AttributeTypes()
 }
 
 func (r Schema) loadRFC2798AttributeTypes() (err error) {
-	for i := 0; i < len(rfc2798AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc2798AttributeTypes) && err == nil; i++ {
 		at := rfc2798AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc2798AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2798 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1765,15 +1810,22 @@ func (r Schema) loadRFC2798AttributeTypes() (err error) {
 LoadRFC3045AttributeTypes returns an error following an attempt to
 load all RFC 3045 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC3045AttributeTypes() Schema {
-	_ = r.loadRFC3045AttributeTypes()
-	return r
+func (r Schema) LoadRFC3045AttributeTypes() error {
+	return r.loadRFC3045AttributeTypes()
 }
 
 func (r Schema) loadRFC3045AttributeTypes() (err error) {
-	for i := 0; i < len(rfc3045AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc3045AttributeTypes) && err == nil; i++ {
 		at := rfc3045AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc3045AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC3045 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1783,15 +1835,22 @@ func (r Schema) loadRFC3045AttributeTypes() (err error) {
 LoadRFC3671AttributeTypes returns an error following an attempt to
 load all RFC 3671 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC3671AttributeTypes() Schema {
-	_ = r.loadRFC3671AttributeTypes()
-	return r
+func (r Schema) LoadRFC3671AttributeTypes() error {
+	return r.loadRFC3671AttributeTypes()
 }
 
 func (r Schema) loadRFC3671AttributeTypes() (err error) {
-	for i := 0; i < len(rfc3671AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc3671AttributeTypes) && err == nil; i++ {
 		at := rfc3671AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc3671AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC3671 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1801,15 +1860,22 @@ func (r Schema) loadRFC3671AttributeTypes() (err error) {
 LoadRFC3672AttributeTypes returns an error following an attempt to
 load all RFC 3672 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC3672AttributeTypes() Schema {
-	_ = r.loadRFC3672AttributeTypes()
-	return r
+func (r Schema) LoadRFC3672AttributeTypes() error {
+	return r.loadRFC3672AttributeTypes()
 }
 
 func (r Schema) loadRFC3672AttributeTypes() (err error) {
-	for i := 0; i < len(rfc3672AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc3672AttributeTypes) && err == nil; i++ {
 		at := rfc3672AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc3672AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC3672 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1819,15 +1885,22 @@ func (r Schema) loadRFC3672AttributeTypes() (err error) {
 LoadRFC4512AttributeTypes returns an error following an attempt to
 load all RFC 4512 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4512AttributeTypes() Schema {
-	_ = r.loadRFC4512AttributeTypes()
-	return r
+func (r Schema) LoadRFC4512AttributeTypes() error {
+	return r.loadRFC4512AttributeTypes()
 }
 
 func (r Schema) loadRFC4512AttributeTypes() (err error) {
-	for i := 0; i < len(rfc4512AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4512AttributeTypes) && err == nil; i++ {
 		at := rfc4512AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc4512AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4512 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1837,15 +1910,22 @@ func (r Schema) loadRFC4512AttributeTypes() (err error) {
 LoadRFC4519AttributeTypes returns an error following an attempt to
 load all RFC 4519 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4519AttributeTypes() Schema {
-	_ = r.loadRFC4519AttributeTypes()
-	return r
+func (r Schema) LoadRFC4519AttributeTypes() error {
+	return r.loadRFC4519AttributeTypes()
 }
 
 func (r Schema) loadRFC4519AttributeTypes() (err error) {
-	for i := 0; i < len(rfc4519AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4519AttributeTypes) && err == nil; i++ {
 		at := rfc4519AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc4519AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4519 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1855,15 +1935,22 @@ func (r Schema) loadRFC4519AttributeTypes() (err error) {
 LoadRFC4523AttributeTypes returns an error following an attempt to
 load all RFC 4523 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4523AttributeTypes() Schema {
-	_ = r.loadRFC4523AttributeTypes()
-	return r
+func (r Schema) LoadRFC4523AttributeTypes() error {
+	return r.loadRFC4523AttributeTypes()
 }
 
 func (r Schema) loadRFC4523AttributeTypes() (err error) {
-	for i := 0; i < len(rfc4523AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4523AttributeTypes) && err == nil; i++ {
 		at := rfc4523AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc4523AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4523 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1873,15 +1960,22 @@ func (r Schema) loadRFC4523AttributeTypes() (err error) {
 LoadRFC4524AttributeTypes returns an error following an attempt to
 load all RFC 4524 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4524AttributeTypes() Schema {
-	_ = r.loadRFC4524AttributeTypes()
-	return r
+func (r Schema) LoadRFC4524AttributeTypes() error {
+	return r.loadRFC4524AttributeTypes()
 }
 
 func (r Schema) loadRFC4524AttributeTypes() (err error) {
-	for i := 0; i < len(rfc4524AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4524AttributeTypes) && err == nil; i++ {
 		at := rfc4524AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc4524AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4524 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1891,15 +1985,22 @@ func (r Schema) loadRFC4524AttributeTypes() (err error) {
 LoadRFC4530AttributeTypes returns an error following an attempt to
 load all RFC 4530 [AttributeType] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4530AttributeTypes() Schema {
-	_ = r.loadRFC4530AttributeTypes()
-	return r
+func (r Schema) LoadRFC4530AttributeTypes() error {
+	return r.loadRFC4530AttributeTypes()
 }
 
 func (r Schema) loadRFC4530AttributeTypes() (err error) {
-	for i := 0; i < len(rfc4530AttributeTypes) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4530AttributeTypes) && err == nil; i++ {
 		at := rfc4530AttributeTypes[i]
 		err = r.ParseAttributeType(string(at))
+	}
+
+	if want := rfc4530AttributeTypes.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4530 AttributeTypes parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return

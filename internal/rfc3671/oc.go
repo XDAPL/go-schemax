@@ -3,6 +3,10 @@ package rfc3671
 type ObjectClassDefinitions []ObjectClassDefinition
 type ObjectClassDefinition string
 
+func (r ObjectClassDefinitions) Len() int {
+	return len(r)
+}
+
 var CollectiveAttributeSubentry ObjectClassDefinition
 var AllObjectClasses ObjectClassDefinitions
 

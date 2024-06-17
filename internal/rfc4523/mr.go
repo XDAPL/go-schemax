@@ -5,6 +5,10 @@ MatchingRuleDefinitions is a slice type designed to store instances of MatchingR
 */
 type MatchingRuleDefinitions []MatchingRuleDefinition
 
+func (r MatchingRuleDefinitions) Len() int {
+	return len(r)
+}
+
 /*
 MatchingRuleDefinition is a string type designed to store a raw MatchingRule definition.
 */

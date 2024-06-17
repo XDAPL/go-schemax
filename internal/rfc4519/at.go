@@ -5,6 +5,10 @@ AttributeTypeDefinitions is a slice type designed to store instances of Attribut
 */
 type AttributeTypeDefinitions []AttributeTypeDefinition
 
+func (r AttributeTypeDefinitions) Len() int {
+	return len(r)
+}
+
 /*
 AttributeTypeDefinition is a string type designed to store a raw AttributeType definition.
 */

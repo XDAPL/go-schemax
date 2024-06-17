@@ -965,7 +965,7 @@ func (r *dITStructureRule) prepareString() (str string, err error) {
 			HIndent    string
 		}{
 			Definition: r,
-			HIndent:    hindent(),
+			HIndent:    hindent(r.schema.Options().Positive(HangingIndents)),
 		}); err == nil {
 			str = buf.String()
 		}

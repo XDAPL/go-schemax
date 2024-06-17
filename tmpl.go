@@ -86,7 +86,7 @@ const attributeTypeTmpl = `{{- $open:="( " -}}
 {{- $obsl:="OBSOLETE" -}}
 {{- $sv:="SINGLE-VALUE" -}}
 {{- $coll:="COLLECTIVE" -}}
-{{- $nomod:="NO-USER-MODIFICATIONS" -}}
+{{- $nomod:="NO-USER-MODIFICATION" -}}
 {{- $sup:=(SuperType) -}}
 {{- $numOID:=.Definition.OID -}}
 {{- $open -}}{{- $numOID -}}

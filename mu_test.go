@@ -3,37 +3,6 @@ package schemax
 import "fmt"
 
 /*
-This example demonstrates the process of parsing a raw string-based
-matchingRule definition into a proper instance of [MatchingRule].
-
-Note: this example assumes a legitimate schema variable is defined
-in place of the fictional "mySchema" var shown here for simplicity.
-*/
-func ExampleMatchingRuleUse_Parse() {
-	mu := mySchema.MatchingRuleUses().Index(0)
-	def := mySchema.NewMatchingRuleUse()
-	if err := def.Parse(mu.String()); err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	fmt.Println(def)
-	// Output: ( 2.5.13.1
-	//     NAME 'distinguishedNameMatch'
-	//     APPLIES ( aliasedObjectName
-	//             $ associatedName
-	//             $ collectiveAttributeSubentries
-	//             $ creatorsName
-	//             $ distinguishedName
-	//             $ documentAuthor
-	//             $ manager
-	//             $ modifiersName
-	//             $ secretary
-	//             $ subschemaSubentry )
-	//     X-ORIGIN 'RFC4517' )
-}
-
-/*
 This example demonstrates manual assembly of a new MatchingRuleUse
 instance. Note this is provided for demonstration purposes only and
 in context does not perform anything useful.

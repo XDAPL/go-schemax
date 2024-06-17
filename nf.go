@@ -219,6 +219,10 @@ compliant per the required clauses of § 4.1.7.2 of RFC 4512:
   - Numeric OID must be present and valid
 */
 func (r NameForm) Compliant() bool {
+	if r.IsZero() {
+		return false
+	}
+
 	if !isNumericOID(r.nameForm.OID) {
 		return false
 	}
@@ -677,7 +681,7 @@ func (r *nameForm) prepareString() (str string, err error) {
 			HIndent    string
 		}{
 			Definition: r,
-			HIndent:    hindent(),
+			HIndent:    hindent(r.schema.Options().Positive(HangingIndents)),
 		}); err == nil {
 			str = buf.String()
 		}

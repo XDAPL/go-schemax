@@ -142,6 +142,7 @@ func ExampleNewLDAPSyntax_piecemeal() {
 	// prepare new var instance and
 	// set values in fluent form
 	var def LDAPSyntax = NewLDAPSyntax() // initialization always required
+	def.SetSchema(mySchema)
 
 	def.SetNumericOID(`1.3.6.1.4.1.56521.999.5`)
 
@@ -247,7 +248,7 @@ func TestLDAPSyntax_codecov(t *testing.T) {
 	_ = mySchema.LDAPSyntaxes().SetStringer().Contains(``)
 	mySchema.LDAPSyntaxes().Push(rune(10))
 	mySchema.LDAPSyntaxes().IsZero()
-	mySchema.LDAPSyntaxes().String()
+	_ = mySchema.LDAPSyntaxes().String()
 	cim := mySchema.LDAPSyntaxes().Get(`caseIgnoreMatch`)
 	mySchema.LDAPSyntaxes().canPush()
 	mySchema.LDAPSyntaxes().canPush(``, ``, ``, ``, cim)

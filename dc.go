@@ -450,6 +450,10 @@ compliant per the required clauses of § 4.1.6 of RFC 4512:
   - [ObjectClass] referenced by OID must be COMPLIANT itself
 */
 func (r DITContentRule) Compliant() bool {
+	if r.IsZero() {
+		return false
+	}
+
 	soc := r.schema.ObjectClasses().get(r.NumericOID())
 	if soc.IsZero() {
 		// structural OC not found in associated schema,
@@ -819,14 +823,16 @@ func (r DITContentRules) SetStringer(function ...Stringer) DITContentRules {
 }
 
 /*
-SetStringer allows the assignment of an individual "stringer" function
+SetStringer allows the assignment of an individual [Stringer] function
 or method to the receiver instance.
 
-A non-nil value will be executed for every call of the String method
-for the receiver instance.
+Input of zero (0) variadic values, or an explicit nil, will overwrite any
+preexisting stringer function with the internal closure default, which is
+based upon a one-time use of the [text/template] package by the receiver
+instance.
 
-Should the input stringer value be nil, the [text/template.Template]
-value will be used automatically going forward.
+Input of a non-nil closure function value will overwrite any preexisting
+stringer.
 
 This is a fluent method and may be used multiple times.
 */
@@ -914,7 +920,7 @@ func (r *dITContentRule) prepareString() (str string, err error) {
 			HIndent    string
 		}{
 			Definition: r,
-			HIndent:    hindent(),
+			HIndent:    hindent(r.schema.Options().Positive(HangingIndents)),
 		}); err == nil {
 			// Dump our templated output from
 			// the *bytes.Buffer instance into

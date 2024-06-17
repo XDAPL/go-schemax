@@ -1,7 +1,5 @@
 package schemax
 
-import "fmt"
-
 /*
 NewObjectClass initializes and returns a new instance of [ObjectClass],
 ready for manual assembly.  This method need not be used when creating
@@ -359,6 +357,7 @@ func (r *objectClass) setSuperClass(x ...any) {
 			sup = tv
 		default:
 			err = ErrInvalidType
+			continue
 		}
 
 		err = r.verifySuperClass(sup.objectClass)
@@ -504,6 +503,10 @@ compliant per the required clauses of § 4.1.1 of RFC 4512:
   - Numeric OID must be present and valid
 */
 func (r ObjectClass) Compliant() bool {
+	if r.IsZero() {
+		return false
+	}
+
 	var (
 		may  AttributeTypes = r.May()
 		must AttributeTypes = r.Must()
@@ -1095,7 +1098,7 @@ func (r *objectClass) prepareString() (str string, err error) {
 			HIndent    string
 		}{
 			Definition: r,
-			HIndent:    hindent(),
+			HIndent:    hindent(r.schema.Options().Positive(HangingIndents)),
 		}); err == nil {
 			str = buf.String()
 		}
@@ -1390,16 +1393,15 @@ func (r ObjectClass) IsZero() bool {
 
 /*
 LoadObjectClasses returns an error following an attempt to load all
-package-included [ObjectClass] slices into the receiver instance.
+built-in [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadObjectClasses() Schema {
-	_ = r.loadObjectClasses()
-	return r
+func (r Schema) LoadObjectClasses() error {
+	return r.loadObjectClasses()
 }
 
 func (r Schema) loadObjectClasses() (err error) {
 	if !r.IsZero() {
-		for _, funk := range []func() error{
+		funks := []func() error{
 			r.loadRFC4512ObjectClasses,
 			r.loadRFC4519ObjectClasses,
 			r.loadRFC4523ObjectClasses,
@@ -1409,10 +1411,10 @@ func (r Schema) loadObjectClasses() (err error) {
 			r.loadRFC2798ObjectClasses,
 			r.loadRFC3671ObjectClasses,
 			r.loadRFC3672ObjectClasses,
-		} {
-			if err = funk(); err != nil {
-				break
-			}
+		}
+
+		for i := 0; i < len(funks) && err == nil; i++ {
+			err = funks[i]()
 		}
 	}
 
@@ -1423,15 +1425,22 @@ func (r Schema) loadObjectClasses() (err error) {
 LoadRFC2079ObjectClasses returns an error following an attempt to
 load all RFC 2079 [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadRFC2079ObjectClasses() Schema {
-	_ = r.loadRFC2079ObjectClasses()
-	return r
+func (r Schema) LoadRFC2079ObjectClasses() error {
+	return r.loadRFC2079ObjectClasses()
 }
 
 func (r Schema) loadRFC2079ObjectClasses() (err error) {
-	for i := 0; i < len(rfc2079ObjectClasses) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc2079ObjectClasses) && err == nil; i++ {
 		oc := rfc2079ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc2079ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2079 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1441,15 +1450,22 @@ func (r Schema) loadRFC2079ObjectClasses() (err error) {
 LoadRFC2798ObjectClasses returns an error following an attempt to
 load all RFC 2798 [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadRFC2798ObjectClasses() Schema {
-	_ = r.loadRFC2798ObjectClasses()
-	return r
+func (r Schema) LoadRFC2798ObjectClasses() error {
+	return r.loadRFC2798ObjectClasses()
 }
 
 func (r Schema) loadRFC2798ObjectClasses() (err error) {
-	for i := 0; i < len(rfc2798ObjectClasses) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc2798ObjectClasses) && err == nil; i++ {
 		oc := rfc2798ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc2798ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2798 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1459,21 +1475,24 @@ func (r Schema) loadRFC2798ObjectClasses() (err error) {
 LoadRFC2307ObjectClasses returns an error following an attempt to
 load all RFC 2307 [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadRFC2307ObjectClasses() Schema {
-	_ = r.loadRFC2307ObjectClasses()
-	return r
+func (r Schema) LoadRFC2307ObjectClasses() error {
+	return r.loadRFC2307ObjectClasses()
 }
 
 func (r Schema) loadRFC2307ObjectClasses() (err error) {
 	for k, v := range rfc2307Macros {
-		r.SetMacro(k, v)
+		r.Macros().Set(k, v)
 	}
 
-	for i := 0; i < len(rfc2307ObjectClasses) && err == nil; i++ {
+	var i int
+	for i = 0; i < len(rfc2307ObjectClasses) && err == nil; i++ {
 		oc := rfc2307ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
-		if err != nil {
-			fmt.Println(err.Error() + ": " + string(oc))
+	}
+
+	if want := rfc2307ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2307 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
 		}
 	}
 
@@ -1484,15 +1503,22 @@ func (r Schema) loadRFC2307ObjectClasses() (err error) {
 LoadRFC3671ObjectClasses returns an error following an attempt to
 load all RFC 3671 [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadRFC3671ObjectClasses() Schema {
-	_ = r.loadRFC3671ObjectClasses()
-	return r
+func (r Schema) LoadRFC3671ObjectClasses() error {
+	return r.loadRFC3671ObjectClasses()
 }
 
 func (r Schema) loadRFC3671ObjectClasses() (err error) {
-	for i := 0; i < len(rfc3671ObjectClasses) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc3671ObjectClasses) && err == nil; i++ {
 		oc := rfc3671ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc3671ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC3671 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1502,15 +1528,22 @@ func (r Schema) loadRFC3671ObjectClasses() (err error) {
 LoadRFC3672ObjectClasses returns an error following an attempt to
 load all RFC 3672 [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadRFC3672ObjectClasses() Schema {
-	_ = r.loadRFC3672ObjectClasses()
-	return r
+func (r Schema) LoadRFC3672ObjectClasses() error {
+	return r.loadRFC3672ObjectClasses()
 }
 
 func (r Schema) loadRFC3672ObjectClasses() (err error) {
-	for i := 0; i < len(rfc3672ObjectClasses) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc3672ObjectClasses) && err == nil; i++ {
 		oc := rfc3672ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc3672ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC3672 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1520,19 +1553,26 @@ func (r Schema) loadRFC3672ObjectClasses() (err error) {
 LoadRFC4512ObjectClasses returns an error following an attempt to
 load all RFC 4512 [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4512ObjectClasses() Schema {
-	_ = r.loadRFC4512ObjectClasses()
-	return r
+func (r Schema) LoadRFC4512ObjectClasses() error {
+	return r.loadRFC4512ObjectClasses()
 }
 
 /*
-LoadRFC4530AttributeTypes returns an error following an attempt to
-load all RFC 4530 [ObjectClass] slices into the receiver instance.
+LoadRFC4512AttributeTypes returns an error following an attempt to
+load all RFC 4512 [ObjectClass] slices into the receiver instance.
 */
 func (r Schema) loadRFC4512ObjectClasses() (err error) {
-	for i := 0; i < len(rfc4512ObjectClasses) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4512ObjectClasses) && err == nil; i++ {
 		oc := rfc4512ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc4512ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4512 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1542,15 +1582,22 @@ func (r Schema) loadRFC4512ObjectClasses() (err error) {
 LoadRFC4519ObjectClasses returns an error following an attempt to
 load all RFC 4519 [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4519ObjectClasses() Schema {
-	_ = r.loadRFC4519ObjectClasses()
-	return r
+func (r Schema) LoadRFC4519ObjectClasses() error {
+	return r.loadRFC4519ObjectClasses()
 }
 
 func (r Schema) loadRFC4519ObjectClasses() (err error) {
-	for i := 0; i < len(rfc4519ObjectClasses) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4519ObjectClasses) && err == nil; i++ {
 		oc := rfc4519ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc4519ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4519 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1560,15 +1607,22 @@ func (r Schema) loadRFC4519ObjectClasses() (err error) {
 LoadRFC4523ObjectClasses returns an error following an attempt to
 load all RFC 4523 [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4523ObjectClasses() Schema {
-	_ = r.loadRFC4523ObjectClasses()
-	return r
+func (r Schema) LoadRFC4523ObjectClasses() error {
+	return r.loadRFC4523ObjectClasses()
 }
 
 func (r Schema) loadRFC4523ObjectClasses() (err error) {
-	for i := 0; i < len(rfc4523ObjectClasses) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4523ObjectClasses) && err == nil; i++ {
 		oc := rfc4523ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc4523ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4523 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return
@@ -1578,15 +1632,22 @@ func (r Schema) loadRFC4523ObjectClasses() (err error) {
 LoadRFC4524ObjectClasses returns an error following an attempt to
 load all RFC 4524 [ObjectClass] slices into the receiver instance.
 */
-func (r Schema) LoadRFC4524ObjectClasses() Schema {
-	_ = r.loadRFC4524ObjectClasses()
-	return r
+func (r Schema) LoadRFC4524ObjectClasses() error {
+	return r.loadRFC4524ObjectClasses()
 }
 
 func (r Schema) loadRFC4524ObjectClasses() (err error) {
-	for i := 0; i < len(rfc4524ObjectClasses) && err == nil; i++ {
+
+	var i int
+	for i = 0; i < len(rfc4524ObjectClasses) && err == nil; i++ {
 		oc := rfc4524ObjectClasses[i]
 		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc4524ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4524 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
 	}
 
 	return

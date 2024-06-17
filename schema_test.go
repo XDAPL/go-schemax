@@ -33,7 +33,7 @@ func TestLoadMatchingRules(t *testing.T) {
 }
 
 func TestLoadAttributeTypes(t *testing.T) {
-	want := 159 // includes supplementals
+	want := 164 // includes supplementals
 	if got := mySchema.AttributeTypes().Len(); got != want {
 		t.Errorf("%s failed: want '%d' attributeTypes, got '%d'",
 			t.Name(), want, got)
@@ -111,24 +111,25 @@ var suplATs []string = []string{
 
 func init() {
 	// Prepare our UT/Example reference schema
-	mySchema = NewEmptySchema() // Initialize new receiver
+	mySchema = NewEmptySchema(
+		SortExtensions,
+		SortLists,
+		HangingIndents,
+	)
 
-	// keep Extensions sorted by their respective
-	// XString field value for testing sanity.
-	mySchema.Options().Shift(SortExtensions)
+	funks := []func() error{
+		mySchema.LoadLDAPSyntaxes,   // import all built-in Syntaxes
+		mySchema.LoadMatchingRules,  // import all built-in Matching Rules
+		mySchema.LoadAttributeTypes, // import all built-in Attribute Types
+		mySchema.LoadObjectClasses,  // import all built-in Object Classes
+	}
 
-	// Same for clause stacks in which sorting is
-	// not harmful.
-	mySchema.Options().Shift(SortLists)
-
-	// Let's make our definitions more vertical
-	// than horizontal
-	mySchema.Options().Shift(HangingIndents)
-
-	mySchema.LoadLDAPSyntaxes()   // import all built-in Syntaxes
-	mySchema.LoadMatchingRules()  // import all built-in Matching Rules
-	mySchema.LoadAttributeTypes() // import all built-in Attribute Types
-	mySchema.LoadObjectClasses()  // import all built-in Object Classes
+	var err error
+	for i := 0; i < len(funks) && err == nil; i++ {
+		if err = funks[i](); err != nil {
+			panic(err)
+		}
+	}
 
 	// load some supplemental attributeTypes used for special cases
 	for _, at := range suplATs {

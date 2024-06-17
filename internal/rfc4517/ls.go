@@ -5,6 +5,10 @@ LDAPSyntaxDefinitiones is a slice type designed to store LDAPSyntaxDefinition in
 */
 type LDAPSyntaxDefinitions []LDAPSyntaxDefinition
 
+func (r LDAPSyntaxDefinitions) Len() int {
+	return len(r)
+}
+
 /*
 RFC4517Syntax is a struct type that stores the raw RFC4517 syntax definition, along with a boolean value indicative of whether the syntax is considered human-readable.
 */
@@ -63,7 +67,7 @@ var (
 	SupplierOrConsumer          LDAPSyntaxDefinition
 	SupplierAndConsumer         LDAPSyntaxDefinition
 	TelephoneNumber             LDAPSyntaxDefinition
-	TeletextTerminalIdentifier  LDAPSyntaxDefinition
+	TeletexTerminalIdentifier   LDAPSyntaxDefinition
 	TelexNumber                 LDAPSyntaxDefinition
 	UTCTime                     LDAPSyntaxDefinition
 	LDAPSyntaxDescription       LDAPSyntaxDefinition
@@ -123,7 +127,7 @@ func init() {
 	SupplierOrConsumer = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.47 DESC 'Supplier Or Consumer' X-ORIGIN 'RFC4517' )`)
 	SupplierAndConsumer = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.48 DESC 'Supplier And Consumer' X-ORIGIN 'RFC4517' )`)
 	TelephoneNumber = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.50 DESC 'Telephone Number' X-ORIGIN 'RFC4517' )`)
-	TeletextTerminalIdentifier = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.51 DESC 'Teletext Terminal Identifier' X-ORIGIN 'RFC4517' )`)
+	TeletexTerminalIdentifier = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.51 DESC 'Teletex Terminal Identifier' X-ORIGIN 'RFC4517' )`)
 	TelexNumber = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.52 DESC 'Telex Number' X-ORIGIN 'RFC4517' )`)
 	UTCTime = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.53 DESC 'UTC Time' X-ORIGIN 'RFC4517' )`)
 	LDAPSyntaxDescription = LDAPSyntaxDefinition(`( 1.3.6.1.4.1.1466.115.121.1.54 DESC 'LDAP Syntax Description' X-ORIGIN 'RFC4517' )`)
@@ -178,7 +182,7 @@ func init() {
 		SupplierOrConsumer,
 		SupplierAndConsumer,
 		TelephoneNumber,
-		TeletextTerminalIdentifier,
+		TeletexTerminalIdentifier,
 		TelexNumber,
 		UTCTime,
 		LDAPSyntaxDescription,

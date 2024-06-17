@@ -87,9 +87,8 @@ func (r Extensions) IsZero() bool {
 }
 
 /*
-Set assigns the provided key and values instances to the
-receiver instance, thereby specifying a new extension
-value as described in RFC 4512.
+Set assigns the provided key and values instances to the receiver instance,
+thereby specifying a new extension value as described in RFC 4512.
 */
 func (r Extensions) Set(key string, values ...string) {
 	_key := uc(key)
@@ -98,6 +97,7 @@ func (r Extensions) Set(key string, values ...string) {
 		for v := 0; v < len(values); v++ {
 			_values.cast().Push(values[v])
 		}
+
 		if _values.cast().Len() > 0 {
 			ext := new(extension)
 			ext.XString = key
@@ -112,9 +112,9 @@ func (r Extensions) Set(key string, values ...string) {
 }
 
 /*
-Exists returns a Boolean value indicative of whether the
-specified key exists within the receiver instance.  Case
-is not significant in the matching process.
+Exists returns a Boolean value indicative of whether the specified key
+exists within the receiver instance.  Case is not significant in the
+matching process.
 */
 func (r Extensions) Exists(key string) bool {
 	return r.exists(key)
@@ -187,9 +187,9 @@ func (r Extension) String() (s string) {
 		case 0:
 			break
 		case 1:
-			s = hindent() + r.XString + ` ` + `'` + r.Values.Index(0) + `'`
+			s = hindent(true) + r.XString + ` ` + `'` + r.Values.Index(0) + `'`
 		default:
-			s = hindent() + r.XString + ` ` + r.Values.String()
+			s = hindent(true) + r.XString + ` ` + r.Values.String()
 		}
 	}
 

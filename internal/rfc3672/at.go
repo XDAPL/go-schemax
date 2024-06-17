@@ -3,6 +3,10 @@ package rfc3672
 type AttributeTypeDefinitions []AttributeTypeDefinition
 type AttributeTypeDefinition string
 
+func (r AttributeTypeDefinitions) Len() int {
+	return len(r)
+}
+
 var (
 	AllAttributeTypes    AttributeTypeDefinitions
 	AdministrativeRole   AttributeTypeDefinition
