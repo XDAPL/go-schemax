@@ -169,6 +169,7 @@ func ExampleNewAttributeType() {
 		SetNumericOID(`1.3.6.1.4.1.56521.999.5`).
 		SetName(`cb`).
 		SetDescription(`Celestial Body`).
+		SetMinimumUpperBounds(64).
 		SetSyntax(dStr).
 		SetEquality(cIM).
 		SetSingleValue(true).
@@ -180,7 +181,7 @@ func ExampleNewAttributeType() {
 	//     NAME 'cb'
 	//     DESC 'Celestial Body'
 	//     EQUALITY caseIgnoreMatch
-	//     SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+	//     SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{64}
 	//     SINGLE-VALUE
 	//     X-ORIGIN 'NOWHERE' )
 }

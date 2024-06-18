@@ -88,6 +88,7 @@ const attributeTypeTmpl = `{{- $open:="( " -}}
 {{- $coll:="COLLECTIVE" -}}
 {{- $nomod:="NO-USER-MODIFICATION" -}}
 {{- $sup:=(SuperType) -}}
+{{- $mub:=(MUB) -}}
 {{- $numOID:=.Definition.OID -}}
 {{- $open -}}{{- $numOID -}}
 {{if $name -}}
@@ -113,6 +114,9 @@ const attributeTypeTmpl = `{{- $open:="( " -}}
 {{- end -}}
 {{if $sytx -}}
 {{- $hindent -}}{{- $stxl -}} {{- $sytx -}}
+{{if ne $mub "{0}" -}}
+{{- $mub -}}
+{{- end -}}
 {{- end -}}
 {{if $single -}}
 {{- $hindent -}}{{- $sv -}}

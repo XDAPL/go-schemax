@@ -952,6 +952,7 @@ func (r *attributeType) prepareString() (str string, err error) {
 			`Ordering`:     func() string { return r.Ordering.OID() },
 			`Equality`:     func() string { return r.Equality.OID() },
 			`Syntax`:       func() string { return r.Syntax.NumericOID() },
+			`MUB`:          func() string { return `{` + uitoa(r.MUB) + `}` },
 			`SuperType`:    func() string { return r.SuperType.OID() },
 			`ExtensionSet`: r.Extensions.tmplFunc,
 			`Obsolete`:     func() bool { return r.Obsolete },
@@ -990,6 +991,44 @@ func (r AttributeType) String() (def string) {
 	}
 
 	return
+}
+
+/*
+MinimumUpperBounds returns the unsigned integer form of the receiver's
+"size limit", if set. A non-zero value indicates a specific maximum
+has been declared.
+*/
+func (r AttributeType) MinimumUpperBounds() (mub uint) {
+	if !r.IsZero() {
+		mub = r.attributeType.MUB
+	}
+
+	return
+}
+
+/*
+SetMinimumUpperBounds assigns the provided value -- which may be an int
+or uint -- to the receiver instance.
+
+This is a fluent method.
+*/
+func (r AttributeType) SetMinimumUpperBounds(mub any) AttributeType {
+	if !r.IsZero() {
+		r.attributeType.setMinimumUpperBounds(mub)
+	}
+
+	return r
+}
+
+func (r *attributeType) setMinimumUpperBounds(mub any) {
+	switch tv := mub.(type) {
+	case int:
+		if tv >= 0 {
+			r.MUB = uint(tv)
+		}
+	case uint:
+		r.MUB = tv
+	}
 }
 
 /*
