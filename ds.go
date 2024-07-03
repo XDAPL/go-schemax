@@ -52,6 +52,10 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r DITStructureRule) Replace(x DITStructureRule) DITStructureRule {
+	if !r.Schema().Options().Positive(AllowOverride) {
+		return r
+	}
+
 	if !r.IsZero() {
 		r.dITStructureRule.replace(x)
 	}
@@ -199,8 +203,8 @@ func (r DITStructureRule) Compliant() bool {
 		return false
 	}
 
-	form := r.Schema().NameForms().get(r.Form().NumericOID())
-	return form.Compliant()
+	//form := r.Schema().NameForms().get(r.Form().NumericOID())
+	return r.Form().Compliant()
 }
 
 /*

@@ -7,11 +7,117 @@ import (
 
 var mySchema Schema
 
+/*
+This example demonstrates the so-called "Quick Start Schema" initialization.
+The [NewSchema] function imports all built-in definitions instantly, allowing
+the user to start their activities with no fuss.
+*/
+func ExampleNewSchema() {
+	mySchema := NewSchema()
+	fmt.Printf("%d types parsed", mySchema.Counters().AT)
+	// Output: 164 types parsed
+}
+
+func ExampleNewBasicSchema() {
+	mySchema := NewBasicSchema()
+	fmt.Printf("%d syntaxes parsed", mySchema.Counters().LS)
+	// Output: 67 syntaxes parsed
+}
+
+func ExampleNewEmptySchema() {
+	mySchema := NewEmptySchema()
+	fmt.Printf("%d syntaxes parsed", mySchema.Counters().LS)
+	// Output: 0 syntaxes parsed
+}
+
 func ExampleSchema_Options() {
 	opts := mySchema.Options()
 	opts.Shift(AllowOverride)
 	fmt.Println(opts.Positive(AllowOverride))
 	// Output: true
+}
+
+func ExampleSchema_Replace_objectClass() {
+	mySchema.Options().Shift(AllowOverride)
+
+	gon := mySchema.ObjectClasses().Get(`groupOfNames`)
+	ngon := mySchema.NewObjectClass().
+		SetNumericOID(gon.NumericOID()).
+		SetName(gon.Name()).
+		SetDescription(gon.Description()).
+		SetKind(gon.Kind()).
+		SetSuperClass(`top`).
+		SetMust(`cn`).
+		SetMay(`member`,
+			`businessCategory`,
+			`seeAlso`,
+			`owner`,
+			`ou`,
+			`o`,
+			`description`).
+		SetExtension(`X-ORIGIN`, `RFC4519`).
+		SetExtension(`X-WARNING`, `MODIFIED`). // optional
+		SetStringer()
+
+	mySchema.Replace(ngon)
+
+	fmt.Println(mySchema.ObjectClasses().Get(`groupOfNames`))
+	// Output: ( 2.5.6.9
+	//     NAME 'groupOfNames'
+	//     SUP top
+	//     STRUCTURAL
+	//     MUST cn
+	//     MAY ( member
+	//         $ businessCategory
+	//         $ seeAlso
+	//         $ owner
+	//         $ ou
+	//         $ o
+	//         $ description )
+	//     X-ORIGIN 'RFC4519'
+	//     X-WARNING 'MODIFIED' )
+}
+
+/*
+This example demonstrates refreshing the [MatchingRuleUses] collection
+within the receiver instance of [Schema]. The result of this operation
+is influence by any new [AttributeType] instances that have been added
+since the last refresh.
+*/
+func ExampleSchema_UpdateMatchingRuleUses() {
+	mySchema.UpdateMatchingRuleUses()
+	fmt.Printf("%d matchingRuleUses present", mySchema.Counters().MU)
+	// Output: 32 matchingRuleUses present
+}
+
+/*
+This example demonstrates obtaining a non thread-safe [Counters] instance,
+which outlines the number of [Definition] instances in categorical fashion.
+*/
+func ExampleSchema_Counters() {
+	fmt.Printf("%d types present", mySchema.Counters().AT)
+	// Output: 165 types present
+}
+
+/*
+This example demonstrates accessing the [Schema] instance's distinguished
+name, if set.
+*/
+func ExampleSchema_DN() {
+	fmt.Println(mySchema.DN())
+	// Output: cn=schema
+}
+
+/*
+This example demonstrates specifying a non-standard distinguished name
+for use by the [Schema] instance.
+*/
+func ExampleSchema_SetDN() {
+	mySchema := NewEmptySchema()
+	mySchema.SetDN(`cn=subschema`)
+
+	fmt.Println(mySchema.DN())
+	// Output: cn=subschema
 }
 
 func TestLoadSyntaxes(t *testing.T) {
@@ -53,6 +159,7 @@ func TestLoadObjectClasses(t *testing.T) {
 func TestLoads_codecov(t *testing.T) {
 	coolSchema := NewEmptySchema()
 	coolSchema.LoadRFC4517Syntaxes()
+	coolSchema.LoadRFC4517Syntaxes()
 	coolSchema.LoadRFC2307Syntaxes()
 	coolSchema.LoadRFC4523Syntaxes()
 	coolSchema.LoadRFC4530Syntaxes()
@@ -62,6 +169,7 @@ func TestLoads_codecov(t *testing.T) {
 	coolSchema.LoadRFC4523MatchingRules()
 	coolSchema.LoadRFC4530MatchingRules()
 
+	coolSchema.LoadX501AttributeTypes()
 	coolSchema.LoadRFC4512AttributeTypes()
 	coolSchema.LoadRFC2079AttributeTypes()
 	coolSchema.LoadRFC2798AttributeTypes()
@@ -87,22 +195,6 @@ func TestLoads_codecov(t *testing.T) {
 
 }
 
-/*
-func TestParseFile(t *testing.T) {
-	path := `/home/jc/dev/schema/oiddir.schema`
-	if err := mySchema.ParseFile(path); err != nil {
-		t.Errorf("%s failed: %v", t.Name(), err)
-		return
-	}
-
-	want := 260
-	if got := mySchema.AttributeTypes().Len(); got != want {
-		t.Errorf("%s failed: want '%d' attributeTypes, got '%d'",
-			t.Name(), want, got)
-	}
-}
-*/
-
 // supplemental attributeTypes not sourced from an official doc, but
 // are useful in UTs, et al.
 var suplATs []string = []string{
@@ -112,6 +204,7 @@ var suplATs []string = []string{
 func init() {
 	// Prepare our UT/Example reference schema
 	mySchema = NewEmptySchema(
+		AllowOverride,
 		SortExtensions,
 		SortLists,
 		HangingIndents,

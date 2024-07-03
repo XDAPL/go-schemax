@@ -1085,6 +1085,10 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r DITContentRule) Replace(x DITContentRule) DITContentRule {
+	if !r.Schema().Options().Positive(AllowOverride) {
+		return r
+	}
+
 	if !r.IsZero() && x.Compliant() {
 		r.dITContentRule.replace(x)
 	}

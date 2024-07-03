@@ -185,7 +185,7 @@ func (r Schema) Macros() Macros {
 }
 
 /*
-Override will attempt to override a separate incarnation of itself using
+Replace will attempt to override a separate incarnation of itself using
 the [Definition] instance provided.
 
 This is specifically to allow support for overriding certain [Definition]
@@ -204,12 +204,13 @@ necessary.
 
 When overriding a [DITStructureRule] instance, a match is performed against
 the respective [DITStructureRule.RuleID] values.  All other [Definition]
-types are  matched using their respective numeric OIDs.  All replacement
-[Definition] instances are subject to compliancy checks.
+types are matched using their respective numeric OIDs.
+
+All replacement [Definition] instances are subject to compliancy checks.
 
 This is a fluent method.
 */
-func (r Schema) Override(x Definition) Schema {
+func (r Schema) Replace(x Definition) Schema {
 	if !r.Options().Positive(AllowOverride) {
 		return r
 	}

@@ -6,6 +6,27 @@ import (
 )
 
 /*
+This example demonstrates a compliancy check of the "account" [ObjectClass].
+*/
+func ExampleObjectClass_Compliant() {
+	acc := mySchema.ObjectClasses().Get(`account`)
+	fmt.Println(acc.Compliant())
+	// Output: true
+}
+
+/*
+This example demonstrates a compliancy check of all [ObjectClasses] members.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
+func ExampleObjectClasses_Compliant() {
+	classes := mySchema.ObjectClasses()
+	fmt.Println(classes.Compliant())
+	// Output: true
+}
+
+/*
 This example demonstrates the means of checking superiority of a class
 over another class by way of the [ObjectClass.SuperClassOf] method.
 
@@ -116,6 +137,19 @@ func ExampleObjectClass_SetObsolete() {
 		SetObsolete()
 
 	fmt.Println(fake.Obsolete())
+	// Output: true
+}
+
+/*
+This example demonstrates a means of checking whether a particular instance
+of [ObjectClass] is present within an instance of [ObjectClasses].
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
+func ExampleObjectClasses_Contains() {
+	classes := mySchema.ObjectClasses()
+	fmt.Println(classes.Contains(`top`)) // or "2.5.6.0"
 	// Output: true
 }
 
@@ -285,6 +319,7 @@ func TestObjectClass_codecov(t *testing.T) {
 	mySchema.ObjectClasses().canPush(``, ``, ``, ``, cim)
 	mySchema.ObjectClasses().canPush(cim, cim)
 	bmr := newCollection(``)
+	bma := newCollection(``)
 	ObjectClasses(bmr.cast()).Push(NewObjectClass().SetSchema(mySchema))
 	ObjectClasses(bmr.cast()).Push(NewObjectClass().SetSchema(mySchema).SetNumericOID(`1.2.3.4.5`))
 	bmr.cast().Push(NewObjectClass().SetSchema(mySchema))
@@ -301,12 +336,24 @@ func TestObjectClass_codecov(t *testing.T) {
 	ocs.oIDsStringerStd()
 	ocs.canPush(`forks`)
 	ocs.Push(NewObjectClass().SetSchema(mySchema))
+	bmr.cast().Push(AttributeType{&attributeType{OID: `1.2.3.4.5`, Collective: true, Single: true}})
+	bma.cast().Push(AttributeType{&attributeType{OID: ``, Collective: true, Single: true}})
+	xoc := ObjectClass{&objectClass{
+		Must: AttributeTypes(bmr),
+	}}
+	yoc := ObjectClass{&objectClass{
+		May: AttributeTypes(bma),
+	}}
+
+	xoc.Compliant()
+	yoc.Compliant()
 
 	ocs.Push(bad)
 
 	ObjectClasses(bmr).Push(NewObjectClass().SetSchema(mySchema))
 	ObjectClasses(bmr).Push(NewObjectClass().SetSchema(mySchema).SetNumericOID(`1.2.3.4.5`))
 	ObjectClasses(bmr).Compliant()
+	mySchema.ObjectClasses().Compliant()
 
 	var def ObjectClass
 
@@ -335,6 +382,10 @@ func TestObjectClass_codecov(t *testing.T) {
 	def = NewObjectClass()
 	def.SetDescription(`'a`)
 	def.SetDescription(`'Unnecessary quoted value to be overwritten'`)
+
+	oo := new(objectClass)
+	oo.OID = `freakz`
+	def.replace(ObjectClass{oo})
 
 	if err := def.Parse(raw); err != ErrNilSchemaRef {
 		t.Errorf("%s failed: expected ErrNilSchemaRef, got %v", t.Name(), err)
@@ -366,6 +417,17 @@ func TestObjectClass_codecov(t *testing.T) {
 	def.SetMay(rune(11))
 	def.SetSuperClass(mySchema.ObjectClasses().Get(`top`))
 	def.SetSuperClass(rune(11))
+	def.SetSuperClass(ObjectClass{})
+	def.SetSuperClass(def)
+	top := mySchema.ObjectClasses().Get(`top`)
+	acct := mySchema.ObjectClasses().Get(`account`)
+	orgp := mySchema.ObjectClasses().Get(`organizationalPerson`)
+	mySchema.ObjectClasses().canPush(ObjectClass{}, ObjectClass{new(objectClass)})
+	orgp.AllMust()
+	orgp.AllMay()
+	top.SuperClassOf(acct)
+	top.SuperClassOf(orgp)
+	top.SetSuperClass(acct)
 
 	if err := def.Parse(raw); err != nil {
 		t.Errorf("%s failed: expected success, got %v", t.Name(), err)

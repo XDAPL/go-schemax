@@ -383,6 +383,10 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r ObjectClass) Replace(x ObjectClass) ObjectClass {
+	if !r.Schema().Options().Positive(AllowOverride) {
+		return r
+	}
+
 	if !r.IsZero() && x.Compliant() {
 		r.objectClass.replace(x)
 	}
@@ -391,9 +395,7 @@ func (r ObjectClass) Replace(x ObjectClass) ObjectClass {
 }
 
 func (r *objectClass) replace(x ObjectClass) {
-	if r.OID == `` {
-		return
-	} else if r.OID != x.NumericOID() {
+	if r.OID != x.NumericOID() {
 		return
 	}
 

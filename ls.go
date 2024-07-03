@@ -711,6 +711,10 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r LDAPSyntax) Replace(x LDAPSyntax) LDAPSyntax {
+	if !r.Schema().Options().Positive(AllowOverride) {
+		return r
+	}
+
 	if !r.IsZero() && x.Compliant() {
 		r.lDAPSyntax.replace(x)
 	}

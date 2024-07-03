@@ -1,6 +1,6 @@
 # go-schemax
 
-Package schemax incorporates a powerful [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) parser, wrapped with convenient features for creating and interrogating directory schemas.
+Package schemax incorporates a powerful [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) parser, wrapped with convenient, reflective features for creating and interrogating directory schemas.
 
 Requires Go version 1.22 or higher.
 

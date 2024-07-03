@@ -24,12 +24,15 @@ func ExampleLDAPSyntax_Replace() {
 		SetStringer()
 
 	// Here is our good version
-	good := NewLDAPSyntax().
-		SetSchema(mySchema).
+	good := mySchema.NewLDAPSyntax().
 		SetNumericOID(`1.3.6.1.4.1.56521.999.5`).
 		SetDescription(`Frequency`).
 		SetExtension(`X-ORIGIN`, `NOWHERE`).
 		SetStringer()
+
+	// Make sure we allow overrides within the
+	// schema instance.
+	mySchema.Options().Shift(AllowOverride)
 
 	// Swap orig for good, but while preserving
 	// the same pointer address to keep our

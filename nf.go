@@ -156,6 +156,10 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r NameForm) Replace(x NameForm) NameForm {
+	if !r.Schema().Options().Positive(AllowOverride) {
+		return r
+	}
+
 	if !r.IsZero() && x.Compliant() {
 		r.nameForm.replace(x)
 	}

@@ -80,6 +80,10 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r MatchingRule) Replace(x MatchingRule) MatchingRule {
+	if !r.Schema().Options().Positive(AllowOverride) {
+		return r
+	}
+
 	if !r.IsZero() && x.Compliant() {
 		r.matchingRule.replace(x)
 	}

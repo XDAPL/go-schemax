@@ -120,6 +120,10 @@ receiver instance within various stacks will be preserved.
 This is a fluent method.
 */
 func (r AttributeType) Replace(x AttributeType) AttributeType {
+	if !r.Schema().Options().Positive(AllowOverride) {
+		return r
+	}
+
 	if !r.IsZero() && x.Compliant() {
 		r.attributeType.replace(x)
 	}

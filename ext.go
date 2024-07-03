@@ -3,8 +3,8 @@ package schemax
 /*
 NewExtensions initializes and returns a new instance of [Extensions].
 */
-func NewExtensions() (e Extensions) {
-	e = newExtensions()
+func NewExtensions(o ...Option) (e Extensions) {
+	e = newExtensions(o...)
 	e.cast().SetPushPolicy(e.canPush)
 	return
 }
@@ -92,6 +92,14 @@ thereby specifying a new extension value as described in RFC 4512.
 */
 func (r Extensions) Set(key string, values ...string) {
 	_key := uc(key)
+	var hi, se bool
+	if def := r.Definition(); def != nil {
+		if sch := def.Schema(); !sch.IsZero() {
+			opts := sch.Options()
+			hi = opts.Positive(HangingIndents)
+			se = opts.Positive(SortExtensions)
+		}
+	}
 	if _values, found := r.get(_key); !found {
 		_values = newQStringList(`extensions`)
 		for v := 0; v < len(values); v++ {
@@ -102,6 +110,8 @@ func (r Extensions) Set(key string, values ...string) {
 			ext := new(extension)
 			ext.XString = key
 			ext.Values = _values
+			ext.hindent = hi
+			ext.sortExts = se
 			r.Push(Extension{ext})
 		}
 	} else {
@@ -187,9 +197,9 @@ func (r Extension) String() (s string) {
 		case 0:
 			break
 		case 1:
-			s = hindent(true) + r.XString + ` ` + `'` + r.Values.Index(0) + `'`
+			s = hindent(r.hindent) + r.XString + ` ` + `'` + r.Values.Index(0) + `'`
 		default:
-			s = hindent(true) + r.XString + ` ` + r.Values.String()
+			s = hindent(r.hindent) + r.XString + ` ` + r.Values.String()
 		}
 	}
 

@@ -210,9 +210,11 @@ func (r Schema) marshalLS(s antlr4512.LDAPSyntax) (def LDAPSyntax, err error) {
 	_def.OID = s.OID
 	_def.Desc = s.Desc
 	_def.schema = r
+	_def.Extensions.setDefinition(LDAPSyntax{_def})
 
 	// Marshal our extensions, taking our sorting preference into account
-	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
+	marshalExt(s.Extensions, _def.Extensions,
+		r.Options().Positive(SortExtensions))
 
 	str, err := _def.prepareString() // perform one-time text/template op
 	if err == nil {
@@ -280,9 +282,11 @@ func (r Schema) marshalMR(s antlr4512.MatchingRule) (def MatchingRule, err error
 	_def.Obsolete = s.Obsolete
 	_def.schema = r
 	_def.Syntax = syn
+	_def.Extensions.setDefinition(MatchingRule{_def})
 
 	// Marshal our extensions, taking our sorting preference into account
-	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
+	marshalExt(s.Extensions, _def.Extensions,
+		r.Options().Positive(SortExtensions))
 
 	for _, name := range s.Name {
 		_def.Name.push(name)
@@ -332,6 +336,7 @@ func (r Schema) marshalMU(s antlr4512.MatchingRuleUse) (def MatchingRuleUse, err
 	_def.Desc = s.Desc
 	_def.Obsolete = s.Obsolete
 	_def.schema = r
+	_def.Extensions.setDefinition(MatchingRuleUse{_def})
 
 	sortL := r.Options().Positive(SortLists)
 
@@ -346,7 +351,8 @@ func (r Schema) marshalMU(s antlr4512.MatchingRuleUse) (def MatchingRuleUse, err
 	}
 
 	// Marshal our extensions, taking our sorting preference into account
-	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
+	marshalExt(s.Extensions, _def.Extensions,
+		r.Options().Positive(SortExtensions))
 
 	for _, name := range s.Name {
 		_def.Name.push(name)
@@ -400,6 +406,7 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 	_def.Single = s.Single
 	_def.MUB = s.MUB
 	_def.schema = r
+	_def.Extensions.setDefinition(AttributeType{_def})
 
 	// avoid bogus Boolean states
 	if _def.Single && _def.Collective {
@@ -438,7 +445,8 @@ func (r Schema) marshalAT(s antlr4512.AttributeType) (def AttributeType, err err
 	_def.marshalUsage(s)
 
 	// Marshal our extensions, taking our sorting preference into account
-	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
+	marshalExt(s.Extensions, _def.Extensions,
+		r.Options().Positive(SortExtensions))
 
 	// Process and set any names
 	for _, name := range s.Name {
@@ -491,8 +499,7 @@ func (r *attributeType) marshalMRs(s antlr4512.AttributeType) (err error) {
 }
 
 func (r *attributeType) marshalUsage(s antlr4512.AttributeType) {
-	// verify and set usage if not default
-	// "userApplications"
+	// verify and set usage IF NOT default ("userApplications")
 	if len(s.Usage) > 0 {
 		switch lc(s.Usage) {
 		case `directoryoperation`:
@@ -535,6 +542,7 @@ func (r Schema) marshalOC(s antlr4512.ObjectClass) (def ObjectClass, err error) 
 	_def.Desc = s.Desc
 	_def.Obsolete = s.Obsolete
 	_def.schema = r
+	_def.Extensions.setDefinition(ObjectClass{_def})
 
 	sortL := r.Options().Positive(SortLists)
 
@@ -579,7 +587,8 @@ func (r Schema) marshalOC(s antlr4512.ObjectClass) (def ObjectClass, err error) 
 	}
 
 	// Marshal our extensions, taking our sorting preference into account
-	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
+	marshalExt(s.Extensions, _def.Extensions,
+		r.Options().Positive(SortExtensions))
 
 	// Process and set any names
 	for _, name := range s.Name {
@@ -629,6 +638,8 @@ func (r Schema) marshalDC(s antlr4512.DITContentRule) (def DITContentRule, err e
 	_def.OID = soc
 	_def.Desc = s.Desc
 	_def.Obsolete = s.Obsolete
+	_def.schema = r
+	_def.Extensions.setDefinition(DITContentRule{_def})
 
 	sortL := r.Options().Positive(SortLists)
 
@@ -669,7 +680,8 @@ func (r Schema) marshalDC(s antlr4512.DITContentRule) (def DITContentRule, err e
 	}
 
 	// Marshal our extensions, taking our sorting preference into account
-	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
+	marshalExt(s.Extensions, _def.Extensions,
+		r.Options().Positive(SortExtensions))
 
 	for _, name := range s.Name {
 		_def.Name.push(name)
@@ -715,6 +727,8 @@ func (r Schema) marshalNF(s antlr4512.NameForm) (def NameForm, err error) {
 	_def.OID = s.OID
 	_def.Desc = s.Desc
 	_def.Obsolete = s.Obsolete
+	_def.schema = r
+	_def.Extensions.setDefinition(NameForm{_def})
 
 	sortL := r.Options().Positive(SortLists)
 
@@ -744,7 +758,8 @@ func (r Schema) marshalNF(s antlr4512.NameForm) (def NameForm, err error) {
 	}
 
 	// Marshal our extensions, taking our sorting preference into account
-	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
+	marshalExt(s.Extensions, _def.Extensions,
+		r.Options().Positive(SortExtensions))
 
 	for _, name := range s.Name {
 		_def.Name.push(name)
@@ -787,6 +802,8 @@ func (r Schema) marshalDS(s antlr4512.DITStructureRule) (def DITStructureRule, e
 	_def.ID = uint(ruleid)
 	_def.Desc = s.Desc
 	_def.Obsolete = s.Obsolete
+	_def.schema = r
+	_def.Extensions.setDefinition(DITStructureRule{_def})
 
 	sortL := r.Options().Positive(SortLists)
 
@@ -807,7 +824,8 @@ func (r Schema) marshalDS(s antlr4512.DITStructureRule) (def DITStructureRule, e
 	}
 
 	// Marshal our extensions, taking our sorting preference into account
-	marshalExt(s.Extensions, _def.Extensions, r.Options().Positive(SortExtensions))
+	marshalExt(s.Extensions, _def.Extensions,
+		r.Options().Positive(SortExtensions))
 
 	for _, name := range s.Name {
 		_def.Name.push(name)

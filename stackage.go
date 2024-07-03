@@ -221,22 +221,3 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 func (r QuotedStringList) IsZero() bool {
 	return r.cast().IsZero()
 }
-
-/*
-prepare a custom [stackage.PresentationPolicy] instance for our input
-[QuotedDescriptorList] stack to convert the following:
-
-	( cn $ sn $ l $ c $ st )
-
-... into ...
-
-	( cn
-	$ sn
-	$ l
-	$ c
-	$ st )
-
-This has no effect if the stack has only one member, producing:
-
-	cn
-*/

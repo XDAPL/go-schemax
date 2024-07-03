@@ -23,6 +23,7 @@ var (
 	ErrInvalidType         error = errors.New("Incompatible type for operation")
 	ErrTypeAssert          error = errors.New("Type assertion failed")
 	ErrNotUnique           error = errors.New("Definition is already defined")
+	ErrNotEqual            error = errors.New("Values are not equal")
 	ErrMissingNumericOID   error = errors.New("Missing or invalid numeric OID for definition")
 
 	ErrOrderingRuleNotFound  error = errors.New("ORDERING MatchingRule not found")
