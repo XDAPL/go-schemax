@@ -2,7 +2,7 @@ package schemax
 
 import (
 	"fmt"
-	//"testing"
+	"testing"
 )
 
 /*
@@ -38,4 +38,8 @@ func ExampleOptions_Unshift() {
 	opts.Unshift(AllowOverride)
 	fmt.Println(opts.Positive(AllowOverride))
 	// Output: false
+}
+
+func TestImports_codecov(t *testing.T) {
+	_ = uitoa(uint64(64))
 }

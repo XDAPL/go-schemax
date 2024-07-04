@@ -128,13 +128,14 @@ Compliant returns a Boolean value indicative of every [MatchingRuleUse]
 returning a compliant response from the [MatchingRuleUse.Compliant] method.
 */
 func (r MatchingRuleUses) Compliant() bool {
+	var act int
 	for i := 0; i < r.Len(); i++ {
-		if !r.Index(i).Compliant() {
-			return false
+		if r.Index(i).Compliant() {
+			act++
 		}
 	}
 
-	return true
+	return act == r.Len()
 }
 
 /*
@@ -142,6 +143,7 @@ Compliant returns a Boolean value indicative of the receiver being fully
 compliant per the required clauses of § 4.1.4 of RFC 4512:
 
   - Numeric OID must be present and valid
+  - Numeric OID must correlate to a previously registered [MatchingRule]
 */
 func (r MatchingRuleUse) Compliant() bool {
 	if r.IsZero() {
@@ -154,17 +156,16 @@ func (r MatchingRuleUse) Compliant() bool {
 	)
 
 	for i := 0; i < appl.Len(); i++ {
-		if !appl.Index(i).Compliant() {
-			return false
+		if appl.Index(i).Compliant() {
+			act++
 		}
-		act++
 	}
 
 	if r.Schema().MatchingRules().get(r.NumericOID()).IsZero() {
 		return false
 	}
 
-	return act > 0
+	return act == r.Applies().Len()
 }
 
 /*
@@ -653,7 +654,11 @@ Names returns the underlying instance of [QuotedDescriptorList] from
 within the receiver.
 */
 func (r MatchingRuleUse) Names() (names QuotedDescriptorList) {
-	return r.matchingRuleUse.Name
+	if !r.IsZero() {
+		names = r.matchingRuleUse.Name
+	}
+
+	return
 }
 
 /*
@@ -861,7 +866,7 @@ with "users" (AttributeType instances) of the indicated matchingRule.
 */
 func (r MatchingRule) makeMatchingRuleUse() (mu MatchingRuleUse, err error) {
 	if !r.Compliant() {
-		err = ErrNilInput
+		err = ErrDefNonCompliant
 		return
 	}
 

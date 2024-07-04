@@ -432,13 +432,14 @@ Compliant returns a Boolean value indicative of every [DITContentRule]
 returning a compliant response from the [DITContentRule.Compliant] method.
 */
 func (r DITContentRules) Compliant() bool {
+	var act int
 	for i := 0; i < r.Len(); i++ {
-		if !r.Index(i).Compliant() {
-			return false
+		if r.Index(i).Compliant() {
+			act++
 		}
 	}
 
-	return true
+	return act == r.Len()
 }
 
 /*

@@ -1,6 +1,7 @@
 package schemax
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/JesseCoretta/go-antlr4512"
@@ -135,6 +136,8 @@ ParseDITStructureRule returns an error following an attempt to parse raw into an
 instance of [DITStructureRule] and append it to the [Schema.DITStructureRules] stack.
 */
 func (r Schema) ParseDITStructureRule(raw string) error {
+	fmt.Println(raw)
+
 	def, err := parseDS(raw)
 	if err == nil {
 		var _def DITStructureRule
@@ -792,14 +795,15 @@ func (r Schema) incorporateDS(s antlr4512.DITStructureRules) (err error) {
 }
 
 func (r Schema) marshalDS(s antlr4512.DITStructureRule) (def DITStructureRule, err error) {
-	var ruleid int
-	if ruleid, err = atoi(s.ID); err != nil || ruleid < 0 {
+	var ruleid uint
+	var ok bool
+	if ruleid, ok = atoui(s.ID); !ok {
 		err = mkerr("Invalid structure rule ID " + s.ID)
 		return
 	}
 
 	_def := newDITStructureRule()
-	_def.ID = uint(ruleid)
+	_def.ID = ruleid
 	_def.Desc = s.Desc
 	_def.Obsolete = s.Obsolete
 	_def.schema = r

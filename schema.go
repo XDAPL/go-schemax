@@ -256,7 +256,7 @@ func (r Schema) IsZero() bool {
 Counters returns an instance of [Counters] bearing the current number
 of definitions by category.
 
-The return instance is NOT thread-safe.
+The return instance is merely a snapshot in time and is NOT thread-safe.
 */
 func (r Schema) Counters() Counters {
 	return Counters{
@@ -272,9 +272,31 @@ func (r Schema) Counters() Counters {
 }
 
 /*
+ParseRaw returns an error following an attempt to parse raw into
+usable schema definitions. This method operates similarly to the
+[Schema.ParseFile] method, except this method expects "pre-read" raw
+definition bytes rather than a filesystem path leading to such content.
+
+This method wraps the [antlr4512.Schema.ParseRaw] method.
+*/
+func (r Schema) ParseRaw(raw []byte) (err error) {
+	s := new4512Schema()
+	if err = s.ParseRaw(raw); err != nil {
+		return
+	}
+
+	// begin second phase
+	err = r.incorporate(s)
+
+	return
+}
+
+/*
 ParseFile returns an error following an attempt to parse file. Only
 files ending in ".schema" will be considered, however submission of
 non-qualifying files shall not produce an error.
+
+This method wraps the [antlr4512.Schema.ParseFile] method.
 */
 func (r Schema) ParseFile(file string) (err error) {
 	s := new4512Schema()
@@ -294,6 +316,8 @@ directory found at dir. Sub-directories encountered are traversed
 indefinitely.  Files encountered will only be read if their name
 ends in ".schema", at which point their contents are read into
 bytes, processed using ANTLR and written to the receiver instance.
+
+This method wraps the [antlr4512.Schema.ParseDirectory] method.
 */
 func (r Schema) ParseDirectory(dir string) (err error) {
 	s := new4512Schema()

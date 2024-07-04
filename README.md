@@ -29,12 +29,14 @@ The newly released build of schemax involves the import of an ANTLR4-based [RFC 
 
 Therefore, the new build of schemax is of a simpler fundamental design thanks to offloading the bulk of the parser to another package. This also keeps all code-grading penalties (due to ANTLR's characteristically high cyclomatic factors) confined elsewhere, and allows schemax to focus on extending the slick features users have come to expect.
 
+Users who are only interested in _tokenization_ and do not require the advanced features of this package should consider use of [`go-antlr4512`](https://github.com/JesseCoretta/go-antlr4512) exclusively.
+
 ## The Parser
 
 The (ANTLR) parsing subsystem imported by the aforementioned sister package is flexible in terms of the following:
 
   - Presence of header, footer and line-terminating Bash comments surrounding a given definition is acceptable
-    - Note that comments are entirely discarded by ANTLR
+    - Note that comments are entirely _discarded_ by ANTLR
   - Support for (escaped!) `'` and `\` characters within quoted strings ('this isn\'t a bad example')
   - Support for linebreaks within definitions
   - Definition prefixing allows variations of the standard [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) "labels" during file and directory parsing
@@ -56,7 +58,8 @@ func main() {
 
 	// Let's parse a directory into our
 	// receiver instance of Schema (r).
-	if err := r.ParseDirectory(`/ds/etc/schema`); err != nil {
+	schemaDir := "/home/you/ds/schema"
+	if err := r.ParseDirectory(schemaDir); err != nil {
 		fmt.Println(err)
 		return
 	}

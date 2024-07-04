@@ -606,6 +606,9 @@ upon the current contents of an [AttributeTypes] stack instance.  Use
 of an [Inventory] instance is convenient in cases where a receiver of
 schema information may not be able to directly receive working stack
 instances and requires a more portable and generalized type.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
 */
 func ExampleAttributeTypes_Inventory() {
 	at := mySchema.AttributeTypes().Inventory()
@@ -625,6 +628,13 @@ func ExampleAttributeType_Type() {
 	// Output: attributeType
 }
 
+/*
+This example demonstrates the means of transferring an [AttributeType]
+into an instance of [DefinitionMap].
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
 func ExampleAttributeType_Map() {
 	def := mySchema.AttributeTypes().Get(`cn`)
 	fmt.Println(def.Map()[`NUMERICOID`][0]) // risky, just for simplicity
@@ -633,10 +643,11 @@ func ExampleAttributeType_Map() {
 
 /*
 This example demonstrates use of the [AttributeTypes.Maps] method, which
-produces slices of [DefinitionMap] instances born of the [ObjectClasses]
-stack in which they reside.  We (quite recklessly) call index three (3)
-and reference index zero (0) of its `SYNTAX` key to obtain the relevant
-[LDAPSyntax] OID string value.
+produces slices of [DefinitionMap] instances containing [AttributeType]
+derived values
+
+Here, we (quite recklessly) call index three (3) and reference index zero
+(0) of its `SYNTAX` key to obtain the relevant [LDAPSyntax] OID string value.
 
 Note: this example assumes a legitimate schema variable is defined
 in place of the fictional "mySchema" var shown here for simplicity.
@@ -692,6 +703,13 @@ func ExampleAttributeType_Names() {
 	// Output: ( 'cn' 'commonName' )
 }
 
+/*
+This example demonstrates a means of accessing the underlying [Extensions]
+stack instance within the receiver instance.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
 func ExampleAttributeType_Extensions() {
 	cn := mySchema.AttributeTypes().Get(`cn`)
 	fmt.Println(cn.Extensions())
@@ -743,7 +761,7 @@ Naturally the end-user would opt for a more useful stringer, such as one
 that produces a CSV file containing all [AttributeType] instances.
 
 To avoid impacting other unit tests, we reset the default stringer
-via the [AttributeType.SetStringer] method again, with no arguments.
+via the [AttributeTypes.SetStringer] method again, with no arguments.
 
 Note: this example assumes a legitimate schema variable is defined
 in place of the fictional "mySchema" var shown here for simplicity.
@@ -909,6 +927,10 @@ func ExampleAttributeType_MinimumUpperBounds() {
 	// Output: 128
 }
 
+/*
+Do stupid things to make schemax panic, gain additional
+coverage in the process.
+*/
 func TestAttributeType_codecov(t *testing.T) {
 	attr := AttributeType{}
 	if err := attr.Parse(`(garbage)`); err == nil {

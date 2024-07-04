@@ -211,7 +211,7 @@ func ExampleMatchingRule_Obsolete() {
 }
 
 /*
-This example demonstrates instant compliance checks for all [LDAPSyntax]
+This example demonstrates instant compliance checks for all [MatchingRule]
 instances present within an instance of [MatchingRules].
 */
 func ExampleMatchingRules_Compliant() {

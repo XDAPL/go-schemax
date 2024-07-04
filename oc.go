@@ -489,13 +489,14 @@ Compliant returns a Boolean value indicative of every [ObjectClass]
 returning a compliant response from the [ObjectClass.Compliant] method.
 */
 func (r ObjectClasses) Compliant() bool {
+	var act int
 	for i := 0; i < r.Len(); i++ {
-		if !r.Index(i).Compliant() {
-			return false
+		if r.Index(i).Compliant() {
+			act++
 		}
 	}
 
-	return true
+	return act == r.Len()
 }
 
 /*

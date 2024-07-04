@@ -178,13 +178,14 @@ Compliant returns a Boolean value indicative of every [DITStructureRule]
 returning a compliant response from the [DITStructureRule.Compliant] method.
 */
 func (r DITStructureRules) Compliant() bool {
+	var act int
 	for i := 0; i < r.Len(); i++ {
-		if !r.Index(i).Compliant() {
-			return false
+		if r.Index(i).Compliant() {
+			act++
 		}
 	}
 
-	return true
+	return act == r.Len()
 }
 
 /*
@@ -211,7 +212,7 @@ func (r DITStructureRule) Compliant() bool {
 Type returns the string literal "dITStructureRule".
 */
 func (r DITStructureRule) Type() string {
-	return r.dITStructureRule.Type()
+	return `dITStructureRule`
 }
 
 func (r dITStructureRule) Type() string {
@@ -238,8 +239,8 @@ func (r DITStructureRule) SuperRules() (sup DITStructureRules) {
 }
 
 /*
-ID returns the string representation of the underlying rule ID held by
-the receiver instance.
+ID returns the string representation of the principal name OR rule ID
+held by the receiver instance.
 */
 func (r DITStructureRule) ID() (id string) {
 	if !r.IsZero() {
@@ -318,7 +319,11 @@ Names returns the underlying instance of [QuotedDescriptorList] from
 within the receiver.
 */
 func (r DITStructureRule) Names() (names QuotedDescriptorList) {
-	return r.dITStructureRule.Name
+	if !r.IsZero() {
+		names = r.dITStructureRule.Name
+	}
+
+	return
 }
 
 /*
@@ -518,7 +523,9 @@ func (r *dITStructureRule) setRuleID(x any) {
 			r.ID = uint(tv)
 		}
 	case string:
-		r.ID = atoui(tv)
+		if z, ok := atoui(tv); ok {
+			r.ID = z
+		}
 	}
 
 	return
@@ -541,19 +548,17 @@ func (r DITStructureRule) SetSuperRule(m ...any) DITStructureRule {
 func (r *dITStructureRule) setSuperRule(m ...any) {
 	var err error
 	for i := 0; i < len(m) && err == nil; i++ {
-		var oc ObjectClass
+		var def DITStructureRule
 		switch tv := m[i].(type) {
 		case string:
-			oc = r.schema.ObjectClasses().get(tv)
-		case ObjectClass:
-			oc = tv
+			def = r.schema.DITStructureRules().get(tv)
+		case DITStructureRule:
+			def = tv
 		default:
 			err = ErrInvalidType
 		}
 
-		if oc.Compliant() {
-			r.SuperRules.Push(oc)
-		}
+		r.SuperRules.Push(def)
 	}
 }
 
@@ -866,8 +871,10 @@ func (r DITStructureRules) get(id any) (ds DITStructureRule) {
 	if L == 0 {
 		return
 	}
+
 	var n uint
 	var name string
+	var named bool
 
 	switch tv := id.(type) {
 	case int:
@@ -881,6 +888,7 @@ func (r DITStructureRules) get(id any) (ds DITStructureRule) {
 		// string may be a string
 		// uint, or a name.
 		if _n, err := atoi(tv); err != nil {
+			named = true
 			name = tv
 		} else {
 			return r.get(_n)
@@ -888,12 +896,13 @@ func (r DITStructureRules) get(id any) (ds DITStructureRule) {
 	}
 
 	for i := 0; i < L && ds.IsZero(); i++ {
-		if _ds := r.index(i); !_ds.IsZero() {
-			if _ds.ID() == name && len(name) > 0 {
-				ds = _ds
-			} else if _ds.dITStructureRule.ID == n {
+		_ds := r.index(i)
+		if named {
+			if _ds.Names().Contains(name) && len(name) > 0 {
 				ds = _ds
 			}
+		} else if _ds.RuleID() == n {
+			ds = _ds
 		}
 	}
 

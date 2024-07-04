@@ -808,13 +808,14 @@ Compliant returns a Boolean value indicative of every [MatchingRule]
 returning a compliant response from the [MatchingRule.Compliant] method.
 */
 func (r MatchingRules) Compliant() bool {
+	var act int
 	for i := 0; i < r.Len(); i++ {
-		if !r.Index(i).Compliant() {
-			return false
+		if r.Index(i).Compliant() {
+			act++
 		}
 	}
 
-	return true
+	return act == r.Len()
 }
 
 /*

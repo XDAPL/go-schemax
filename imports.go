@@ -102,8 +102,9 @@ func uitoa(x any) (s string) {
 	return
 }
 
-func atoui(x string) (ui uint) {
-	_ui, _ := strconv.ParseUint(x, 10, 64)
+func atoui(x string) (ui uint, ok bool) {
+	_ui, err := strconv.ParseUint(x, 10, 64)
+	ok = err == nil
 	ui = uint(_ui)
 
 	return
