@@ -46,6 +46,8 @@ func TestName_codecov(t *testing.T) {
 	n.Push(`test2`)
 	n.Push(`test5`)
 	n.Push(`test8`)
+	n.Contains(`test7`)
+	n.Contains(`test8`)
 	n.cast().Push(`test3`)
 	n.cast().NoPadding(true)
 	n.smvStringer()

@@ -16,10 +16,16 @@ func TestExtensions_codecov(t *testing.T) {
 	_ = x.String()
 	x.Exists(`X-oRiGiN`)
 	x.Get(`X-oriGIN`)
+	z, _ := x.Get(`X-oriGIN`)
+	z.Contains(`RFCNNNN`)
+	z.Contains(`RFCNNNZ`)
+	z.IsZero()
 
 	lx := &extension{
 		hindent: true,
 	}
 	X := Extension{lx}
 	_ = X.String()
+
+	_ = newExtensions(AllowOverride, HangingIndents)
 }

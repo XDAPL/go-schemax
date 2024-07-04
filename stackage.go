@@ -191,6 +191,14 @@ func (r QuotedStringList) List() (list []string) {
 	return
 }
 
+/*
+Contains returns a Boolean value indicative of the presence of the indicated
+key within the receiver instance.
+*/
+func (r QuotedStringList) Contains(val string) bool {
+	return r.contains(val)
+}
+
 func (r QuotedStringList) contains(val string) bool {
 	for i := 0; i < r.len(); i++ {
 		v := r.index(i)
