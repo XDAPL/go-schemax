@@ -634,7 +634,7 @@ stringer.
 This is a fluent method and may be used multiple times.
 */
 func (r NameForm) SetStringer(function ...Stringer) NameForm {
-	if !r.IsZero() {
+	if r.Compliant() {
 		r.nameForm.setStringer(function...)
 	}
 

@@ -2773,6 +2773,7 @@ objectclass ( 1.3.6.1.4.1.56521.101.2.5.17
 ditcontentrule ( 1.3.6.1.4.1.56521.101.2.5.2
 	NAME 'rootArcContent'
 	DESC 'root arc entry content rule'
+	AUX ( iTUTRegistration $ iSORegistration $ jointISOITUTRegistration )
 	MUST ( n $
 	       iRI $
 	       identifier $

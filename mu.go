@@ -237,7 +237,7 @@ stringer.
 This is a fluent method and may be used multiple times.
 */
 func (r MatchingRuleUse) SetStringer(function ...Stringer) MatchingRuleUse {
-	if !r.IsZero() {
+	if r.Compliant() {
 		r.matchingRuleUse.setStringer(function...)
 	}
 

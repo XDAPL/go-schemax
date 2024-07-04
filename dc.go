@@ -82,7 +82,7 @@ func NewDITContentRule() DITContentRule {
 func newDITContentRule() *dITContentRule {
 	return &dITContentRule{
 		Name:       NewName(),
-		Aux:        NewObjectClassOIDList(),
+		Aux:        NewObjectClassOIDList(`AUX`),
 		Must:       NewAttributeTypeOIDList(`MUST`),
 		May:        NewAttributeTypeOIDList(`MAY`),
 		Not:        NewAttributeTypeOIDList(`NOT`),
@@ -455,31 +455,15 @@ func (r DITContentRule) Compliant() bool {
 		return false
 	}
 
-	soc := r.schema.ObjectClasses().get(r.NumericOID())
-	if soc.IsZero() {
-		// structural OC not found in associated schema,
-		// OR was unspecified.
-		return false
-	}
-
-	if !soc.Compliant() {
-		// referenced structural OC MUST be valid itself.
-		return false
-	}
-
-	// verify all MUST clause members are valid
-	if !r.Must().Compliant() {
-		return false
-	}
-
-	// verify all MAY clause members are valid
-	if !r.May().Compliant() {
-		return false
-	}
-
-	// verify all NOT clause members are valid
-	if !r.Not().Compliant() {
-		return false
+	for _, b := range []bool{
+		!r.dITContentRule.OID.Compliant(),
+		!r.Must().Compliant(),
+		!r.May().Compliant(),
+		!r.Not().Compliant(),
+	} {
+		if b {
+			return false
+		}
 	}
 
 	// verify all AUX clause members are valid
@@ -492,7 +476,7 @@ func (r DITContentRule) Compliant() bool {
 	}
 
 	// OC MUST be STRUCTURAL
-	return soc.Kind() == StructuralKind
+	return r.dITContentRule.OID.Kind() == StructuralKind
 }
 
 /*
@@ -838,7 +822,7 @@ stringer.
 This is a fluent method and may be used multiple times.
 */
 func (r DITContentRule) SetStringer(function ...Stringer) DITContentRule {
-	if !r.IsZero() {
+	if r.Compliant() {
 		r.dITContentRule.setStringer(function...)
 	}
 

@@ -52,6 +52,9 @@ func ExampleDITContentRule_SetStringer() {
 	// Output: Original: ( 1.3.6.1.4.1.56521.101.2.5.2
 	//     NAME 'rootArcContent'
 	//     DESC 'root arc entry content rule'
+	//     AUX ( iSORegistration
+	//         $ iTUTRegistration
+	//         $ jointISOITUTRegistration )
 	//     MUST ( aSN1Notation
 	//          $ iRI
 	//          $ identifier

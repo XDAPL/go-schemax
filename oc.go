@@ -1018,7 +1018,7 @@ stringer.
 This is a fluent method and may be used multiple times.
 */
 func (r ObjectClass) SetStringer(function ...Stringer) ObjectClass {
-	if !r.IsZero() {
+	if r.Compliant() {
 		r.objectClass.setStringer(function...)
 	}
 

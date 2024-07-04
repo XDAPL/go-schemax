@@ -769,7 +769,6 @@ func (r *matchingRule) prepareString() (str string, err error) {
 }
 
 // stackage closure func - do not exec directly.
-// cyclo=6
 func (r MatchingRules) canPush(x ...any) (err error) {
 	if len(x) == 0 {
 		return
@@ -798,7 +797,9 @@ func (r MatchingRules) len() int {
 	return r.cast().Len()
 }
 
-// cyclo=0
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r MatchingRules) String() string {
 	return r.cast().String()
 }
@@ -874,7 +875,7 @@ stringer.
 This is a fluent method and may be used multiple times.
 */
 func (r MatchingRule) SetStringer(function ...Stringer) MatchingRule {
-	if !r.IsZero() {
+	if r.Compliant() {
 		r.matchingRule.setStringer(function...)
 	}
 

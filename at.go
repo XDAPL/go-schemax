@@ -913,7 +913,7 @@ stringer.
 This is a fluent method and may be used multiple times.
 */
 func (r AttributeType) SetStringer(function ...Stringer) AttributeType {
-	if !r.IsZero() {
+	if r.Compliant() {
 		r.attributeType.setStringer(function...)
 	}
 
