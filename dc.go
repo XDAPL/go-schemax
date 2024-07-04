@@ -251,7 +251,7 @@ func (r DITContentRule) Map() (def DefinitionMap) {
 Type returns the string literal "dITContentRule".
 */
 func (r DITContentRule) Type() string {
-	return r.dITContentRule.Type()
+	return `dITContentRule`
 }
 
 func (r dITContentRule) Type() string {
@@ -949,7 +949,10 @@ Names returns the underlying instance of [QuotedDescriptorList] from within
 the receiver.
 */
 func (r DITContentRule) Names() (names QuotedDescriptorList) {
-	return r.dITContentRule.Name
+	if !r.IsZero() {
+		names = r.dITContentRule.Name
+	}
+	return
 }
 
 /*
