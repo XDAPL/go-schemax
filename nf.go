@@ -495,6 +495,24 @@ func (r *nameForm) setMay(m ...any) {
 }
 
 /*
+SetExtension assigns key x to value xstrs within the receiver's underlying
+[Extensions] instance.
+
+This is a fluent method.
+*/
+func (r NameForm) SetExtension(x string, xstrs ...string) NameForm {
+	if !r.IsZero() {
+		r.nameForm.setExtension(x, xstrs...)
+	}
+
+	return r
+}
+
+func (r *nameForm) setExtension(x string, xstrs ...string) {
+	r.Extensions.Set(x, xstrs...)
+}
+
+/*
 Must returns an [AttributeTypes] containing zero (0) or more required
 [AttributeType] definitions for use with this class.
 
@@ -571,7 +589,11 @@ Names returns the underlying instance of [QuotedDescriptorList] from within the
 receiver instance.
 */
 func (r NameForm) Names() (names QuotedDescriptorList) {
-	return r.nameForm.Name
+	if !r.IsZero() {
+		names = r.nameForm.Name
+	}
+
+	return
 }
 
 /*

@@ -27,6 +27,107 @@ func ExampleObjectClasses_Compliant() {
 }
 
 /*
+This example demonstrates use of the [ObjectClass.SetStringer] method
+to impose a custom [Stringer] closure over the default instance.
+
+Naturally the end-user would opt for a more useful stringer, such as one
+that produces singular CSV rows per instance.
+
+To avoid impacting other unit tests, we reset the default stringer
+via the [ObjectClass.SetStringer] method again, with no arguments.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
+func ExampleObjectClass_SetStringer() {
+	opers := mySchema.ObjectClasses().Get(`organizationalPerson`)
+	opers.SetStringer(func() string {
+		return "This useless message brought to you by a dumb stringer"
+	})
+
+	msg := fmt.Sprintln(opers)
+	opers.SetStringer() // return it to its previous state if need be ...
+
+	fmt.Printf("Original: %s\nOld: %s", opers, msg)
+	// Output: Original: ( 2.5.6.7
+	//     NAME 'organizationalPerson'
+	//     SUP person
+	//     STRUCTURAL
+	//     MAY ( destinationIndicator
+	//         $ facsimileTelephoneNumber
+	//         $ internationalISDNNumber
+	//         $ l
+	//         $ ou
+	//         $ physicalDeliveryOfficeName
+	//         $ postOfficeBox
+	//         $ postalAddress
+	//         $ postalCode
+	//         $ preferredDeliveryMethod
+	//         $ registeredAddress
+	//         $ st
+	//         $ street
+	//         $ telephoneNumber
+	//         $ teletexTerminalIdentifier
+	//         $ telexNumber
+	//         $ title
+	//         $ x121Address )
+	//     X-ORIGIN 'RFC4519' )
+	// Old: This useless message brought to you by a dumb stringer
+}
+
+/*
+This example demonstrates use of the [ObjectClasses.SetStringer] method
+to impose a custom [Stringer] closure upon all stack members.
+
+Naturally the end-user would opt for a more useful stringer, such as one
+that produces a CSV file containing all [ObjectClass] instances.
+
+To avoid impacting other unit tests, we reset the default stringer
+via the [ObjectClasses.SetStringer] method again, with no arguments.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
+func ExampleObjectClasses_SetStringer() {
+	attrs := mySchema.ObjectClasses()
+	attrs.SetStringer(func() string {
+		return "" // make a null stringer
+	})
+
+	output := attrs.String()
+	attrs.SetStringer() // return to default
+
+	fmt.Println(output)
+	// Output:
+}
+
+/*
+This example demonstrates the assignment of arbitrary data to an instance
+of [ObjectClass].
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
+func ExampleObjectClass_SetData() {
+	// The value can be any type, but we'll
+	// use a string for simplicity.
+	documentation := `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`
+
+	// Obtain the target attribute type to bear
+	// the assigned value.
+	dvc := mySchema.ObjectClasses().Get(`device`)
+
+	// Set it.
+	dvc.SetData(documentation)
+
+	// Get it and compare to the original.
+	equal := documentation == dvc.Data().(string)
+
+	fmt.Printf("Values are equal: %t", equal)
+	// Output: Values are equal: true
+}
+
+/*
 This example demonstrates the means of checking superiority of a class
 over another class by way of the [ObjectClass.SuperClassOf] method.
 
@@ -373,7 +474,7 @@ func TestObjectClass_codecov(t *testing.T) {
 	_ = def.Obsolete()
 
 	def.setOID(`4.3.2.1`)
-	var raw string = `( 2.999.6.11 NAME 'fakeApplicationProcess' SUP top STRUCTURAL MUST cn MAY ( seeAlso $ ou $ l $ description ) X-ORIGIN 'RFC4519' )`
+	var raw string = `( 2.999.6.11 NAME 'fakeApplicationProcess' SUP top STRUCTURAL MUST cn MAY ( seeAlso $ ou $ l $ description ) X-ORIGIN 'NOWHERE' )`
 	if err := def.Parse(raw); err != ErrNilReceiver {
 		t.Errorf("%s failed: expected ErrNilReceiver, got %v", t.Name(), err)
 		return
