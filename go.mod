@@ -1,4 +1,4 @@
-module github.com/JesseCoretta/go-schemax/v2
+module github.com/JesseCoretta/go-schemax
 
 replace internal/x501 => ./internal/x501
 
