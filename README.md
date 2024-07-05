@@ -1,172 +1,159 @@
 # go-schemax
 
-[![Deprecated](https://img.shields.io/badge/Deprecated-orange?style=flat&label=%E2%9A%A0%EF%B8%8F&labelColor=black)](https://github.com/JesseCoretta/go-schemax/discussions/15) [![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-schemax)](https://goreportcard.com/report/github.com/JesseCoretta/go-schemax) [![GoDoc](https://godoc.org/github.com/JesseCoretta/go-schemax?status.svg)](https://godoc.org/github.com/JesseCoretta/go-schemax) [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-schemax/blob/main/LICENSE)
+Package schemax incorporates a powerful [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) parser, wrapped with convenient, reflective features for creating and interrogating directory schemas.
 
-Abstract directory schema constructs and methods based on RFC4512 Section 4.1.
+Requires Go version 1.22 or higher.
 
-Contributions and bug reports are most welcome.
+[![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-schemax)](https://goreportcard.com/report/github.com/JesseCoretta/go-schemax) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-schemax.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-schemax) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-schemax/blob/main/LICENSE) [![Help Animals](https://img.shields.io/badge/help_animals-gray?label=%F0%9F%90%BE%20%F0%9F%98%BC%20%F0%9F%90%B6&labelColor=yellow)](https://github.com/JesseCoretta/JesseCoretta/blob/main/DONATIONS.md)
 
-Requires Go version 1.18 or higher.
+## License
 
-## Overview
+The schemax package is available under the terms of the MIT license.  For further details, see the LICENSE file within the root of the repository.
 
-Package schemax provides methods, types and bidirectional marshaling functionality intended for use in the area of X.501/LDAP directory schema abstraction.
+## Releases
 
-Types provided by this package are created based on the precepts of RFC2252 and RFC4512, as are the associated parsing techniques (e.g.: 'qdescrs', etc.). A variety of methods and functions exist to make handling this data simpler.
+Two (2) releases are available for end-users:
 
-## Abstract
+| Version | Notes |
+| :----- | :--- |
+| 1.1.6 | Legacy, custom parser |
+| >= 2.0.0 | Current, ANTLR parser |
 
-LDAP directories contain and serve data in a hierarchical manner. The syntax and evaluation of this data is governed by a schema, which itself is hierarchical in nature.
+## History of schemax
 
-The nature of this package's operation is highly referential. Objects are referenced via pointers, and these objects can inhabit multiple other multi-valued types. For example, `*AttributeType` instances are stored within a type-specific slices called collections. Each `*AttributeType` that exists can be referenced by other `*AttributeType` instances (in a scenario where "super typing" is in effect), or by other `*ObjectClass` instances via their own PermittedAttributeTypes (May) and RequiredAttributeTypes (Must) list types. Literal "copies" of single objects are never made. References are always through pointers.
+The goal of schemax has always been to provide a reliable parsing subsystem for directory schema definitions that allows transformation into usable Go objects.
 
-## Intended Audience
+The original design of schemax (version < 2.0.0) involved a custom-made parser. While this design performed remarkably well for years, it was not without its shortcomings. 
 
-This package is primarily intended for any architect, developer or analyst looking to do one or more of the following:
+The newly released build of schemax involves the import of an ANTLR4-based [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) lexer/parser solution. This is made possible using a newly released "sister" package -- [`go-antlr4512`](https://github.com/JesseCoretta/go-antlr4512) -- which handles all of the low-level ANTLR actions such as tokenization.
 
- - Parse (Marshal) textual LDAP schema definitions into objects
- - Unmarshal objects into textual LDAP schema definitions
- - Work with data models and structures that may represent or contain some facet of a schema
+Therefore, the new build of schemax is of a simpler fundamental design thanks to offloading the bulk of the parser to another package. This also keeps all code-grading penalties (due to ANTLR's characteristically high cyclomatic factors) confined elsewhere, and allows schemax to focus on extending the slick features users have come to expect.
 
-## Parsing
+Users who are only interested in _tokenization_ and do not require the advanced features of this package should consider use of [`go-antlr4512`](https://github.com/JesseCoretta/go-antlr4512) exclusively.
 
-This package aims to provide a fast, reliable, standards-compliant parsing routine for LDAP schema definitions into discrete, useful objects. Parsing of raw values during the Marshal operation is conducted without the use of the regexp package, nor any facility based on regular expressions. Instead, precise byte-for-byte parsing/truncation of raw definitions is conducted, during which time known flags (or labels) are identified for specialized handling (e.g.: NAME).
+## The Parser
 
-For successful parsing, each definition must be limited to a single line when an entire schema file is streamed line-by-line. Future releases of this package will relax this requirement. However, when marshaling single definitions, multi-line definitions are supported. Line feeds are removed outright, and recurring WHSP characters (spaces/tabs) are reduced to single spaces between fields.
+The (ANTLR) parsing subsystem imported by the aforementioned sister package is flexible in terms of the following:
 
-## Population Order
+  - Presence of header, footer and line-terminating Bash comments surrounding a given definition is acceptable
+    - Note that comments are entirely _discarded_ by ANTLR
+  - Support for (escaped!) `'` and `\` characters within quoted strings ('this isn\'t a bad example')
+  - Support for linebreaks within definitions
+  - Definition prefixing allows variations of the standard [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) "labels" during file and directory parsing
+    - "`attributeTypes`", "`attributeType`" and other variations are permitted for `AttributeType` definitions
+  - Definition delimitation -- using colon (`:`), equals (`=`) or whitespace (` `, `\t`) of any sensible combination -- are permitted for the purpose of separating a definition prefix (label) from its definition statement
+    - "attributeTypes: ...", "attributeType=...", "attributeType ..." are valid expressions
+  - Multiple files are joined using an [ASCII](## "American Standard Code for Information Interchange") [#10](## '0x0a') during **directory** parsing
+    - Users need not worry about adding a trailing newline to each file to be read; schemax will do this for you if needed
 
-When POPULATING various collection types (e.g.: slices of definitions), the following "order of operations" MUST be honored:
+## File and Directory Readers
 
- 1. LDAPSyntaxes
- 2. MatchingRules
- 3. AttributeTypes
- 4. MatchingRuleUses
- 5. ObjectClasses
- 6. DITContentRules
- 7. NameForms
- 8. DITStructureRules
+The (legacy) "v1" release branches of schemax did not offer a robust file and directory parsing solution, rather it focused on the byte representations of a given definition and the tokens derived therein, leaving it to the end-user to devise a delivery method.
 
-Individually, collections containing the above elements should also be populated in order of referential superiority. For example, all independent instances should be populated before those that depend upon them, such as in the cases of sub-types, sub-classes and sub-rules.
-
-An obvious real-world example of this is for the 'name' attribute (per RFC4519), which is a super-type of several other key attribute types. In such a case, those definitions that depend (or are based) upon the 'name' attribute WILL NOT MARSHAL until 'name' has been marshaled itself.
-
-This logic applies no matter how the definitions are being received (or "read"), and applies whether or not the all-encompassing Subschema type is used. In short: MIND YOUR ORDERING.
-
-## Iterating Collections
-
-Iterating a collection type, such as AttributeTypeCollection instances, MUST be done using the Len() collection method, e.g.:
+The "v2" release branches introduce proper `ParseFile` and `ParseDirectory` methods that greatly simplify use of this package in the midst of an established schema "library".  For example:
 
 ```
-  for i := 0; i < attrs.Len(); i++ {
-	attr := attrs.Index(i)
-        ... do stuff ...
-  }
+func main() {
+	r := NewSchema()
+
+	// Let's parse a directory into our
+	// receiver instance of Schema (r).
+	schemaDir := "/home/you/ds/schema"
+	if err := r.ParseDirectory(schemaDir); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// Check our definition counters
+	fmt.Printf("%s", r.Counters())
+	// Output:
+	// LS: 67
+	// MR: 44
+	// AT: 131
+	// MU: 29
+	// OC: 39
+	// DC: 1
+	// NF: 1
+	// DS: 1
+}
 ```
 
-Iteration will always returns collection members in FIFO ordering (First-In/First-Out).
+Though the `ParseFile` function operates identically to the above-demonstrated `ParseDirectory` function, it is important to order the respective files and directories according to any applicable dependencies.  In other words, if "fileB.schema" requires definitions from "fileA.schema", "fileA.schema" must be parsed first.
 
-## Standard Definitions
+Sub-directories encountered shall be traversed indefinitely. The effective name of a given directory is not significant.
 
-Within subdirectories of this package are popular Go implementations of standard Attribute Types, Object Classes, Matching Rules and LDAP Syntaxes from RFCs that are recognized (almost) universally. This includes (but is not limited to) content from RFC4512, RFC4519 and RFC2307. Included in each subdirectory is an unmodified text copy of the Internet-Draft from which the relevant definitions originate.
+Files encountered through directory traversal shall only be read and parsed IF the extension is ".schema".  This prevents other files -- such as text or `README.md` files -- from interfering with the parsing process needlessly.
 
-The user is advised that some LDAP implementations have certain attribute types and object classes "built-in" and are not sourced from a schema file like others (rather they likely are compiled-in to the product).
+An eligible schema file may contain one definition, or many. The effective name of an eligible schema file **is significant**, unlike directories.  Each schema file must be named in a manner that fosters the correct ordering of dependent definitions -- **_whether or not subdirectories are involved_**. To offer a real-world example, the 389DS/Netscape schema directory deployed during a typical installation is defined and governed in a similar manner.
 
-This varies between implementations and, as such, inconsistencies may arise for someone using this product across various directory products. One size absolutely does not fit all. In such a case, an attempt to marshal a schema file may fail due to unsatisfied super-type or super-class(es) dependencies. To mitigate this, the user must somehow provide the lacking definitions, either by themselves or using one of the subdirectory packages.
+The general rule-of-thumb is suggests that if the `ls -l` Bash command _consistently_ lists the indicated schema files in correct order, and assuming those files contain properly ordered and well-formed definitions, the parsing process should work nicely.
 
-## OID Macros
+## The Schema Itself
 
-Also known as OID "aliases", macros allow a succinct expression of an OID prefix by way of a text identifier. As a real-world example, RFC2307 uses the alias "nisSchema" to describe the OID prefix of "1.3.6.1.1.1".
+The `Schema` type defined within this package is a [`stackage.Stack`](https://pkg.go.dev/github.com/JesseCoretta/go-stackage#Stack) derivative type.  An instance of a `Schema` can manifest in any of the following manners:
 
-This package supports the registration and use of such aliases within the Macros map type. Note that this is an all-or-nothing mechanism. Understand that if a non-nil Macros instance is detected, and unregistered aliases are encountered during a parsing run, normal operations will be impacted. As such, users are advised to anticipate any aliases needed in advance or to abolish their use altogether.
+  - As an empty (unpopulated) `Schema`, initialized by way of the `NewEmptySchema` function
+  - As a basic (minimally populated) `Schema`, initialized by way of the `NewBasicSchema` function
+  - As a complete (fully populated) `Schema`, initialized by way of the `NewSchema` function
 
-OID aliasing supports both dot (.) and colon (:) runes for delimitation, thus 'nisSchema.1.1' and 'nisSchema:1.1' are acceptable.
+There are certain scenarios which call for one of the above initialization procedures:
 
-## Custom Unmarshalers
-By default, definitions are unmarshaled as single-line string values. This package supports the creation of user-authored closure functions to allow customization of this behavior. As a practical example, users may opt to write a function to convert definitions to individual CSV rows, or perhaps JSON objects -- literally anything, so long as it is a string.
+  - An empty `Schema` is ideal for LDAP professionals, and allows for the creation of a `Schema` of particularly narrow focus for R&D, testing or product development
+  - A basic `Schema` resembles the foundational (starting) `Schema` context observed in most directory server products, in that it comes "pre-loaded" with official `LDAPSyntax` and `MatchingRule` definitions -- but few to no `AttributeTypes` -- making it a most suitable empty canvas upon which a new `Schema` may be devised from scratch
+  - A full `Schema` is the most obvious choice for "Quick Start" scenarios, in that a `Schema` is produced containing a very large portion of the standard `AttributeType` and `ObjectClass` definitions used in the wild by most (if not all) directory products
 
-Each definition type comes with a default (optional) UnmarshalFunc instance. This, or any custom function, can be invoked by-name as follows:
+Regardless of the content present, a given `Schema` is capable of storing definitions from all eight (8) [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) "categories".  These are known as "collections", and are stored in nested [`stackage.Stack`](https://pkg.go.dev/github.com/JesseCoretta/go-stackage#Stack) derivative types, accessed using any of the following methods:
 
-```
-myfunc := UnmarshalerFuncName		// Must conform to the DefinitionUnmarshaler signature!
-def.SetUnmarshaler(myfunc)		// assign the function by name to your definition
-raw, err := schemax.Unmarshal(def)	// unmarshal
-...
-```
+  - `Schema.LDAPSyntaxes`
+  - `Schema.MatchingRules`
+  - `Schema.AttributeTypes`
+  - `Schema.MatchingRuleUses`
+  - `Schema.ObjectClasses`
+  - `Schema.DITContentRules`
+  - `Schema.NameForms`
+  - `Schema.DITStructureRules`
 
-In the above example, the definition would unmarshal as a standard RFC4512 schema definition, but with linebreaks and indenting added. This must be done for EVERY definition being unmarshaled.
+Definition instances produced by way of parsing -- namely using one of the `Schema.Parse<Type>` methods-- will automatically gain internal access to the `Schema` instance in which it is stored.
 
-User-authored functions MUST honor the following function signature (see the DefinitionUnmarshaler type for details).
+However, definitions produced manually by way of the various `Set<Item>` methods or by way of localized `Parse` method  extended through types defined within this package will require manual execution of the `SetSchema` method, using the intended `Schema` instance as the input argument.  Ideally this should occur early in the definition composition.
 
-```
-func(any) (string, error)
-```
+In either case, this internal reference is used for seamless verification of any reference, such as an `LDAPSyntax`, when introduced to a given type instance. This ensures definition pointer references remain valid.
 
-The structure of a given user-authored unmarshaler function will vary, but should generally reflect the example below.
+## Closure Methods
 
-```
- // Example attributeType unmarshaler
- func myCustomAttributeUnmarshaler(x any) (def string, err error) {
+This package is closure-friendly with regards to user-authored closure functions or methods meant to perform specific tasks:
 
-	// We'll use this variable to store the
-	// value once we verify it's copacetic.
+  - Assertion matching, by way of an instance of `MatchingRule` applicable to two assertion values within a `AssertionMatcher` closure (i.e.: is value1 equal to value2?)
+  - Syntax qualification, by way of an instance of `LDAPSyntax` to be honored by a value within a `SyntaxQualifier` closure (i.e.: does value qualify for specified syntax?)
+  - General-use value qualification, by way of an instance of `AttributeType` to be analyzed in specialized scenarios within a `ValueQualifier` closure (i.e: company/user-specific value processing)
+  - Definition string representation, through assignment of a custom `Stringer` closure to eligible definition instances
 
-        var r *AttributeType
+Understand that assertion, syntax and general-use qualifying closures are entirely user-defined; this package does not provide such predefined instances itself, leaving that to the user or another package which may be imported and used in a "pluggable" manner in this context.
 
-	// As you can clearly see in the signature, the user
-	// will provide a value as an interface. We'll need
-	// to type-assert whatever they provide to ensure
-	// its the exact type we are prepared to handle.
+See [RFC 4517](https://www.rfc-editor.org/rfc/rfc4517.txt), et al, for some practical guidelines relating to certain syntax and assertion matching procedures that may guide users in creating such closures.
 
-        switch tv := x.(type) {
-        case *AttributeType:
-                if tv.IsZero() {
-                        err = fmt.Errorf("%T is nil", tv)
-                        return
-                }
-                r = tv
-        default:
-                err = fmt.Errorf("Bad type for unmarshal (%T)", tv)
-                return
-        }
+This package does, however, include a default `Stringer`, which can be invoked for an instance simply by running the instance's `SetStringer` method in niladic form.
 
-	//
-	// <<Your custom attributeType-handling code would go here>>
-	//
+## Fluent Methods
 
-	return
- }
+This package extends fluent methods that are write-based in nature. Typically these methods are prefaced with `Set` or `Push`.  This means such methods may be "chained" together using the standard Go command "." delimiter.
 
- // ... later in your code ...
- //
- // This can be applied to a single definition
- // -OR- a collection of definitions!
- obj.SetUnmarshaler(myCustomAttributeUnmarshaler)
-```
+Fluency does not extend to methods that are interrogative in nature, in that they return `bool`, `string` or `error` values.  Fluency also precludes use of the `Registration` interface due to unique return signatures.
 
-## Map Unmarshaler
-For added convenience, each definition includes a Map() method that returns a map[string][]string instance containing the effective contents of said definition. This is useful in situations where the user is more interested in simple access to string values in fields, as opposed to the complicated traversal of pointer instances that may exist within a definition.
+## Built-In Definitions
 
-```
-  defmap := def.Map()
-  if value, exists := defmap[`SYNTAX`]; exists {
-	val := value[0]
-	fmt.Printf("Syntax OID is: %s\n", val)
-  }
-```
+The following table describes the contents and coverage of the so-called "built-in" schema definitions, all of which are sourced from recognized RFCs only.
 
-Naturally, ordering of fields is lost due to use of a map in this fashion. It is up to the consuming application to ensure correct ordering of fields as described in RFC4512 section 4.1, wherever applicable.
-
-## Extended Information
-
-Each definition supports the optional assignment of a []byte value containing "extended information", which can literally be anything (pre-rendered HTML, or even Graphviz content to name a few potential use cases). This package imposes no restrictions of any kind regarding the nature or length of the assigned byte slice.
-
-The main purpose of this functionality is to allow the user to annotate information that goes well beyond the terse DESC field value normally present within definitions.
-
-```
-info := []byte(`<html>...</html>`)
-def.SetInfo(info)
-...
-fmt.Printf("%s\n", string(def.Info()))
-```
-
+| DOCUMENT | [LS](## "LDAP Syntaxes")  | [MR](## "Matching Rules")  | [AT](## "Attribute Types")  | [OC](## "Object Classes")  | [DC](## "DIT Content Rules")  | [NF](## "Name Forms")  | [DS](## "DIT Structure Rules")  |
+| -------- | :----: | :----: | :----: | :----: | :----: | :----: | :----:  |
+| [![RFC 2307](https://img.shields.io/badge/RFC-2307-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2307)  |  ✅  |  ✅  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 2798](https://img.shields.io/badge/RFC-2798-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2798)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 3045](https://img.shields.io/badge/RFC-3045-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3045)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 3671](https://img.shields.io/badge/RFC-3671-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3671)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 3672](https://img.shields.io/badge/RFC-3672-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3672)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4512](https://img.shields.io/badge/RFC-4512-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4512)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4517](https://img.shields.io/badge/RFC-4517-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4517)  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4519](https://img.shields.io/badge/RFC-4519-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4519)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4523](https://img.shields.io/badge/RFC-4523-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4523)  |  ✅  |  ✅  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4524](https://img.shields.io/badge/RFC-4524-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4524)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 4530](https://img.shields.io/badge/RFC-4530-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4530)  |  ✅  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |

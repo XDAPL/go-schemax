@@ -1,50 +1,43 @@
 package schemax
 
-var noContent error = newErr("No content was read")
-var emptyDefinition error = newErr("Empty definition")
-var unexpectedChar error = newErr("Unexpected character found")
-var unexpectedType error = newErr("Unexpected type")
-var invalidOID error = newErr("Invalid or zero-length dot-delimited ASN.1 object identifier")
-var invalidDelim error = newErr("Bad delimiter found in definition")
-var invalidLabel error = newErr("Bad label found in definition")
-var invalidValue error = newErr("Bad value found in definition")
-var unaddressableType error = newErr("Non-addressable or nil type")
-var invalidMarshal error = newErr("Failed marshal attempt")
-var invalidUnmarshal error = newErr("Failed unmarshal attempt")
-var unknownDefinition error = newErr("Unknown or unregistered definition")
-var unknownElement error = newErr("Unknown definition element")
-var isZero error = newErr("Element or definition is zero (unpopulated or incomplete)")
-var cannotOverwrite error = newErr("Overwrites forbidden")
+/*
+err.go contains a quick error wrapper and some predefined errors meant
+for use within this package as well as by end-users writing closures.
+*/
 
-var invalidFlag error = newErr("Invalid or inappropriate Boolean flag")
-var invalidObjectClassKind error = newErr("Invalid kind of objectClass")
-var invalidName error = newErr("Invalid name value(s)")
-var invalidDescription error = newErr("Invalid description value")
-var invalidNameForm error = newErr("No nameForm derived from definition")
-var invalidDITContentRule error = newErr("No dITContentRule derived from definition")
-var invalidDITStructureRule error = newErr("No dITStructureRule derived from definition")
-var invalidSyntax error = newErr("No LDAPSyntax derived from definition")
-var invalidObjectClass error = newErr("No objectClass derived from definition")
-var invalidAttributeType error = newErr("No attributeType derived from definition")
-var invalidMatchingRule error = newErr("No matchingRule derived from definition")
-var invalidMatchingRuleUse error = newErr("No matchingRuleUses derived from definition")
-var invalidUsage error = newErr("Invalid Usage value")
+import "errors"
 
-func raise(err error, text string, m ...any) error {
-	if err == nil {
-		if len(text) == 0 {
-			return newErr("unspecified/unhandled exception")
-		}
-		return newErr(sprintf(text, m...))
-	}
+var (
+	ErrNilSyntaxQualifier  error = errors.New("No SyntaxQualifier instance assigned to LDAPSyntax")
+	ErrNilValueQualifier   error = errors.New("No ValueQualifier instance assigned to AttributeType")
+	ErrNilAssertionMatcher error = errors.New("No AssertionMatcher instance assigned to MatchingRule")
+	ErrNilReceiver         error = errors.New("Receiver instance is nil")
+	ErrNilInput            error = errors.New("Input instance is nil")
+	ErrNilDef              error = errors.New("Referenced definition is nil or not specified")
+	ErrNilSchemaRef        error = errors.New("Receiver instance lacks a Schema reference")
+	ErrDefNonCompliant     error = errors.New("Definition failed compliancy checks")
+	ErrInvalidInput        error = errors.New("Input instance not compatible")
+	ErrInvalidSyntax       error = errors.New("Value does not meet the prescribed syntax qualifications")
+	ErrInvalidValue        error = errors.New("Value does not meet the prescribed value qualifications")
+	ErrNoMatch             error = errors.New("Values do not match according to prescribed assertion match")
+	ErrInvalidType         error = errors.New("Incompatible type for operation")
+	ErrTypeAssert          error = errors.New("Type assertion failed")
+	ErrNotUnique           error = errors.New("Definition is already defined")
+	ErrNotEqual            error = errors.New("Values are not equal")
+	ErrMissingNumericOID   error = errors.New("Missing or invalid numeric OID for definition")
 
-	if len(text) == 0 {
-		return err
-	}
-	return newErr(sprintf(err.Error()+`: `+text, m...))
-}
+	ErrOrderingRuleNotFound  error = errors.New("ORDERING MatchingRule not found")
+	ErrSubstringRuleNotFound error = errors.New("SUBSTR MatchingRule not found")
+	ErrEqualityRuleNotFound  error = errors.New("EQUALITY MatchingRule not found")
 
-func raiseUnknownElement(funcname string, fobj any, fman any, val string, dest any) error {
-	return raise(unknownElement, "%s: no such %T was found in %T for value '%s' (type: %T)",
-		funcname, fobj, fman, val, dest)
-}
+	ErrAttributeTypeNotFound    error = errors.New("AttributeType not found")
+	ErrObjectClassNotFound      error = errors.New("ObjectClass not found")
+	ErrNameFormNotFound         error = errors.New("NameForm not found")
+	ErrMatchingRuleNotFound     error = errors.New("MatchingRule not found")
+	ErrMatchingRuleUseNotFound  error = errors.New("MatchingRuleUse not found")
+	ErrLDAPSyntaxNotFound       error = errors.New("LDAPSyntax not found")
+	ErrDITContentRuleNotFound   error = errors.New("DITContentRule not found")
+	ErrDITStructureRuleNotFound error = errors.New("DITStructureRule not found")
+)
+
+var mkerr func(string) error = errors.New

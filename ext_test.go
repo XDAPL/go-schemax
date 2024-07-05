@@ -1,72 +1,31 @@
 package schemax
 
 import (
+	//"fmt"
 	"testing"
 )
 
-func TestExtension_String(t *testing.T) {
-	var ext *Extension = new(Extension)
-	ext.Label = `X-TEST-PARAM`
-	ext.Value = []string{`TEST VALUE`}
+func TestExtensions_codecov(t *testing.T) {
+	x := NewExtensions()
+	_ = x.String()
+	x.Push(nil)
+	x.canPush()
+	x.canPush(rune(3), 3.14, -1, map[string]string{})
+	x.Set(`X-ORIGIN`, `RFCNNNN`)
+	x.Set(`X-ORIGIN`, `RFCNNNX`)
+	_ = x.String()
+	x.Exists(`X-oRiGiN`)
+	x.Get(`X-oriGIN`)
+	z, _ := x.Get(`X-oriGIN`)
+	z.Contains(`RFCNNNN`)
+	z.Contains(`RFCNNNZ`)
+	z.IsZero()
 
-	want := `X-TEST-PARAM 'TEST VALUE'`
-	got := ext.String()
-	if got != want {
-		t.Errorf("%s failed: want %s, got %s", t.Name(), want, got)
+	lx := &extension{
+		hindent: true,
 	}
-}
+	X := Extension{lx}
+	_ = X.String()
 
-func TestExtensions_Set(t *testing.T) {
-	var ext *Extension = new(Extension)
-	ext.Label = `X-TEST-PARAM`
-	ext.Value = []string{`TEST VALUE`}
-
-	exts := NewExtensions()
-	exts.Set(ext)
-	exts.Set(`X-ALT-TEST-PARAM`, `VALUE`)
-	exts.Set(`X-OTHER-TEST-PARAM`, `VALUE1`, `VALUE2`)
-
-	want := 3
-	got := exts.Len()
-
-	if want != got {
-		t.Errorf("%s failed: want len:%d, got len:%d", t.Name(), want, got)
-	}
-}
-
-func TestExtensions_Get(t *testing.T) {
-	var ext *Extension = new(Extension)
-	ext.Label = `X-TEST-PARAM`
-	ext.Value = []string{`TEST VALUE`}
-
-	exts := NewExtensions()
-	exts.Set(ext)
-	exts.Set(`X-ALT-TEST-PARAM`, `VALUE`)
-	exts.Set(`X-OTHER-TEST-PARAM`, `VALUE1`, `VALUE2`)
-
-	want := 3
-	got := exts.Len()
-
-	if want != got {
-		t.Errorf("%s failed: want len:%d, got len:%d", t.Name(), want, got)
-		return
-	}
-
-	ex := exts.Get(`X-ALT-TEST-PARAM`)
-	if ex.IsZero() {
-		t.Errorf("%s failed: %T.Get failed", t.Name(), ex)
-		return
-	}
-
-	if ex.Len() == 0 {
-		t.Errorf("%s failed: insufficient %T value len", t.Name(), ex)
-		return
-	}
-
-	wantv := `VALUE`
-	gotv := ex.Value[0]
-
-	if want != got {
-		t.Errorf("%s failed: want %s, got %s", t.Name(), wantv, gotv)
-	}
+	_ = newExtensions(AllowOverride, HangingIndents)
 }

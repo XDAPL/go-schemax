@@ -1,739 +1,1657 @@
 package schemax
 
-import "sync"
-
 /*
-ObjectClassCollection describes all ObjectClasses-based types:
+NewObjectClass initializes and returns a new instance of [ObjectClass],
+ready for manual assembly.  This method need not be used when creating
+new [ObjectClass] instances by way of parsing, as that is handled on an
+internal basis.
 
-- *SuperiorObjectClasses
+Use of this method does NOT automatically push the return instance into
+the [Schema.ObjectClasses] stack; this is left to the user.
 
-- *AuxiliaryObjectClasses
+Unlike the package-level [NewObjectClass] function, this method will
+automatically reference its originating [Schema] instance (the receiver).
+This negates the need for manual use of the [ObjectClass.SetSchema]
+method.
+
+This is the recommended means of creating a new [ObjectClass] instance
+wherever a single [Schema] is being used, which represents most use cases.
 */
-type ObjectClassCollection interface {
-	// Get returns the *ObjectClass instance retrieved as a result
-	// of a term search, based on Name or OID. If no match is found,
-	// nil is returned.
-	Get(any) *ObjectClass
-
-	// Index returns the *ObjectClass instance stored at the nth
-	// index within the receiver, or nil.
-	Index(int) *ObjectClass
-
-	// Equal performs a deep-equal between the receiver and the
-	// interface ObjectClassCollection provided.
-	Equal(ObjectClassCollection) bool
-
-	// Set returns an error instance based on an attempt to add
-	// the provided *ObjectClass instance to the receiver.
-	Set(*ObjectClass) error
-
-	// Contains returns the index number and presence boolean that
-	// reflects the result of a term search within the receiver.
-	Contains(any) (int, bool)
-
-	// String returns a properly-delimited sequence of string
-	// values, either as a Name or OID, for the receiver type.
-	String() string
-
-	// Label returns the field name associated with the interface
-	// types, or a zero string if no label is appropriate.
-	Label() string
-
-	// IsZero returns a boolean value indicative of whether the
-	// receiver is considered zero, or undefined.
-	IsZero() bool
-
-	// Len returns an integer value indicative of the current
-	// number of elements stored within the receiver.
-	Len() int
-
-	// SetSpecifier assigns a string value to all definitions within
-	// the receiver. This value is used in cases where a definition
-	// type name (e.g.: attributetype, objectclass, etc.) is required.
-	// This value will be displayed at the beginning of the definition
-	// value during the unmarshal or unsafe stringification process.
-	SetSpecifier(string)
-
-	// SetUnmarshaler assigns the provided DefinitionUnmarshaler
-	// signature to all definitions within the receiver. The provided
-	// function shall be executed during the unmarshal or unsafe
-	// stringification process.
-	SetUnmarshaler(DefinitionUnmarshaler)
+func (r Schema) NewObjectClass() ObjectClass {
+	return NewObjectClass().SetSchema(r)
 }
 
 /*
-Kind is an unsigned 8-bit integer that describes the "kind" of ObjectClass definition bearing this type.  Only one distinct Kind value may be set for any given ObjectClass definition, and must be set explicitly (no default is implied).
+NewObjectClasses initializes and returns a new [ObjectClasses] instance,
+configured to allow the storage of all [ObjectClass] instances.
 */
-type Kind uint8
+func NewObjectClasses() ObjectClasses {
+	r := ObjectClasses(newCollection(``))
+	r.cast().SetPushPolicy(r.canPush)
 
-const (
-	badKind Kind = iota
-	Abstract
-	Structural
-	Auxiliary
-)
-
-/*
-IsZero returns a boolean value indicative of whether the receiver is undefined.
-*/
-func (r Kind) IsZero() bool {
-	return r == badKind
+	return r
 }
 
 /*
-ObjectClass conforms to the specifications of RFC4512 Section 4.1.1.
+NewObjectClassOIDList initializes and returns a new [ObjectClasses] that
+has been cast from an instance of [OIDList] and configured to allow the
+storage of arbitrary [ObjectClass] instances.
 */
-type ObjectClass struct {
-	OID         OID
-	Name        Name
-	Description Description
-	Obsolete    bool
-	SuperClass  ObjectClassCollection
-	Kind        Kind
-	Must        AttributeTypeCollection
-	May         AttributeTypeCollection
-	Extensions  *Extensions
-	ufn         DefinitionUnmarshaler
-	spec        string
-	info        []byte
-}
-
-/*
-Type returns the formal name of the receiver in order to satisfy signature requirements of the Definition interface type.
-*/
-func (r *ObjectClass) Type() string {
-	return `ObjectClass`
-}
-
-/*
-ObjectClasses is a thread-safe collection of *ObjectClass slice instances.
-*/
-type ObjectClasses struct {
-	mutex  *sync.Mutex
-	slice  collection
-	macros *Macros
-}
-
-/*
-StructuralObjectClass is a type alias of *ObjectClass intended for use solely within instances of NameForm within its "OC" field.
-*/
-type StructuralObjectClass struct {
-	*ObjectClass
-}
-
-/*
-SuperiorObjectClasses contains an embedded *ObjectClasses instance. This type alias is meant to reside within the SUP field of an objectClass definition.
-*/
-type SuperiorObjectClasses struct {
-	*ObjectClasses
-}
-
-/*
-AuxiliaryObjectClasses contains an embedded *ObjectClasses instance. This type alias is meant to reside within the AUX field of a dITContentRule definition.
-*/
-type AuxiliaryObjectClasses struct {
-	*ObjectClasses
-}
-
-/*
-SetMacros assigns the *Macros instance to the receiver, allowing subsequent OID resolution capabilities during the addition of new slice elements.
-*/
-func (r *ObjectClasses) SetMacros(macros *Macros) {
-	r.macros = macros
-}
-
-/*
-SetSpecifier is a convenience method that executes the SetSpecifier method in iterative fashion for all definitions within the receiver.
-*/
-func (r *ObjectClasses) SetSpecifier(spec string) {
-	for i := 0; i < r.Len(); i++ {
-		r.Index(i).SetSpecifier(spec)
-	}
-}
-
-/*
-SetUnmarshaler is a convenience method that executes the SetUnmarshaler method in iterative fashion for all definitions within the receiver.
-*/
-func (r *ObjectClasses) SetUnmarshaler(fn DefinitionUnmarshaler) {
-	for i := 0; i < r.Len(); i++ {
-		r.Index(i).SetUnmarshaler(fn)
-	}
-}
-
-/*
-String is an unsafe convenience wrapper for Unmarshal(r). If an error is encountered, an empty string definition is returned. If reliability and error handling are important, use Unmarshal.
-*/
-func (r ObjectClass) String() (def string) {
-	def, _ = r.unmarshal()
-	return
-}
-
-/*
-SetSpecifier assigns a string value to the receiver, useful for placement into configurations that require a type name (e.g.: objectclass). This will be displayed at the beginning of the definition value during the unmarshal or unsafe stringification process.
-*/
-func (r *ObjectClass) SetSpecifier(spec string) {
-	r.spec = spec
-}
-
-/*
-String is a stringer method that returns the string-form of the receiver instance.
-*/
-func (r Kind) String() string {
-	switch r {
-	case Abstract:
-		return `ABSTRACT`
-	case Structural:
-		return `STRUCTURAL`
-	case Auxiliary:
-		return `AUXILIARY`
+func NewObjectClassOIDList(label ...string) ObjectClasses {
+	name := `oc_oidlist`
+	if len(label) > 0 {
+		name = label[0]
 	}
 
-	return `` // no default
+	r := ObjectClasses(newOIDList(name))
+	r.cast().
+		SetPushPolicy(r.canPush).
+		SetPresentationPolicy(r.oIDsStringer)
+
+	return r
 }
 
 /*
-Contains is a thread-safe method that returns a collection slice element index integer and a presence-indicative boolean value based on a term search conducted within the receiver.
+NewObjectClass initializes and returns a new instance of [ObjectClass],
+ready for manual assembly.  This method need not be used when creating
+new [ObjectClass] instances by way of parsing, as that is handled on an
+internal basis.
+
+Use of this function does not automatically reference the "parent" [Schema]
+instance, leaving it up to the user to invoke the [ObjectClass.SetSchema]
+method manually.
+
+When interacting with a single [Schema] instance, which represents most use
+cases, use of the [Schema.NewObjectClass] method is PREFERRED over use of
+this package-level function.
+
+However certain migration efforts, schema audits and other such activities
+may require distinct associations of [ObjectClass] instances with specific
+[Schema] instances. Use of this function allows the user to specify the
+appropriate [Schema] instance at a later point for a specific instance of
+an [ObjectClass] instance.
 */
-func (r ObjectClasses) Contains(x any) (int, bool) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	if !r.macros.IsZero() {
-		if oid, resolved := r.macros.Resolve(x); resolved {
-			return r.slice.contains(oid)
-		}
-	}
-	return r.slice.contains(x)
-}
-
-/*
-Index is a thread-safe method that returns the nth collection slice element if defined, else nil. This method supports use of negative indices which should be used with special care.
-*/
-func (r ObjectClasses) Index(idx int) *ObjectClass {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	assert, _ := r.slice.index(idx).(*ObjectClass)
-	return assert
-}
-
-/*
-Get combines Contains and Index method executions to return an entry based on a term search conducted within the receiver.
-*/
-func (r ObjectClasses) Get(x any) *ObjectClass {
-	idx, found := r.Contains(x)
-	if !found {
-		return nil
-	}
-
-	return r.Index(idx)
-}
-
-/*
-Len is a thread-safe method that returns the effective length of the receiver slice collection.
-*/
-func (r ObjectClasses) Len() int {
-	if &r == nil {
-		return 0
-	}
-
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	return r.slice.len()
-}
-
-/*
-IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
-*/
-func (r *ObjectClasses) IsZero() bool {
-	if r != nil {
-		return r.slice.isZero()
-	}
-	return r == nil
-}
-
-/*
-IsZero returns a boolean value indicative of whether the receiver is considered empty or uninitialized.
-*/
-func (r *ObjectClass) IsZero() bool {
-	return r == nil
-}
-
-/*
-Set is a thread-safe append method that returns an error instance indicative of whether the append operation failed in some manner. Uniqueness is enforced for new elements based on Object Identifier and not the effective Name of the definition, if defined.
-*/
-func (r *ObjectClasses) Set(x *ObjectClass) error {
-	if _, exists := r.Contains(x.OID); exists {
-		return nil //silent
-	}
-
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	return r.slice.append(x)
-}
-
-/*
-SetInfo assigns the byte slice to the receiver. This is a user-leveraged field intended to allow arbitrary information (documentation?) to be assigned to the definition.
-*/
-func (r *ObjectClass) SetInfo(info []byte) {
-	r.info = info
-}
-
-/*
-Info returns the assigned informational byte slice instance stored within the receiver.
-*/
-func (r *ObjectClass) Info() []byte {
-	return r.info
-}
-
-/*
-SetUnmarshaler assigns the provided DefinitionUnmarshaler signature value to the receiver. The provided function shall be executed during the unmarshal or unsafe stringification process.
-*/
-func (r *ObjectClass) SetUnmarshaler(fn DefinitionUnmarshaler) {
-	r.ufn = fn
-}
-
-/*
-Equal performs a deep-equal between the receiver and the provided collection type.
-*/
-func (r ObjectClasses) Equal(x ObjectClassCollection) bool {
-	return r.slice.equal(x.(*ObjectClasses).slice)
-}
-
-/*
-Equal performs a deep-equal between the receiver and the provided definition type.
-
-Description text is ignored.
-*/
-func (r *ObjectClass) Equal(x any) (eq bool) {
-	var z *ObjectClass
-	switch tv := x.(type) {
-	case *ObjectClass:
-		z = tv
-	case *StructuralObjectClass:
-		z = tv.ObjectClass
-	default:
-		return
-	}
-
-	if z.IsZero() && r.IsZero() {
-		eq = true
-		return
-	} else if z.IsZero() || r.IsZero() {
-		return
-	}
-
-	if !z.Name.Equal(r.Name) {
-		return
-	}
-
-	if r.Kind != z.Kind {
-		return
-	}
-
-	if !r.Must.Equal(z.Must) {
-		return
-	}
-
-	if !r.May.Equal(z.May) {
-		return
-	}
-
-	if !z.SuperClass.IsZero() && !r.SuperClass.IsZero() {
-		if !r.SuperClass.Equal(z.SuperClass) {
-			return
-		}
-	}
-
-	noexts := z.Extensions.IsZero() && r.Extensions.IsZero()
-	if !noexts {
-		eq = r.Extensions.Equal(z.Extensions)
-	} else {
-		eq = true
-	}
-
-	return
-}
-
-/*
-NewObjectClass returns a newly initialized, yet effectively nil, instance of *ObjectClass.
-
-Users generally do not need to execute this function unless an instance of the returned type will be manually populated (as opposed to parsing a raw text definition).
-*/
-func NewObjectClass() *ObjectClass {
-	oc := new(ObjectClass)
-	oc.SuperClass = NewSuperiorObjectClasses()
-	oc.Must = NewRequiredAttributeTypes()
-	oc.May = NewPermittedAttributeTypes()
-	oc.Extensions = NewExtensions()
+func NewObjectClass() ObjectClass {
+	oc := ObjectClass{newObjectClass()}
+	oc.objectClass.Extensions.setDefinition(oc)
 	return oc
 }
 
-/*
-NewObjectClasses returns an initialized instance of ObjectClasses cast as an ObjectClassCollection.
-*/
-func NewObjectClasses() ObjectClassCollection {
-	var x any = &ObjectClasses{
-		mutex: &sync.Mutex{},
-		slice: make(collection, 0, 0),
+func newObjectClass() *objectClass {
+	return &objectClass{
+		Name:         NewName(),
+		Must:         NewAttributeTypeOIDList(`MUST`),
+		May:          NewAttributeTypeOIDList(`MAY`),
+		SuperClasses: NewObjectClassOIDList(`SUP`),
+		Extensions:   NewExtensions(),
 	}
-	return x.(ObjectClassCollection)
 }
 
 /*
-NewSuperiorObjectClasses returns an initialized instance of SuperiorObjectClasses cast as an ObjectClassCollection.
+Parse returns an error following an attempt to parse raw into the receiver
+instance.
+
+Note that the receiver MUST possess a [Schema] reference prior to the execution
+of this method.
+
+Also note that successful execution of this method does NOT automatically push
+the receiver into any [ObjectClasss] stack, nor does it automatically execute
+the [ObjectClass.SetStringer] method, leaving these tasks to the user.  If the
+automatic handling of these tasks is desired, see the [Schema.ParseObjectClass]
+method as an alternative.
 */
-func NewSuperiorObjectClasses() ObjectClassCollection {
-	var z *ObjectClasses = &ObjectClasses{
-		mutex: &sync.Mutex{},
-		slice: make(collection, 0, 0),
+func (r ObjectClass) Parse(raw string) (err error) {
+	if r.IsZero() {
+		err = ErrNilReceiver
+		return
 	}
-	var x any = &SuperiorObjectClasses{z}
-	return x.(ObjectClassCollection)
+
+	if r.getSchema().IsZero() {
+		err = ErrNilSchemaRef
+		return
+	}
+
+	err = r.objectClass.parse(raw)
+
+	return
+}
+
+func (r *objectClass) parse(raw string) error {
+	// parseMR wraps the antlr4512 ObjectClass parser/lexer
+	mp, err := parseOC(raw)
+	if err == nil {
+		// We received the parsed data from ANTLR (mp).
+		// Now we need to marshal it into the receiver.
+		var def ObjectClass
+		if def, err = r.schema.marshalOC(mp); err == nil {
+			r.OID = def.NumericOID()
+			_r := ObjectClass{r}
+			_r.replace(def)
+		}
+	}
+
+	return err
+}
+
+func (r ObjectClass) setOID(x string) {
+	if !r.IsZero() {
+		r.objectClass.OID = x
+	}
+}
+
+func (r ObjectClass) macro() (m []string) {
+	if !r.IsZero() {
+		m = r.objectClass.Macro
+	}
+
+	return
 }
 
 /*
-NewAuxiliaryObjectClasses returns an initialized instance of AuxiliaryObjectClasses cast as an ObjectClassCollection.
+SetName assigns the provided names to the receiver instance.
+
+Name instances must conform to RFC 4512 descriptor format but
+need not be quoted.
+
+This is a fluent method.
 */
-func NewAuxiliaryObjectClasses() ObjectClassCollection {
-	var z *ObjectClasses = &ObjectClasses{
-		mutex: &sync.Mutex{},
-		slice: make(collection, 0, 0),
+func (r ObjectClass) SetName(x ...string) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setName(x...)
 	}
-	var x any = &AuxiliaryObjectClasses{z}
-	return x.(ObjectClassCollection)
+
+	return r
 }
 
-func newKind(x any) Kind {
-	switch tv := x.(type) {
-	case Kind:
-		return newKind(tv.String())
+func (r *objectClass) setName(x ...string) {
+	for i := 0; i < len(x); i++ {
+		r.Name.Push(x[i])
+	}
+}
+
+/*
+SetData assigns x to the receiver instance. This is a general-use method and has no
+specific intent beyond convenience. The contents may be subsequently accessed via the
+[ObjectClass.Data] method.
+
+This is a fluent method.
+*/
+func (r ObjectClass) SetData(x any) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setData(x)
+	}
+
+	return r
+}
+
+func (r *objectClass) setData(x any) {
+	r.data = x
+}
+
+/*
+Data returns the underlying value (x) assigned to the receiver's data storage field. Data
+can be set within the receiver instance by way of the [ObjectClass.SetData] method.
+*/
+func (r ObjectClass) Data() (x any) {
+	if !r.IsZero() {
+		x = r.objectClass.data
+	}
+
+	return
+}
+
+/*
+SetExtension assigns key x to value xstrs within the receiver's underlying
+[Extensions] instance.
+
+This is a fluent method.
+*/
+func (r ObjectClass) SetExtension(x string, xstrs ...string) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setExtension(x, xstrs...)
+	}
+
+	return r
+}
+
+func (r *objectClass) setExtension(x string, xstrs ...string) {
+	r.Extensions.Set(x, xstrs...)
+}
+
+/*
+SetKind assigns the abstraction of an objectClass "kind" to the receiver
+instance. Valid input types are as follows:
+
+  - Literal uint consts ([AbstractKind], [AuxiliaryKind], [StructuralKind])
+  - int equivalents of uint consts
+  - string names of known objectClass kinds
+
+In the case of string names, case is not significant.
+
+This is a fluent method.
+*/
+func (r ObjectClass) SetKind(k any) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setKind(k)
+	}
+
+	return r
+}
+
+func (r *objectClass) setKind(k any) {
+	switch tv := k.(type) {
 	case string:
-		switch toLower(tv) {
-		case toLower(Abstract.String()):
-			return Abstract
-		case toLower(Structural.String()):
-			return Structural
-		case toLower(Auxiliary.String()):
-			return Auxiliary
+		switch lc(tv) {
+		case `structural`, ``:
+			r.Kind = StructuralKind
+		case `abstract`:
+			r.Kind = AbstractKind
+		case `auxiliary`:
+			r.Kind = AuxiliaryKind
+		}
+	case int:
+		if 0 <= tv && tv <= 2 {
+			r.Kind = uint(tv)
 		}
 	case uint:
 		switch tv {
-		case 0x1:
-			return Abstract
-		case 0x2:
-			return Structural
-		case 0x3:
-			return Auxiliary
-		}
-	case int:
-		if tv >= 0 {
-			return newKind(uint(tv))
+		case AbstractKind,
+			AuxiliaryKind,
+			StructuralKind:
+			r.Kind = tv
 		}
 	}
-
-	return badKind
-}
-
-func (r Kind) is(x Kind) bool {
-	return r == x
 }
 
 /*
-is returns a boolean value indicative of whether the provided interface value is particular Kind that matches the configured Kind of the receiver.
+SetMust assigns the provided input [AttributeType] instance(s) to the
+receiver's MUST clause.
+
+This is a fluent method.
 */
-func (r ObjectClass) is(b any) bool {
-	switch tv := b.(type) {
-	case Kind:
-		return r.Kind.is(tv)
+func (r ObjectClass) SetMust(m ...any) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setMust(m...)
 	}
 
-	return false
+	return r
 }
 
-func (r *ObjectClass) validateKind() (err error) {
-	if newKind(r.Kind.String()) == badKind {
-		err = invalidObjectClassKind
+func (r *objectClass) setMust(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var at AttributeType
+		switch tv := m[i].(type) {
+		case string:
+			at = r.schema.AttributeTypes().get(tv)
+		case AttributeType:
+			at = tv
+		default:
+			err = ErrInvalidType
+		}
+
+		if err == nil && !at.IsZero() {
+			r.Must.Push(at)
+		}
+	}
+
+}
+
+/*
+SetMay assigns the provided input [AttributeType] instance(s) to the
+receiver's MAY clause.
+
+This is a fluent method.
+*/
+func (r ObjectClass) SetMay(m ...any) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setMay(m...)
+	}
+
+	return r
+}
+
+func (r *objectClass) setMay(m ...any) {
+	var err error
+	for i := 0; i < len(m) && err == nil; i++ {
+		var at AttributeType
+		switch tv := m[i].(type) {
+		case string:
+			at = r.schema.AttributeTypes().get(tv)
+		case AttributeType:
+			at = tv
+		default:
+			err = ErrInvalidType
+		}
+
+		if err == nil && !at.IsZero() {
+			r.May.Push(at)
+		}
+	}
+}
+
+/*
+SetSuperClass appends the input value(s) to the the super classes stack within the
+the receiver.  Valid input types are string, to represent an RFC 4512 OID residing
+in the underlying [Schema] instance, or an bonafide [ObjectClass] instance already
+obtained or crafted.
+
+This is a fluent method.
+*/
+func (r ObjectClass) SetSuperClass(x ...any) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setSuperClass(x...)
+	}
+
+	return r
+}
+
+func (r *objectClass) setSuperClass(x ...any) {
+	var err error
+	for i := 0; i < len(x) && err == nil; i++ {
+		var sup ObjectClass
+		switch tv := x[i].(type) {
+		case string:
+			sup = r.schema.ObjectClasses().get(tv)
+		case ObjectClass:
+			sup = tv
+		default:
+			err = ErrInvalidType
+			continue
+		}
+
+		err = r.verifySuperClass(sup.objectClass)
+		if err == nil && !sup.IsZero() {
+			r.SuperClasses.push(sup)
+		}
+	}
+}
+
+/*
+Replace overrides the receiver with x. Both must bear an identical
+numeric OID and x MUST be compliant.
+
+Note that the relevant [Schema] instance must be configured to allow
+definition override by way of the [AllowOverride] bit setting.  See
+the [Schema.Options] method for a means of accessing the settings
+value.
+
+Note that this method does not reallocate a new pointer instance
+within the [ObjectClass] envelope type, thus all references to the
+receiver instance within various stacks will be preserved.
+
+This is a fluent method.
+*/
+func (r ObjectClass) Replace(x ObjectClass) ObjectClass {
+	if !r.Schema().Options().Positive(AllowOverride) {
+		return r
+	}
+
+	if !r.IsZero() && x.Compliant() {
+		r.objectClass.replace(x)
+	}
+
+	return r
+}
+
+func (r *objectClass) replace(x ObjectClass) {
+	if r.OID != x.NumericOID() {
+		return
+	}
+
+	r.OID = x.objectClass.OID
+	r.Macro = x.objectClass.Macro
+	r.Name = x.objectClass.Name
+	r.Desc = x.objectClass.Desc
+	r.Obsolete = x.objectClass.Obsolete
+	r.Kind = x.objectClass.Kind
+	r.SuperClasses = x.objectClass.SuperClasses
+	r.Must = x.objectClass.Must
+	r.May = x.objectClass.May
+	r.Extensions = x.objectClass.Extensions
+	r.data = x.objectClass.data
+	r.schema = x.objectClass.schema
+	r.stringer = x.objectClass.stringer
+	r.data = x.objectClass.data
+}
+
+/*
+Maps returns slices of [DefinitionMap] instances.
+*/
+func (r ObjectClasses) Maps() (defs DefinitionMaps) {
+	defs = make(DefinitionMaps, r.Len())
+	for i := 0; i < r.Len(); i++ {
+		defs[i] = r.Index(i).Map()
 	}
 
 	return
 }
 
 /*
-Validate returns an error that reflects any fatal condition observed regarding the receiver configuration.
+Map marshals the receiver instance into an instance of
+[DefinitionMap].
 */
-func (r *ObjectClass) Validate() (err error) {
-	return r.validate()
+func (r ObjectClass) Map() (def DefinitionMap) {
+	if !r.Compliant() {
+		return
+	}
+
+	var sups []string
+	for i := 0; i < r.SuperClasses().Len(); i++ {
+		m := r.SuperClasses().Index(i)
+		sups = append(sups, m.OID())
+	}
+
+	var musts []string
+	for i := 0; i < r.Must().Len(); i++ {
+		m := r.Must().Index(i)
+		musts = append(musts, m.OID())
+	}
+
+	var mays []string
+	for i := 0; i < r.May().Len(); i++ {
+		m := r.May().Index(i)
+		mays = append(mays, m.OID())
+	}
+
+	def = make(DefinitionMap, 0)
+	def[`NUMERICOID`] = []string{r.NumericOID()}
+	def[`NAME`] = r.Names().List()
+	def[`DESC`] = []string{r.Description()}
+	def[`OBSOLETE`] = []string{bool2str(r.Obsolete())}
+	def[`SUP`] = sups
+	def[`MUST`] = musts
+	def[`MAY`] = mays
+	def[`TYPE`] = []string{r.Type()}
+	def[`RAW`] = []string{r.String()}
+
+	switch r.Kind() {
+	case AbstractKind:
+		def[`KIND`] = []string{`ABSTRACT`}
+	case AuxiliaryKind:
+		def[`KIND`] = []string{`AUXILIARY`}
+	default:
+		def[`KIND`] = []string{`STRUCTURAL`}
+	}
+
+	// copy our extensions from receiver r
+	// into destination def.
+	def = mapTransferExtensions(r, def)
+
+	// Clean up any empty fields
+	def.clean()
+
+	return
 }
 
-func (r *ObjectClass) validate() (err error) {
+/*
+Compliant returns a Boolean value indicative of every [ObjectClass]
+returning a compliant response from the [ObjectClass.Compliant] method.
+*/
+func (r ObjectClasses) Compliant() bool {
+	var act int
+	for i := 0; i < r.Len(); i++ {
+		if r.Index(i).Compliant() {
+			act++
+		}
+	}
+
+	return act == r.Len()
+}
+
+/*
+Compliant returns a Boolean value indicative of the receiver being fully
+compliant per the required clauses of § 4.1.1 of RFC 4512:
+
+  - Numeric OID must be present and valid
+*/
+func (r ObjectClass) Compliant() bool {
 	if r.IsZero() {
-		return raise(isZero, "%T.validate", r)
+		return false
 	}
 
-	if err = r.validateKind(); err != nil {
-		return
+	var (
+		may  AttributeTypes = r.May()
+		must AttributeTypes = r.Must()
+	)
+
+	for i := 0; i < must.Len(); i++ {
+		if !must.Index(i).Compliant() {
+			return false
+		}
 	}
 
-	if err = validateNames(r.Name.strings()...); err != nil {
-		return
+	for i := 0; i < may.Len(); i++ {
+		if !may.Index(i).Compliant() {
+			return false
+		}
 	}
 
-	if err = validateDesc(r.Description); err != nil {
-		return
+	return isNumericOID(r.NumericOID())
+}
+
+/*
+verifySuperClass returns an error following the execution of basic sanity
+checks meant to assess the intended super type chain.
+*/
+func (r *objectClass) verifySuperClass(sup *objectClass) (err error) {
+	renv := ObjectClass{r}
+	senv := ObjectClass{sup}
+	if r == nil || sup == nil {
+		err = ErrNilInput
+	}
+
+	if renv.NumericOID() == senv.NumericOID() {
+		// r and sup are the same class
+		err = mkerr("objectClass is subordinate to itself: " +
+			renv.NumericOID() + `==` + senv.NumericOID())
+	} else if renv.SuperClassOf(senv) {
+		// r is a super class of sup; can't have both!
+		err = mkerr("cyclical superiority loop: " +
+			renv.NumericOID() + ` <--> ` + senv.NumericOID())
 	}
 
 	return
 }
 
 /*
-String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
+SuperClassOf returns a Boolean value indicative of r being a superior ("SUP")
+[ObjectClass] of sub.
+
+Note: this will trace all super class chains indefinitely and, thus, will
+recognize any superior association without regard for "depth".
+*/
+func (r ObjectClass) SuperClassOf(sub ObjectClass) (sup bool) {
+	dsups := sub.SuperClasses() // iterated and possibly traversed
+	for i := 0; i < dsups.Len(); i++ {
+		dsup := dsups.Index(i)
+		if sup = dsup.NumericOID() == r.NumericOID(); sup {
+			// direct (immediate) match
+			break
+		} else if sup = r.SuperClassOf(dsup); sup {
+			// match by traversal
+			break
+		}
+	}
+
+	return
+}
+
+/*
+Obsolete returns a Boolean value indicative of definition
+obsolescence.
+*/
+func (r ObjectClass) Obsolete() (o bool) {
+	if !r.IsZero() {
+		o = r.objectClass.Obsolete
+	}
+
+	return
+}
+
+/*
+SetObsolete sets the receiver instance to OBSOLETE if not already set.
+
+Obsolescence cannot be unset.
+
+This is a fluent method.
+*/
+func (r ObjectClass) SetObsolete() ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setObsolete()
+	}
+
+	return r
+}
+
+func (r *objectClass) setObsolete() {
+	if !r.Obsolete {
+		r.Obsolete = true
+	}
+}
+
+/*
+Kind returns the uint-based kind value associated with the
+receiver instance.
+*/
+func (r ObjectClass) Kind() (kind uint) {
+	kind = StructuralKind
+	if !r.IsZero() {
+		switch k := r.objectClass.Kind; k {
+		case AbstractKind:
+			kind = k
+		case AuxiliaryKind:
+			kind = k
+		}
+	}
+
+	return
+}
+
+/*
+SuperClasses returns an [ObjectClasses] stack instance containing zero
+(0) or more superior [ObjectClass] instances from which the receiver
+directly extends. This method does not walk any super class chains.
+*/
+func (r ObjectClass) SuperClasses() (sups ObjectClasses) {
+	if !r.IsZero() {
+		sups = r.objectClass.SuperClasses
+	}
+
+	return
+}
+
+/*
+SuperChain returns an [ObjectClasses] stack of [ObjectClass] instances
+which make up the super type chain of the receiver instance.
+*/
+func (r ObjectClass) SuperChain() (sups ObjectClasses) {
+	if !r.IsZero() {
+		sups = NewObjectClasses()
+		_sups := r.objectClass.SuperClasses.superChain()
+		for i := 0; i < _sups.Len(); i++ {
+			sups.Push(_sups.Index(i))
+		}
+	}
+
+	return
+}
+
+func (r ObjectClasses) superChain() (sups ObjectClasses) {
+	sups = NewObjectClasses()
+	for i := 0; i < r.Len(); i++ {
+		sups.Push(r.Index(i))
+		_sups := r.Index(i).SuperChain()
+		for j := 0; j < _sups.Len(); j++ {
+			sups.Push(_sups.Index(j))
+		}
+	}
+
+	return
+}
+
+/*
+Type returns the string literal "objectClass".
+*/
+func (r ObjectClass) Type() string {
+	return `objectClass`
+}
+
+/*
+Type returns the string literal "objectClasses".
+*/
+func (r ObjectClasses) Type() string {
+	return `objectClasses`
+}
+
+/*
+Inventory returns an instance of [Inventory] which represents the current
+inventory of [ObjectClass] instances within the receiver.
+
+The keys are numeric OIDs, while the values are zero (0) or more string
+slices, each representing a name by which the definition is known.
+*/
+func (r ObjectClasses) Inventory() (inv Inventory) {
+	inv = make(Inventory, 0)
+	for i := 0; i < r.len(); i++ {
+		def := r.index(i)
+		inv[def.NumericOID()] = def.Names().List()
+
+	}
+
+	return
+}
+
+/*
+SetSchema assigns an instance of [Schema] to the receiver instance.  This allows
+internal verification of certain actions without the need for user input of
+an instance of [Schema] manually at each juncture.
+
+Note that the underlying [Schema] instance is automatically set when creating
+instances of this type by way of parsing, as well as if the receiver instance
+was initialized using the [Schema.NewObjectClass] method.
+
+This is a fluent method.
+*/
+func (r ObjectClass) SetSchema(schema Schema) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setSchema(schema)
+	}
+
+	return r
+}
+
+func (r *objectClass) setSchema(schema Schema) {
+	r.schema = schema
+}
+
+/*
+Schema returns the [Schema] instance associated with the receiver instance.
+*/
+func (r ObjectClass) Schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.objectClass.getSchema()
+	}
+
+	return
+}
+
+func (r *objectClass) getSchema() (s Schema) {
+	if r != nil {
+		s = r.schema
+	}
+
+	return
+}
+
+/*
+AllMust returns an [AttributeTypes] containing zero (0) or more required
+[AttributeType] definitions for use with this class as well as those specified
+by any and all applicable super classes. Duplicate references are silently
+discarded.
+*/
+func (r ObjectClass) AllMust() (must AttributeTypes) {
+	must = NewAttributeTypeOIDList()
+
+	if sup := r.SuperClasses(); !sup.IsZero() {
+		for i := 0; i < sup.len(); i++ {
+			sm := sup.index(i)
+			if sc := sm.AllMust(); !sc.IsZero() {
+				for j := 0; j < sc.len(); j++ {
+					must.push(sc.index(i))
+				}
+			}
+		}
+	}
+
+	if lm := r.Must(); !lm.IsZero() {
+		for i := 0; i < lm.len(); i++ {
+			must.push(lm.index(i))
+		}
+	}
+
+	return
+}
+
+/*
+Must returns an [AttributeTypes] containing zero (0) or more required
+[AttributeType] definitions for use with this class.
+*/
+func (r ObjectClass) Must() (must AttributeTypes) {
+	if !r.IsZero() {
+		must = r.objectClass.Must
+	}
+
+	return
+}
+
+/*
+AllMay returns an [AttributeTypes] containing zero (0) or more allowed
+[AttributeType] definitions for use with this class as well as those
+specified by any and all applicable super classes.  Duplicate references
+are silently discarded.
+*/
+func (r ObjectClass) AllMay() (may AttributeTypes) {
+	may = NewAttributeTypeOIDList()
+
+	if sup := r.SuperClasses(); !sup.IsZero() {
+		for i := 0; i < sup.len(); i++ {
+			sm := sup.index(i)
+			if sc := sm.AllMay(); !sc.IsZero() {
+				for j := 0; j < sc.len(); j++ {
+					may.push(sc.index(i))
+				}
+			}
+		}
+	}
+
+	if lm := r.May(); !lm.IsZero() {
+		for i := 0; i < lm.len(); i++ {
+			may.push(lm.index(i))
+		}
+	}
+
+	return
+}
+
+/*
+May returns an [AttributeTypes] containing zero (0) or more allowed
+[AttributeType] definitions for use with this class.
+*/
+func (r ObjectClass) May() (may AttributeTypes) {
+	if !r.IsZero() {
+		may = r.objectClass.May
+	}
+
+	return
+}
+
+/*
+OID returns the string representation of an OID -- which is either a
+numeric OID or descriptor -- that is held by the receiver instance.
+*/
+func (r ObjectClass) OID() (oid string) {
+	if !r.IsZero() {
+		oid = r.NumericOID() // default
+		if r.objectClass.Name.len() > 0 {
+			oid = r.objectClass.Name.index(0)
+		}
+	}
+
+	return
+}
+
+/*
+IsIdentifiedAs returns a Boolean value indicative of whether id matches
+either the numericOID or descriptor of the receiver instance.  Case is
+not significant in the matching process.
+*/
+func (r ObjectClass) IsIdentifiedAs(id string) (ident bool) {
+	if !r.IsZero() {
+		ident = id == r.NumericOID() ||
+			r.objectClass.Name.contains(id)
+	}
+
+	return
+}
+
+/*
+Name returns the string form of the principal name of the receiver instance, if set.
+*/
+func (r ObjectClass) Name() (id string) {
+	if !r.IsZero() {
+		id = r.objectClass.Name.index(0)
+	}
+
+	return
+}
+
+/*
+Names returns the underlying instance of [QuotedDescriptorList] from within
+the receiver.
+*/
+func (r ObjectClass) Names() (names QuotedDescriptorList) {
+	if !r.IsZero() {
+		names = r.objectClass.Name
+	}
+
+	return
+}
+
+/*
+Attributes returns an instance of [AttributeTypes] containing references
+to [AttributeType] instances which reside within the receiver's MUST and MAY
+clauses.
+
+This is useful if a complete list of all immediate [AttributeType] instances
+which are available for use and does not include those made available through
+super classes.
+
+Duplicate references are silently discarded.
+*/
+func (r ObjectClass) Attributes() (a AttributeTypes) {
+	a = NewAttributeTypeOIDList()
+
+	for _, list := range []AttributeTypes{
+		r.objectClass.Must,
+		r.objectClass.May,
+	} {
+		for i := 0; i < list.len(); i++ {
+			if at := list.index(i); !at.IsZero() {
+				a.push(at)
+			}
+		}
+	}
+
+	return
+}
+
+/*
+AllAttributes returns an [AttributeTypes] instance containing zero (0) or
+more permitted or required [AttributeType] definitions for use with this
+class as well as those specified by any and all applicable super classes.
+
+This is useful if a complete list of all [AttributeType] instances which
+are available for use is needed.
+
+Duplicate references are silently discarded.
+*/
+func (r ObjectClass) AllAttributes() (all AttributeTypes) {
+	all = NewAttributeTypeOIDList()
+
+	for _, attrs := range []AttributeTypes{
+		r.AllMay(),
+		r.AllMust(),
+	} {
+		for i := 0; i < attrs.len(); i++ {
+			all.push(attrs.index(i))
+		}
+	}
+
+	return
+}
+
+/*
+Extensions returns the [Extensions] instance -- if set -- within
+the receiver.
+*/
+func (r ObjectClass) Extensions() (e Extensions) {
+	if !r.IsZero() {
+		e = r.objectClass.Extensions
+	}
+
+	return
+}
+
+/*
+SetNumericOID allows the manual assignment of a numeric OID to the
+receiver instance if the following are all true:
+
+  - The input id value is a syntactically valid numeric OID
+  - The receiver does not already possess a numeric OID
+
+This is a fluent method.
+*/
+func (r ObjectClass) SetNumericOID(id string) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setNumericOID(id)
+	}
+
+	return r
+}
+
+func (r *objectClass) setNumericOID(id string) {
+	if isNumericOID(id) {
+		if len(r.OID) == 0 {
+			r.OID = id
+		}
+	}
+}
+
+/*
+NumericOID returns the string representation of the numeric OID
+held by the receiver instance.
+*/
+func (r ObjectClass) NumericOID() (noid string) {
+	if !r.IsZero() {
+		noid = r.objectClass.OID
+	}
+
+	return
+}
+
+/*
+SetStringer allows the assignment of an individual [Stringer] function or
+method to all [ObjectClass] slices within the receiver stack instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite all
+preexisting stringer functions with the internal closure default, which is
+based upon a one-time use of the [text/template] package by all receiver
+slice instances.
+
+Input of a non-nil closure function value will overwrite all preexisting
+stringers.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r ObjectClasses) SetStringer(function ...Stringer) ObjectClasses {
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		def.SetStringer(function...)
+	}
+
+	return r
+}
+
+/*
+SetStringer allows the assignment of an individual [Stringer] function
+or method to the receiver instance.
+
+Input of zero (0) variadic values, or an explicit nil, will overwrite any
+preexisting stringer function with the internal closure default, which is
+based upon a one-time use of the [text/template] package by the receiver
+instance.
+
+Input of a non-nil closure function value will overwrite any preexisting
+stringer.
+
+This is a fluent method and may be used multiple times.
+*/
+func (r ObjectClass) SetStringer(function ...Stringer) ObjectClass {
+	if r.Compliant() {
+		r.objectClass.setStringer(function...)
+	}
+
+	return r
+}
+
+func (r *objectClass) setStringer(function ...Stringer) {
+	var stringer Stringer
+	if len(function) > 0 {
+		stringer = function[0]
+	}
+
+	if stringer == nil {
+		str, err := r.prepareString() // perform one-time text/template op
+		if err == nil {
+			// Save the stringer
+			r.stringer = func() string {
+				// Return a preserved value.
+				return str
+			}
+		}
+	} else {
+		r.stringer = stringer
+	}
+}
+
+/*
+String is a stringer method that returns the string representation of
+the receiver instance.  A zero-value indicates an invalid receiver, or
+that the [ObjectClass.SetStringer] method was not used during MANUAL
+composition of the receiver.
+*/
+func (r ObjectClass) String() (def string) {
+	if !r.IsZero() {
+		if r.objectClass.stringer != nil {
+			def = r.objectClass.stringer()
+		}
+	}
+
+	return
+}
+
+/*
+ObjectClasses returns the [ObjectClasses] instance from within
+the receiver instance.
+*/
+func (r Schema) ObjectClasses() (ocs ObjectClasses) {
+	slice, _ := r.cast().Index(objectClassesIndex)
+	ocs, _ = slice.(ObjectClasses)
+	return
+}
+
+/*
+prepareString returns a string an an error indicative of an attempt
+to represent the receiver instance as a string using [text/template].
+*/
+func (r *objectClass) prepareString() (str string, err error) {
+	buf := newBuf()
+	var kind string = `STRUCTURAL`
+	switch r.Kind {
+	case AbstractKind:
+		kind = `ABSTRACT`
+	case AuxiliaryKind:
+		kind = `AUXILIARY`
+	}
+
+	t := newTemplate(`objectClass`).
+		Funcs(funcMap(map[string]any{
+			`Kind`:         func() string { return kind },
+			`ExtensionSet`: r.Extensions.tmplFunc,
+			`MustLen`:      r.Must.len,
+			`MayLen`:       r.May.len,
+			`SuperLen`:     r.SuperClasses.len,
+			`Obsolete`:     func() bool { return r.Obsolete },
+		}))
+
+	if t, err = t.Parse(objectClassTmpl); err == nil {
+		if err = t.Execute(buf, struct {
+			Definition *objectClass
+			HIndent    string
+		}{
+			Definition: r,
+			HIndent:    hindent(r.schema.Options().Positive(HangingIndents)),
+		}); err == nil {
+			str = buf.String()
+		}
+	}
+
+	return
+}
+
+/*
+Description returns the underlying (optional) descriptive text
+assigned to the receiver instance.
+*/
+func (r ObjectClass) Description() (desc string) {
+	if !r.IsZero() {
+		desc = r.objectClass.Desc
+	}
+
+	return
+}
+
+/*
+SetDescription parses desc into the underlying DESC clause within the
+receiver instance.  Although a RFC 4512-compliant QuotedString is
+required, the outer single-quotes need not be specified literally.
+*/
+func (r ObjectClass) SetDescription(desc string) ObjectClass {
+	if !r.IsZero() {
+		r.objectClass.setDescription(desc)
+	}
+
+	return r
+}
+
+func (r *objectClass) setDescription(desc string) {
+	if len(desc) < 3 {
+		return
+	}
+
+	if rune(desc[0]) == rune(39) {
+		desc = desc[1:]
+	}
+
+	if rune(desc[len(desc)-1]) == rune(39) {
+		desc = desc[:len(desc)-1]
+	}
+
+	r.Desc = desc
+
+	return
+}
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r ObjectClasses) IsZero() bool {
+	return r.cast().IsZero()
+}
+
+/*
+toggle-based oid list stringer handler - do not exec directly.
+*/
+func (r ObjectClasses) oIDsStringer(_ ...any) (present string) {
+	slice := r.index(0)
+	hd := slice.Schema().Options().Positive(HangingIndents)
+	id := r.cast().ID()
+	if hd && id != `oc_oidlist` {
+		return r.oIDsStringerPretty(len(id))
+	}
+
+	return r.oIDsStringerStd()
+}
+
+/*
+prettified stackage closure func for oid lists - do not exec directly.
+
+prepare a custom [stackage.PresentationPolicy] instance for our input
+[QuotedDescriptorList] stack to convert the following:
+
+	( top $ account $ engineeringEmployee )
+
+... into ...
+
+	( top
+	$ account
+	$ engineeringEmployee )
+
+This has no effect if the stack has only one member, producing something
+like:
+
+	top
+*/
+func (r ObjectClasses) oIDsStringerPretty(lead int) (present string) {
+	L := r.Len()
+	switch L {
+	case 0:
+		return
+	case 1:
+		present = r.Index(0).OID()
+		return
+	}
+
+	num := lead + 5
+	for idx := 0; idx < L; idx++ {
+		sl := r.Index(idx).OID()
+		if idx == 0 {
+			present += `( ` + sl + string(rune(10))
+			continue
+		}
+
+		for i := 0; i < num; i++ {
+			present += ` `
+		}
+
+		present += `$ ` + sl
+		if idx == L-1 {
+			present += ` )`
+			break // no newline on last line
+		}
+
+		present += string(rune(10))
+	}
+
+	return
+}
+
+/*
+factory default stackage closure func for oid lists - do not exec directly.
+*/
+func (r ObjectClasses) oIDsStringerStd(_ ...any) (present string) {
+	var _present []string
+	for i := 0; i < r.len(); i++ {
+		_present = append(_present, r.index(i).OID())
+	}
+
+	switch len(_present) {
+	case 0:
+		break
+	case 1:
+		present = _present[0]
+	default:
+		padchar := string(rune(32))
+		if !r.cast().IsPadded() {
+			padchar = ``
+		}
+
+		joined := join(_present, padchar+`$`+padchar)
+		present = "(" + padchar + joined + padchar + ")"
+	}
+
+	return
+}
+
+// stackage closure func - do not exec directly.
+func (r ObjectClasses) canPush(x ...any) (err error) {
+	if len(x) == 0 {
+		return
+	} else if !r.cast().IsInit() {
+		err = ErrNilReceiver
+		return
+	}
+
+	// scan receiver for push candidate
+	for i := 0; i < len(x); i++ {
+		oc, ok := x[i].(ObjectClass)
+		if !ok {
+			err = ErrTypeAssert
+			break
+		} else if oc.IsZero() {
+			err = ErrNilInput
+			break
+		}
+
+		if r.contains(oc.objectClass.OID) {
+			err = mkerr(ErrNotUnique.Error() + ": " + oc.Type() + `, ` + oc.NumericOID())
+			break
+		}
+	}
+
+	return
+}
+
+/*
+Len returns the current integer length of the receiver instance.
+*/
+func (r ObjectClasses) Len() int {
+	return r.len()
+}
+
+func (r ObjectClasses) len() int {
+	return r.cast().Len()
+}
+
+/*
+String is a stringer method that returns the string representation
+of the receiver instance.
 */
 func (r ObjectClasses) String() string {
-	return r.slice.ocs_oids_string()
+	return r.cast().String()
 }
 
 /*
-String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
+Index returns the instance of [ObjectClass] found within the
+receiver stack instance at index N.  If no instance is found at
+the index specified, a zero [ObjectClass] instance is returned.
 */
-func (r SuperiorObjectClasses) String() string {
-	return r.slice.ocs_oids_string()
+func (r ObjectClasses) Index(idx int) ObjectClass {
+	return r.index(idx)
 }
 
-/*
-String returns a properly-delimited sequence of string values, either as a Name or OID, for the receiver type.
-*/
-func (r AuxiliaryObjectClasses) String() string {
-	return r.slice.ocs_oids_string()
-}
-
-func (r *ObjectClass) unmarshal() (string, error) {
-	if err := r.validate(); err != nil {
-		err = raise(invalidUnmarshal, err.Error())
-		return ``, err
-	}
-
-	if r.ufn != nil {
-		return r.ufn(r)
-	}
-	return r.unmarshalBasic()
-}
-
-/*
-Map is a convenience method that returns a map[string][]string instance containing the effective contents of the receiver.
-*/
-func (r *ObjectClass) Map() (def map[string][]string) {
-	if err := r.Validate(); err != nil {
-		return
-	}
-
-	def = make(map[string][]string, 14)
-	def[`RAW`] = []string{r.String()}
-	def[`OID`] = []string{r.OID.String()}
-	def[`KIND`] = []string{r.Kind.String()}
-	def[`TYPE`] = []string{r.Type()}
-
-	if len(r.info) > 0 {
-		def[`INFO`] = []string{string(r.info)}
-	}
-
-	if !r.Name.IsZero() {
-		def[`NAME`] = make([]string, 0)
-		for i := 0; i < r.Name.Len(); i++ {
-			def[`NAME`] = append(def[`NAME`], r.Name.Index(i))
+func (r ObjectClasses) index(idx int) (oc ObjectClass) {
+	slice, found := r.cast().Index(idx)
+	if found {
+		if _oc, ok := slice.(ObjectClass); ok {
+			oc = _oc
 		}
 	}
-
-	if len(r.Description) > 0 {
-		def[`DESC`] = []string{r.Description.String()}
-	}
-
-	if !r.SuperClass.IsZero() {
-		def[`SUP`] = make([]string, 0)
-		for i := 0; i < r.SuperClass.Len(); i++ {
-			sup := r.SuperClass.Index(i)
-			term := sup.Name.Index(0)
-			if len(term) == 0 {
-				term = sup.OID.String()
-			}
-			def[`SUP`] = append(def[`SUP`], term)
-		}
-	}
-
-	if !r.Must.IsZero() {
-		def[`MUST`] = make([]string, 0)
-		for i := 0; i < r.Must.Len(); i++ {
-			must := r.Must.Index(i)
-			term := must.Name.Index(0)
-			if len(term) == 0 {
-				term = must.OID.String()
-			}
-			def[`MUST`] = append(def[`MUST`], term)
-		}
-	}
-
-	if !r.May.IsZero() {
-		def[`MAY`] = make([]string, 0)
-		for i := 0; i < r.May.Len(); i++ {
-			must := r.May.Index(i)
-			term := must.Name.Index(0)
-			if len(term) == 0 {
-				term = must.OID.String()
-			}
-			def[`MAY`] = append(def[`MAY`], term)
-		}
-	}
-
-	if !r.Extensions.IsZero() {
-		for i := 0; i < r.Extensions.Len(); i++ {
-			ext := r.Extensions.Index(i)
-			def[ext.Label] = ext.Value
-		}
-	}
-
-	if r.Obsolete {
-		def[`OBSOLETE`] = []string{`TRUE`}
-	}
-
-	return def
-}
-
-/*
-ObjectClassUnmarshaler is a package-included function that honors the signature of the first class (closure) DefinitionUnmarshaler type.
-
-The purpose of this function, and similar user-devised ones, is to unmarshal a definition with specific formatting included, such as linebreaks, leading specifier declarations and indenting.
-*/
-func ObjectClassUnmarshaler(x any) (def string, err error) {
-	var r *ObjectClass
-	switch tv := x.(type) {
-	case *ObjectClass:
-		if tv.IsZero() {
-			err = raise(isZero, "%T is nil", tv)
-			return
-		}
-		r = tv
-	default:
-		err = raise(unexpectedType,
-			"Bad type for unmarshal (%T)", tv)
-		return
-	}
-
-	var (
-		WHSP string = ` `
-		idnt string = "\n\t"
-		head string = `(`
-		tail string = `)`
-	)
-
-	if len(r.spec) > 0 {
-		head = r.spec + WHSP + head
-	}
-
-	def += head + WHSP + r.OID.String()
-
-	if !r.Name.IsZero() {
-		def += idnt + r.Name.Label()
-		def += WHSP + r.Name.String()
-	}
-
-	if !r.Description.IsZero() {
-		def += idnt + r.Description.Label()
-		def += WHSP + r.Description.String()
-	}
-
-	if r.Obsolete {
-		def += idnt + `OBSOLETE`
-	}
-
-	if !r.SuperClass.IsZero() {
-		def += idnt + r.SuperClass.Label()
-		def += WHSP + r.SuperClass.String()
-	}
-
-	// Kind will never be zero
-	def += idnt + r.Kind.String()
-
-	if !r.Must.IsZero() {
-		def += idnt + r.Must.Label()
-		def += WHSP + r.Must.String()
-	}
-
-	if !r.May.IsZero() {
-		def += idnt + r.May.Label()
-		def += WHSP + r.May.String()
-	}
-
-	if !r.Extensions.IsZero() {
-		for i := 0; i < r.Extensions.Len(); i++ {
-			if ext := r.Extensions.Index(i); !ext.IsZero() {
-				def += idnt + ext.String()
-			}
-		}
-	}
-
-	def += WHSP + tail
 
 	return
 }
 
-func (r *ObjectClass) unmarshalBasic() (def string, err error) {
-	var (
-		WHSP string = ` `
-		head string = `(`
-		tail string = `)`
-	)
+/*
+Push returns an error following an attempt to push an [ObjectClass]
+into the receiver instance.
+*/
+func (r ObjectClasses) Push(oc any) error {
+	return r.push(oc)
+}
 
-	if len(r.spec) > 0 {
-		head = r.spec + WHSP + head
+func (r ObjectClasses) push(x any) (err error) {
+	switch tv := x.(type) {
+	case ObjectClass:
+		if !tv.Compliant() {
+			err = ErrDefNonCompliant
+			break
+		}
+		r.cast().Push(tv)
+	default:
+		err = ErrInvalidType
 	}
 
-	def += head + WHSP + r.OID.String()
+	return
+}
 
-	if !r.Name.IsZero() {
-		def += WHSP + r.Name.Label()
-		def += WHSP + r.Name.String()
-	}
+/*
+Contains calls [ObjectClasses.Get] to return a Boolean value indicative
+of a successful, non-zero retrieval of an [ObjectClass] instance -- matching
+the provided id -- from within the receiver stack instance.
+*/
+func (r ObjectClasses) Contains(id string) bool {
+	return r.contains(id)
+}
 
-	if !r.Description.IsZero() {
-		def += WHSP + r.Description.Label()
-		def += WHSP + r.Description.String()
-	}
+func (r ObjectClasses) contains(id string) bool {
+	return !r.get(id).IsZero()
+}
 
-	if r.Obsolete {
-		def += WHSP + `OBSOLETE`
-	}
+/*
+Get returns an instance of [ObjectClass] based upon a search for id within
+the receiver stack instance.
 
-	if r.SuperClass != nil {
-		if r.SuperClass.Len() > 0 {
-			def += WHSP + r.SuperClass.Label()
-			def += WHSP + r.SuperClass.String()
+The return instance, if not nil, was retrieved based upon a textual match of
+the principal identifier of an [ObjectClass] and the provided id.
+
+The return instance is nil if no match was made.
+
+Case is not significant in the matching process.
+*/
+func (r ObjectClasses) Get(id string) ObjectClass {
+	return r.get(id)
+}
+
+func (r ObjectClasses) get(id string) (oc ObjectClass) {
+	for i := 0; i < r.len() && oc.IsZero(); i++ {
+		if _oc := r.index(i); !_oc.IsZero() {
+			if _oc.objectClass.OID == id {
+				oc = _oc
+			} else if _oc.objectClass.Name.contains(id) {
+				oc = _oc
+			}
 		}
 	}
 
-	// Kind will never be zero
-	def += WHSP + r.Kind.String()
+	return
+}
 
-	if r.Must != nil {
-		if r.Must.Len() > 0 {
-			def += WHSP + r.Must.Label()
-			def += WHSP + r.Must.String()
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r ObjectClass) IsZero() bool {
+	return r.objectClass == nil
+}
+
+/*
+LoadObjectClasses returns an error following an attempt to load all
+built-in [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadObjectClasses() error {
+	return r.loadObjectClasses()
+}
+
+func (r Schema) loadObjectClasses() (err error) {
+	if !r.IsZero() {
+		funks := []func() error{
+			r.loadRFC4512ObjectClasses,
+			r.loadRFC4519ObjectClasses,
+			r.loadRFC4523ObjectClasses,
+			r.loadRFC4524ObjectClasses,
+			r.loadRFC2307ObjectClasses,
+			r.loadRFC2079ObjectClasses,
+			r.loadRFC2798ObjectClasses,
+			r.loadRFC3671ObjectClasses,
+			r.loadRFC3672ObjectClasses,
+		}
+
+		for i := 0; i < len(funks) && err == nil; i++ {
+			err = funks[i]()
 		}
 	}
 
-	if r.May != nil {
-		if r.May.Len() > 0 {
-			def += WHSP + r.May.Label()
-			def += WHSP + r.May.String()
+	return
+}
+
+/*
+LoadRFC2079ObjectClasses returns an error following an attempt to
+load all RFC 2079 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC2079ObjectClasses() error {
+	return r.loadRFC2079ObjectClasses()
+}
+
+func (r Schema) loadRFC2079ObjectClasses() (err error) {
+
+	var i int
+	for i = 0; i < len(rfc2079ObjectClasses) && err == nil; i++ {
+		oc := rfc2079ObjectClasses[i]
+		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc2079ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2079 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
 		}
 	}
 
-	if !r.Extensions.IsZero() {
-		def += WHSP + r.Extensions.String()
+	return
+}
+
+/*
+LoadRFC2798ObjectClasses returns an error following an attempt to
+load all RFC 2798 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC2798ObjectClasses() error {
+	return r.loadRFC2798ObjectClasses()
+}
+
+func (r Schema) loadRFC2798ObjectClasses() (err error) {
+
+	var i int
+	for i = 0; i < len(rfc2798ObjectClasses) && err == nil; i++ {
+		oc := rfc2798ObjectClasses[i]
+		err = r.ParseObjectClass(string(oc))
 	}
 
-	def += WHSP + tail
+	if want := rfc2798ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2798 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
+
+	return
+}
+
+/*
+LoadRFC2307ObjectClasses returns an error following an attempt to
+load all RFC 2307 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC2307ObjectClasses() error {
+	return r.loadRFC2307ObjectClasses()
+}
+
+func (r Schema) loadRFC2307ObjectClasses() (err error) {
+	for k, v := range rfc2307Macros {
+		r.Macros().Set(k, v)
+	}
+
+	var i int
+	for i = 0; i < len(rfc2307ObjectClasses) && err == nil; i++ {
+		oc := rfc2307ObjectClasses[i]
+		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc2307ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC2307 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
+
+	return
+}
+
+/*
+LoadRFC3671ObjectClasses returns an error following an attempt to
+load all RFC 3671 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC3671ObjectClasses() error {
+	return r.loadRFC3671ObjectClasses()
+}
+
+func (r Schema) loadRFC3671ObjectClasses() (err error) {
+
+	var i int
+	for i = 0; i < len(rfc3671ObjectClasses) && err == nil; i++ {
+		oc := rfc3671ObjectClasses[i]
+		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc3671ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC3671 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
+
+	return
+}
+
+/*
+LoadRFC3672ObjectClasses returns an error following an attempt to
+load all RFC 3672 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC3672ObjectClasses() error {
+	return r.loadRFC3672ObjectClasses()
+}
+
+func (r Schema) loadRFC3672ObjectClasses() (err error) {
+
+	var i int
+	for i = 0; i < len(rfc3672ObjectClasses) && err == nil; i++ {
+		oc := rfc3672ObjectClasses[i]
+		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc3672ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC3672 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
+
+	return
+}
+
+/*
+LoadRFC4512ObjectClasses returns an error following an attempt to
+load all RFC 4512 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4512ObjectClasses() error {
+	return r.loadRFC4512ObjectClasses()
+}
+
+/*
+LoadRFC4512AttributeTypes returns an error following an attempt to
+load all RFC 4512 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) loadRFC4512ObjectClasses() (err error) {
+
+	var i int
+	for i = 0; i < len(rfc4512ObjectClasses) && err == nil; i++ {
+		oc := rfc4512ObjectClasses[i]
+		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc4512ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4512 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
+
+	return
+}
+
+/*
+LoadRFC4519ObjectClasses returns an error following an attempt to
+load all RFC 4519 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4519ObjectClasses() error {
+	return r.loadRFC4519ObjectClasses()
+}
+
+func (r Schema) loadRFC4519ObjectClasses() (err error) {
+
+	var i int
+	for i = 0; i < len(rfc4519ObjectClasses) && err == nil; i++ {
+		oc := rfc4519ObjectClasses[i]
+		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc4519ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4519 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
+
+	return
+}
+
+/*
+LoadRFC4523ObjectClasses returns an error following an attempt to
+load all RFC 4523 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4523ObjectClasses() error {
+	return r.loadRFC4523ObjectClasses()
+}
+
+func (r Schema) loadRFC4523ObjectClasses() (err error) {
+
+	var i int
+	for i = 0; i < len(rfc4523ObjectClasses) && err == nil; i++ {
+		oc := rfc4523ObjectClasses[i]
+		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc4523ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4523 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
+
+	return
+}
+
+/*
+LoadRFC4524ObjectClasses returns an error following an attempt to
+load all RFC 4524 [ObjectClass] slices into the receiver instance.
+*/
+func (r Schema) LoadRFC4524ObjectClasses() error {
+	return r.loadRFC4524ObjectClasses()
+}
+
+func (r Schema) loadRFC4524ObjectClasses() (err error) {
+
+	var i int
+	for i = 0; i < len(rfc4524ObjectClasses) && err == nil; i++ {
+		oc := rfc4524ObjectClasses[i]
+		err = r.ParseObjectClass(string(oc))
+	}
+
+	if want := rfc4524ObjectClasses.Len(); i != want {
+		if err == nil {
+			err = mkerr("Unexpected number of RFC4524 ObjectClasses parsed: want " + itoa(want) + ", got " + itoa(i))
+		}
+	}
 
 	return
 }
