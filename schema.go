@@ -211,35 +211,49 @@ All replacement [Definition] instances are subject to compliancy checks.
 This is a fluent method.
 */
 func (r Schema) Replace(x Definition) Schema {
-	if !r.Options().Positive(AllowOverride) {
+	if x.IsZero() {
+		return r
+	} else if !r.Options().Positive(AllowOverride) {
 		return r
 	}
 
-	switch x.Type() {
-	case `ldapSyntax`:
-		orig := r.LDAPSyntaxes().Get(x.NumericOID())
-		orig.replace(x.(LDAPSyntax))
-	case `matchingRule`:
-		orig := r.MatchingRules().Get(x.NumericOID())
-		orig.replace(x.(MatchingRule))
-	case `matchingRuleUse`:
-		orig := r.MatchingRuleUses().Get(x.NumericOID())
-		orig.replace(x.(MatchingRuleUse))
-	case `attributeType`:
-		orig := r.AttributeTypes().Get(x.NumericOID())
-		orig.replace(x.(AttributeType))
-	case `objectClass`:
-		orig := r.ObjectClasses().Get(x.NumericOID())
-		orig.replace(x.(ObjectClass))
-	case `nameForm`:
-		orig := r.NameForms().Get(x.NumericOID())
-		orig.replace(x.(NameForm))
-	case `dITContentRule`:
-		orig := r.DITContentRules().Get(x.NumericOID())
-		orig.replace(x.(DITContentRule))
-	case `dITStructureRule`:
-		orig := r.DITStructureRules().Get(x.(DITStructureRule).ID())
-		orig.replace(x.(DITStructureRule))
+	tmap := map[string]func(){
+		`ldapSyntax`: func() {
+			orig := r.LDAPSyntaxes().Get(x.NumericOID())
+			orig.replace(x.(LDAPSyntax))
+		},
+		`matchingRule`: func() {
+			orig := r.MatchingRules().Get(x.NumericOID())
+			orig.replace(x.(MatchingRule))
+		},
+		`matchingRuleUse`: func() {
+			orig := r.MatchingRuleUses().Get(x.NumericOID())
+			orig.replace(x.(MatchingRuleUse))
+		},
+		`attributeType`: func() {
+			orig := r.AttributeTypes().Get(x.NumericOID())
+			orig.replace(x.(AttributeType))
+		},
+		`objectClass`: func() {
+			orig := r.ObjectClasses().Get(x.NumericOID())
+			orig.replace(x.(ObjectClass))
+		},
+		`nameForm`: func() {
+			orig := r.NameForms().Get(x.NumericOID())
+			orig.replace(x.(NameForm))
+		},
+		`dITContentRule`: func() {
+			orig := r.DITContentRules().Get(x.NumericOID())
+			orig.replace(x.(DITContentRule))
+		},
+		`dITStructureRule`: func() {
+			orig := r.DITStructureRules().Get(x.(DITStructureRule).ID())
+			orig.replace(x.(DITStructureRule))
+		},
+	}
+
+	if fn, ok := tmap[x.Type()]; ok {
+		fn()
 	}
 
 	return r
@@ -281,12 +295,10 @@ This method wraps the [antlr4512.Schema.ParseRaw] method.
 */
 func (r Schema) ParseRaw(raw []byte) (err error) {
 	s := new4512Schema()
-	if err = s.ParseRaw(raw); err != nil {
-		return
+	if err = s.ParseRaw(raw); err == nil {
+		// begin second phase
+		err = r.incorporate(s)
 	}
-
-	// begin second phase
-	err = r.incorporate(s)
 
 	return
 }
@@ -300,12 +312,10 @@ This method wraps the [antlr4512.Schema.ParseFile] method.
 */
 func (r Schema) ParseFile(file string) (err error) {
 	s := new4512Schema()
-	if err = s.ParseFile(file); err != nil {
-		return
+	if err = s.ParseFile(file); err == nil {
+		// begin second phase
+		err = r.incorporate(s)
 	}
-
-	// begin second phase
-	err = r.incorporate(s)
 
 	return
 }
@@ -321,12 +331,10 @@ This method wraps the [antlr4512.Schema.ParseDirectory] method.
 */
 func (r Schema) ParseDirectory(dir string) (err error) {
 	s := new4512Schema()
-	if err = s.ParseDirectory(dir); err != nil {
-		return
+	if err = s.ParseDirectory(dir); err == nil {
+		// begin second phase
+		err = r.incorporate(s)
 	}
-
-	// begin second phase
-	err = r.incorporate(s)
 
 	return
 }

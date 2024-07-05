@@ -1,6 +1,7 @@
 package schemax
 
 import (
+	"math/rand"
 	"strconv"
 	"strings"
 	"unicode"
@@ -89,6 +90,23 @@ Input value x may be a non-negative int or explicit [Option] constants.
 */
 func (r Options) Positive(x any) bool {
 	return r.cast().Positive(x)
+}
+
+/*
+randString is only used to generate a random string for the purpose of
+temporary file/directory creation in path-based parser unit tests (see
+schema_test.go).
+*/
+func randString(num int) string {
+	bts := make([]byte, num)
+
+	chars := `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`
+	rand.Read(bts)
+
+	for idx, bite := range bts {
+		bts[idx] = chars[bite%byte(len(chars))]
+	}
+	return string(bts)
 }
 
 func uitoa(x any) (s string) {

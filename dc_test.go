@@ -384,22 +384,44 @@ func TestDITContentRule_codecov(t *testing.T) {
 		return "blarg"
 	})
 
+	def.SetAux(mySchema.ObjectClasses().Get(`dcObject`))
+	def.SetAux(`dcObject`)
+	def.SetAux(rune(8))
 	def.SetMust(mySchema.AttributeTypes().Get(`cn`))
 	def.SetMust(rune(11))
-	def.SetMay(mySchema.AttributeTypes().Get(`cn`))
+	def.SetMay(mySchema.AttributeTypes().Get(`sn`))
 	def.SetMay(rune(11))
+	def.SetNot(rune(8))
+	def.SetNot(`l`)
+	def.SetNot(mySchema.AttributeTypes().Get(`l`))
+	def.Map()
 	mySchema.DITContentRules().canPush(DITContentRule{}, DITContentRule{new(dITContentRule)})
-
 	if err := def.Parse(raw); err != nil {
 		t.Errorf("%s failed: expected success, got %v", t.Name(), err)
 		return
 	}
 	_ = def.macro()
-	def.setOID(`2.5.13.2`)
+	def.setOID(`2.5.6.2`)
 
 	def.SetData(`fake`)
 	def.SetData(nil)
 	def.Data()
+
+	auxs := NewObjectClassOIDList()
+	auxs.Push(mySchema.ObjectClasses().Get(`dcObject`))
+	dcrs := NewDITContentRules()
+	dcrs.oIDsStringer()
+	dcrs.Push(mySchema.DITContentRules().Index(0))
+	dcrs.oIDsStringer()
+	dcrs.Push(DITContentRule{&dITContentRule{
+		OID: mySchema.ObjectClasses().Get(`2.5.6.2`),
+		Aux: auxs,
+	}})
+	dcrs.oIDsStringer()
+	dcrs.cast().NoPadding(true)
+	dcrs.oIDsStringer()
+
+	def.Map()
 
 	var def2 DITContentRule
 	_ = def2.Replace(def) // will fail

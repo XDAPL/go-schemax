@@ -57,34 +57,84 @@ func ExampleLDAPSyntax_Description() {
 	// Output: INTEGER
 }
 
+/*
+This example demonstrates accessing the numeric OID of the receiver
+instance.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
 func ExampleLDAPSyntax_NumericOID() {
 	integer := mySchema.LDAPSyntaxes().Get(`integer`)
 	fmt.Println(integer.NumericOID())
 	// Output: 1.3.6.1.4.1.1466.115.121.1.27
 }
 
+/*
+This example demonstrates the means for accessing the description OR
+numeric OID of the receiver instance.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
 func ExampleLDAPSyntax_OID() {
 	integer := mySchema.LDAPSyntaxes().Get(`integer`)
 	fmt.Println(integer.OID())
 	// Output: 1.3.6.1.4.1.1466.115.121.1.27
 }
 
+/*
+This example demonstrates the means for accessing the underlying instance
+of [Extensions] within an [LDAPSyntax] instance.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
 func ExampleLDAPSyntax_Extensions() {
 	integer := mySchema.LDAPSyntaxes().Get(`integer`)
 	fmt.Println(integer.Extensions())
 	// Output: X-ORIGIN 'RFC4517'
 }
 
+/*
+This example demonstrates the means of converting an instance of [LDAPSyntax]
+into an instance of map[string][]string.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
 func ExampleLDAPSyntax_Map() {
 	integer := mySchema.LDAPSyntaxes().Get(`integer`)
 	fmt.Println(integer.Map()[`NUMERICOID`][0])
 	// Output: 1.3.6.1.4.1.1466.115.121.1.27
 }
 
+/*
+This example demonstrates use of the [LDAPSyntaxes.Maps] method, which
+produces slices of [DefinitionMap] instances born of the [LDAPSyntaxes]
+stack in which they reside.
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
 func ExampleLDAPSyntaxes_Maps() {
 	maps := mySchema.LDAPSyntaxes().Maps()
 	fmt.Println(maps[3][`NUMERICOID`][0])
 	// Output: 1.3.6.1.4.1.1466.115.121.1.4
+}
+
+/*
+This example demonstrates the [LDAPSyntaxes.Inventory] method, which
+produces an instance of [Inventory]. The [Inventory] type is used for
+accessing an OID to DESC "mapping table".
+
+Note: this example assumes a legitimate schema variable is defined
+in place of the fictional "mySchema" var shown here for simplicity.
+*/
+func ExampleLDAPSyntaxes_Inventory() {
+	maps := mySchema.LDAPSyntaxes().Inventory()
+	fmt.Println(maps[`1.3.6.1.4.1.1466.115.121.1.40`][0])
+	// Output: Octet String
 }
 
 /*

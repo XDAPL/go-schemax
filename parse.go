@@ -1,7 +1,6 @@
 package schemax
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/JesseCoretta/go-antlr4512"
@@ -136,8 +135,6 @@ ParseDITStructureRule returns an error following an attempt to parse raw into an
 instance of [DITStructureRule] and append it to the [Schema.DITStructureRules] stack.
 */
 func (r Schema) ParseDITStructureRule(raw string) error {
-	fmt.Println(raw)
-
 	def, err := parseDS(raw)
 	if err == nil {
 		var _def DITStructureRule
@@ -177,13 +174,11 @@ func (r Schema) incorporate(s antlr4512.Schema) (err error) {
 }
 
 func (r Schema) incorporateLS(s antlr4512.LDAPSyntaxes) (err error) {
-	for i := 0; i < len(s); i++ {
+	for i := 0; i < len(s) && err == nil; i++ {
 		var def LDAPSyntax
-		if def, err = r.marshalLS(s[i]); err != nil {
-			break
+		if def, err = r.marshalLS(s[i]); err == nil {
+			r.LDAPSyntaxes().push(def)
 		}
-
-		r.LDAPSyntaxes().push(def)
 	}
 
 	return
@@ -233,14 +228,11 @@ func (r Schema) marshalLS(s antlr4512.LDAPSyntax) (def LDAPSyntax, err error) {
 }
 
 func (r Schema) incorporateMR(s antlr4512.MatchingRules) (err error) {
-
-	for i := 0; i < len(s); i++ {
+	for i := 0; i < len(s) && err == nil; i++ {
 		var def MatchingRule
-		if def, err = r.marshalMR(s[i]); err != nil {
-			break
+		if def, err = r.marshalMR(s[i]); err == nil {
+			r.MatchingRules().push(def)
 		}
-
-		r.MatchingRules().push(def)
 	}
 
 	return
@@ -309,14 +301,11 @@ func (r Schema) marshalMR(s antlr4512.MatchingRule) (def MatchingRule, err error
 }
 
 func (r Schema) incorporateMU(s antlr4512.MatchingRuleUses) (err error) {
-
-	for i := 0; i < len(s); i++ {
+	for i := 0; i < len(s) && err == nil; i++ {
 		var def MatchingRuleUse
-		if def, err = r.marshalMU(s[i]); err != nil {
-			break
+		if def, err = r.marshalMU(s[i]); err == nil {
+			r.MatchingRuleUses().push(def)
 		}
-
-		r.MatchingRuleUses().push(def)
 	}
 
 	return
@@ -375,13 +364,11 @@ func (r Schema) marshalMU(s antlr4512.MatchingRuleUse) (def MatchingRuleUse, err
 }
 
 func (r Schema) incorporateAT(s antlr4512.AttributeTypes) (err error) {
-	for i := 0; i < len(s); i++ {
+	for i := 0; i < len(s) && err == nil; i++ {
 		var def AttributeType
-		if def, err = r.marshalAT(s[i]); err != nil {
-			break
+		if def, err = r.marshalAT(s[i]); err == nil {
+			r.AttributeTypes().push(def)
 		}
-
-		r.AttributeTypes().push(def)
 	}
 
 	return
@@ -516,13 +503,11 @@ func (r *attributeType) marshalUsage(s antlr4512.AttributeType) {
 }
 
 func (r Schema) incorporateOC(s antlr4512.ObjectClasses) (err error) {
-	for i := 0; i < len(s); i++ {
+	for i := 0; i < len(s) && err == nil; i++ {
 		var def ObjectClass
-		if def, err = r.marshalOC(s[i]); err != nil {
-			break
+		if def, err = r.marshalOC(s[i]); err == nil {
+			r.ObjectClasses().push(def)
 		}
-
-		r.ObjectClasses().push(def)
 	}
 
 	return
@@ -612,13 +597,11 @@ func (r Schema) marshalOC(s antlr4512.ObjectClass) (def ObjectClass, err error) 
 }
 
 func (r Schema) incorporateDC(s antlr4512.DITContentRules) (err error) {
-	for i := 0; i < len(s); i++ {
+	for i := 0; i < len(s) && err == nil; i++ {
 		var def DITContentRule
-		if def, err = r.marshalDC(s[i]); err != nil {
-			break
+		if def, err = r.marshalDC(s[i]); err == nil {
+			r.DITContentRules().push(def)
 		}
-
-		r.DITContentRules().push(def)
 	}
 
 	return
@@ -708,13 +691,11 @@ func (r Schema) marshalDC(s antlr4512.DITContentRule) (def DITContentRule, err e
 }
 
 func (r Schema) incorporateNF(s antlr4512.NameForms) (err error) {
-	for i := 0; i < len(s); i++ {
+	for i := 0; i < len(s) && err == nil; i++ {
 		var def NameForm
-		if def, err = r.marshalNF(s[i]); err != nil {
-			break
+		if def, err = r.marshalNF(s[i]); err == nil {
+			r.NameForms().push(def)
 		}
-
-		r.NameForms().push(def)
 	}
 
 	return
@@ -782,13 +763,11 @@ func (r Schema) marshalNF(s antlr4512.NameForm) (def NameForm, err error) {
 }
 
 func (r Schema) incorporateDS(s antlr4512.DITStructureRules) (err error) {
-	for i := 0; i < len(s); i++ {
+	for i := 0; i < len(s) && err == nil; i++ {
 		var def DITStructureRule
-		if def, err = r.marshalDS(s[i]); err != nil {
-			break
+		if def, err = r.marshalDS(s[i]); err == nil {
+			r.DITStructureRules().push(def)
 		}
-
-		r.DITStructureRules().push(def)
 	}
 
 	return
