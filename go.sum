@@ -1,5 +1,7 @@
 github.com/JesseCoretta/go-antlr4512 v1.0.7 h1:8g53J9DsShLrCamxu1ptbCk94UqsNTknTNDIXr+m/UY=
 github.com/JesseCoretta/go-antlr4512 v1.0.7/go.mod h1:vCwu7gTfNSpVokQVnv6Lb4849elh067gKk87pzKV/3U=
+github.com/JesseCoretta/go-antlr4512 v1.0.8 h1:UGzRH2PSvqHXUUYH02llp9E4GmtoK0/Y2ruapA821T0=
+github.com/JesseCoretta/go-antlr4512 v1.0.8/go.mod h1:Lp7Kgd6vyZAQOENhSGvsIWU9XiQRJ7CuqNWbwZ2MTkY=
 github.com/JesseCoretta/go-objectid v1.0.4 h1:JhQTcKXc5yrr3nCuLOVaG16K5Bgf8hZOwYsmDWz81zw=
 github.com/JesseCoretta/go-objectid v1.0.4/go.mod h1:dOPQhGxLieMBl4WF1gq0Z3yb3KppfNGV/XrPrudjyuw=
 github.com/JesseCoretta/go-shifty v1.0.1 h1:+AaQbNfVtWxWwI9jo0Hke6Jv1mBlOD/bAooaj0xjVi8=

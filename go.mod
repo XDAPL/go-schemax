@@ -27,10 +27,10 @@ replace internal/rfc4524 => ./internal/rfc4524
 replace internal/rfc4530 => ./internal/rfc4530
 
 require (
-	github.com/JesseCoretta/go-antlr4512 v1.0.7
-	github.com/JesseCoretta/go-objectid v1.0.4
-	github.com/JesseCoretta/go-shifty v1.0.1
-	github.com/JesseCoretta/go-stackage v1.0.4
+	github.com/JesseCoretta/go-antlr4512 v1.0.8 // indirect
+	github.com/JesseCoretta/go-objectid v1.0.4 // indirect
+	github.com/JesseCoretta/go-shifty v1.0.1 // indirect
+	github.com/JesseCoretta/go-stackage v1.0.4 // indirect
 	internal/rfc2079 v1.0.0
 	internal/rfc2307 v1.0.0
 	internal/rfc2798 v1.0.0
