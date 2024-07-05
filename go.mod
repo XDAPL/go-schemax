@@ -1,4 +1,4 @@
-module github.com/JesseCoretta/go-schemax
+module github.com/JesseCoretta/go-schemax/v2
 
 replace internal/x501 => ./internal/x501
 
@@ -52,3 +52,5 @@ require (
 )
 
 go 1.22
+
+toolchain go1.21.5
