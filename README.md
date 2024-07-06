@@ -2,6 +2,8 @@
 
 Package schemax incorporates a powerful [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) parser, wrapped with convenient, reflective features for creating and interrogating directory schemas.
 
+Forked from JesseCoretta's [go-schemax](https://github.com/JesseCoretta/go-schemax).
+
 Requires Go version 1.22 or higher.
 
 [![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-schemax)](https://goreportcard.com/report/github.com/JesseCoretta/go-schemax) [![CodeQL](https://github.com/JesseCoretta/go-schemax/workflows/CodeQL/badge.svg)](https://github.com/JesseCoretta/go-schemax/actions/workflows/github-code-scanning/codeql) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-schemax.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-schemax) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-schemax/blob/main/LICENSE) [![Help Animals](https://img.shields.io/badge/help_animals-gray?label=%F0%9F%90%BE%20%F0%9F%98%BC%20%F0%9F%90%B6&labelColor=yellow)](https://github.com/JesseCoretta/JesseCoretta/blob/main/DONATIONS.md)
