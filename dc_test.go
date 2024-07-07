@@ -40,7 +40,7 @@ Note: this example assumes a legitimate schema variable is defined
 in place of the fictional "mySchema" var shown here for simplicity.
 */
 func ExampleDITContentRule_SetStringer() {
-	opers := mySchema.DITContentRules().Get(`rootArcContent`)
+	opers := mySchema.DITContentRules().Index(0)
 	opers.SetStringer(func() string {
 		return "This useless message brought to you by a dumb stringer"
 	})
@@ -49,12 +49,13 @@ func ExampleDITContentRule_SetStringer() {
 	opers.SetStringer() // return it to its previous state if need be ...
 
 	fmt.Printf("Original: %s\nOld: %s", opers, msg)
-	// Output: Original: ( 1.3.6.1.4.1.56521.101.2.5.2
-	//     NAME 'rootArcContent'
-	//     DESC 'root arc entry content rule'
-	//     AUX ( iSORegistration
-	//         $ iTUTRegistration
-	//         $ jointISOITUTRegistration )
+	// Output: Original: ( 1.3.6.1.4.1.56521.101.2.5.3
+	//     NAME 'arcContent'
+	//     DESC 'arc entry content rule'
+	//     AUX ( x660Context
+	//         $ x667Context
+	//         $ x680Context
+	//         $ x690Context )
 	//     MUST ( aSN1Notation
 	//          $ iRI
 	//          $ identifier
@@ -127,49 +128,9 @@ func ExampleDITContentRule_SetData() {
 }
 
 func ExampleDITContentRule_IsIdentifiedAs() {
-	oc := mySchema.DITContentRules().Get(`rootArcContent`)
-	fmt.Println(oc.IsIdentifiedAs(`1.3.6.1.4.1.56521.101.2.5.2`))
+	oc := mySchema.DITContentRules().Get(`arcContent`)
+	fmt.Println(oc.IsIdentifiedAs(`1.3.6.1.4.1.56521.101.2.5.3`))
 	// Output: true
-}
-
-/*
- */
-func ExampleDITContentRule_Replace() {
-	gon := mySchema.DITContentRules().Index(0)
-
-	// Craft a near identical groupOfNames instance,
-	// save for the one change we intend to make.
-	ngon := mySchema.NewDITContentRule().
-		SetName(gon.Name()).
-		SetNumericOID(gon.NumericOID()).
-		SetDescription(gon.Description()).
-		SetMust(`cn`).
-		SetMay(`member`, `businessCategory`, `seeAlso`, `owner`, `ou`, `o`, `description`).
-		SetNot(`drink`).
-		SetExtension(`X-ORIGIN`, `NOWHERE`).
-		SetExtension(`X-WARNING`, `MODIFIED`). // optional
-		SetStringer()
-
-	// Replace gon with ngon, while preserving its pointer
-	// address so that references within stacks do not fail.
-	gon.Replace(ngon)
-
-	// call the new one (just to be sure)
-	fmt.Println(mySchema.DITContentRules().Index(0))
-	// Output: ( 1.3.6.1.4.1.56521.101.2.5.2
-	//     NAME 'rootArcContent'
-	//     DESC 'root arc entry content rule'
-	//     MUST cn
-	//     MAY ( member
-	//         $ businessCategory
-	//         $ seeAlso
-	//         $ owner
-	//         $ ou
-	//         $ o
-	//         $ description )
-	//     NOT drink
-	//     X-ORIGIN 'NOWHERE'
-	//     X-WARNING 'MODIFIED' )
 }
 
 func ExampleDITContentRule_SetObsolete() {
@@ -191,14 +152,14 @@ in place of the fictional "mySchema" var shown here for simplicity.
 */
 func ExampleDITContentRules_Contains() {
 	rules := mySchema.DITContentRules()
-	fmt.Println(rules.Contains(`rootArcContent`)) // or "2.5.6.0"
+	fmt.Println(rules.Contains(`arcContent`)) // or "1.3.6.1.4.1.56521.101.2.5.3"
 	// Output: true
 }
 
 func ExampleDITContentRules_Inventory() {
 	dc := mySchema.DITContentRules().Inventory()
-	fmt.Println(dc[`1.3.6.1.4.1.56521.101.2.5.2`][0])
-	// Output: rootArcContent
+	fmt.Println(dc[`1.3.6.1.4.1.56521.101.2.5.3`][0])
+	// Output: arcContent
 }
 
 func ExampleDITContentRules_Type() {
@@ -216,7 +177,7 @@ func ExampleDITContentRule_Type() {
 func ExampleDITContentRule_Map() {
 	def := mySchema.DITContentRules().Index(0)
 	fmt.Println(def.Map()[`NUMERICOID`][0]) // risky, just for simplicity
-	// Output: 1.3.6.1.4.1.56521.101.2.5.2
+	// Output: 1.3.6.1.4.1.56521.101.2.5.3
 }
 
 /*
@@ -229,7 +190,7 @@ and reference index zero (0) of its `SYNTAX` key to obtain the relevant
 func ExampleDITContentRules_Maps() {
 	defs := mySchema.DITContentRules().Maps()
 	fmt.Println(defs[0][`NUMERICOID`][0]) // risky, just for simplicity
-	// Output: 1.3.6.1.4.1.56521.101.2.5.2
+	// Output: 1.3.6.1.4.1.56521.101.2.5.3
 }
 
 /*
@@ -248,8 +209,8 @@ func ExampleNewDITContentRule() {
 		SetDescription(`EP-46: Engineering employee`).
 		SetNumericOID(`0.9.2342.19200300.100.4.5`).
 		SetMust(`uid`).
-		SetMay(`sn`, `cn`, `l`, `st`, `c`, `co`).
-		SetNot(`drink`).
+		SetMay(`description`, `seeAlso`, `l`, `o`, `ou`).
+		SetNot(`host`).
 		SetExtension(`X-ORIGIN`, `NOWHERE`).
 		SetStringer() // use default stringer
 
@@ -258,13 +219,12 @@ func ExampleNewDITContentRule() {
 	//     NAME 'engineeringPersonnel'
 	//     DESC 'EP-46: Engineering employee'
 	//     MUST uid
-	//     MAY ( sn
-	//         $ cn
+	//     MAY ( description
+	//         $ seeAlso
 	//         $ l
-	//         $ st
-	//         $ c
-	//         $ co )
-	//     NOT drink
+	//         $ o
+	//         $ ou )
+	//     NOT host
 	//     X-ORIGIN 'NOWHERE' )
 }
 
@@ -336,9 +296,10 @@ func TestDITContentRule_codecov(t *testing.T) {
 	_ = def.Obsolete()
 
 	def.setOID(`4.3.2.1`)
-	var raw string = `( 1.3.6.1.4.1.56521.101.2.5.2
-                NAME 'rootArcContent'
+	var raw string = `( 1.3.6.1.4.1.56521.101.2.5.3
+                NAME 'arcContent'
                 DESC 'root arc entry content rule'
+		AUX ( x660Context $ x667Context $ x680Context $ x690Context )
                 MUST ( aSN1Notation
                      $ iRI
                      $ identifier

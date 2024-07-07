@@ -1,5 +1,9 @@
 package schemax
 
+import (
+//"fmt"
+)
+
 /*
 NewDITContentRules initializes a new [DITContentRules] instance.
 */
@@ -443,40 +447,154 @@ func (r DITContentRules) Compliant() bool {
 }
 
 /*
+StructuralClass returns the STRUCTURAL [ObjectClass] set within the
+receiver instance, or a zero instance if unset.
+*/
+func (r DITContentRule) StructuralClass() (soc ObjectClass) {
+	if !r.IsZero() {
+		soc = r.dITContentRule.OID
+	}
+
+	return
+}
+
+/*
 Compliant returns a Boolean value indicative of the receiver being fully
 compliant per the required clauses of § 4.1.6 of RFC 4512:
 
   - Numeric OID must relate to a predefined [ObjectClass] in the associated [Schema] instance
   - [ObjectClass] referenced by OID must be STRUCTURAL
   - [ObjectClass] referenced by OID must be COMPLIANT itself
+  - Collective [AttributeType] instances are permitted, but not verified as they are never present in any [ObjectClass]
+  - MUST, MAY and NOT clause [AttributeType] instances are limited to those present in the [ObjectClass] super chain
+  - No conflicting clause values (e.g.: cannot forbid (NOT) a required type (MUST)).
 */
 func (r DITContentRule) Compliant() bool {
 	if r.IsZero() {
 		return false
 	}
 
-	for _, b := range []bool{
-		!r.dITContentRule.OID.Compliant(),
-		!r.Must().Compliant(),
-		!r.May().Compliant(),
-		!r.Not().Compliant(),
-	} {
-		if b {
-			return false
-		}
+	structural := r.StructuralClass()
+	if !structural.Compliant() {
+		return false
 	}
 
 	// verify all AUX clause members are valid
+	musts := NewAttributeTypeOIDList() // from STRUCTURAL class MUST clause
+	mays := NewAttributeTypeOIDList()  // from STRUCTURAL class MAY clause
+
+	smust := structural.Must()
+	for i := 0; i < smust.Len(); i++ {
+		musts.Push(smust.Index(i))
+	}
+
+	smay := structural.May()
+	for i := 0; i < smay.Len(); i++ {
+		mays.Push(smay.Index(i))
+	}
+
+	// add ABSTRACT requirements/allowances
+	abstracts := structural.SuperClasses()
+	for i := 0; i < abstracts.Len(); i++ {
+		if abs := abstracts.Index(i); abs.Kind() == 1 {
+			ms := abs.Must()
+			my := abs.May()
+			for j := 0; j < ms.Len(); j++ {
+				musts.Push(ms.Index(j))
+			}
+			for j := 0; j < my.Len(); j++ {
+				mays.Push(my.Index(j))
+			}
+		}
+	}
+
+	for _, boo := range []bool{
+		r.auxComply(musts, mays),
+		r.notComply(musts, mays),
+		r.mustComply(musts, mays),
+		r.mayComply(musts, mays),
+	} {
+		if !boo {
+			return boo
+		}
+	}
+
+	// OC MUST be STRUCTURAL
+	return structural.Kind() == StructuralKind
+}
+
+func (r DITContentRule) auxComply(must, may AttributeTypes) bool {
 	var aux ObjectClasses = r.Aux()
 	for i := 0; i < aux.Len(); i++ {
 		aoc := aux.Index(i)
 		if !aoc.Compliant() || aoc.Kind() != AuxiliaryKind {
 			return false
 		}
+
+		_must := aoc.Must()
+		for j := 0; j < _must.Len(); j++ {
+			must.Push(_must.Index(j))
+		}
+
+		_may := aoc.May()
+		for j := 0; j < _may.Len(); j++ {
+			may.Push(_may.Index(j))
+		}
 	}
 
-	// OC MUST be STRUCTURAL
-	return r.dITContentRule.OID.Kind() == StructuralKind
+	return true
+}
+
+func (r DITContentRule) notComply(must, may AttributeTypes) bool {
+	rnots := r.Not()
+	for i := 0; i < rnots.Len(); i++ {
+		no := rnots.Index(i)
+		if no.Collective() {
+			continue
+		}
+		if must.Contains(no.OID()) && !may.Contains(no.OID()) {
+			// Cannot preclude a MUST or MAY
+			return false
+		}
+	}
+
+	return true
+}
+
+func (r DITContentRule) mustComply(must, may AttributeTypes) bool {
+	rmusts := r.Must()
+	for i := 0; i < rmusts.Len(); i++ {
+		cmust := rmusts.Index(i)
+		if cmust.Collective() {
+			continue
+		}
+		if !must.Contains(cmust.OID()) && !may.Contains(cmust.OID()) {
+			// can't require an unauthorized attribute
+			return false
+		}
+	}
+
+	return true
+}
+
+func (r DITContentRule) mayComply(must, may AttributeTypes) bool {
+	rmays := r.May()
+	for i := 0; i < rmays.Len(); i++ {
+		cmay := rmays.Index(i)
+		if cmay.Collective() {
+			continue
+		}
+		if must.Contains(cmay.OID()) {
+			// can't require a MAY
+			return false
+		}
+		if !may.Contains(cmay.OID()) {
+			// can't allow an unauthorized attribute
+			return false
+		}
+	}
+
+	return true
 }
 
 /*
