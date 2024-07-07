@@ -125,7 +125,7 @@ In either case, this internal reference is used for seamless verification of any
 
 This package is closure-friendly with regards to user-authored closure functions or methods meant to perform specific tasks:
 
-  - Assertion matching, by way of an instance of `MatchingRule` applicable to two assertion values within a `AssertionMatcher` closure (i.e.: is value1 equal to value2?)
+  - Assertion matching, by way of an instance of `MatchingRule` applicable to two assertion values within a `AssertionMatcher` closure (i.e.: is "value1" equal to "value2"?)
   - Syntax qualification, by way of an instance of `LDAPSyntax` to be honored by a value within a `SyntaxQualifier` closure (i.e.: does value qualify for specified syntax?)
   - General-use value qualification, by way of an instance of `AttributeType` to be analyzed in specialized scenarios within a `ValueQualifier` closure (i.e: company/user-specific value processing)
   - Definition string representation, through assignment of a custom `Stringer` closure to eligible definition instances
