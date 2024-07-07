@@ -121,9 +121,14 @@ func uitoa(x any) (s string) {
 }
 
 func atoui(x string) (ui uint, ok bool) {
-	_ui, err := strconv.ParseUint(x, 10, 64)
-	ok = err == nil
-	ui = uint(_ui)
+	_ui, err := strconv.ParseUint(x, 10, 32)
+
+	if 0 <= _ui && _ui <= uint64(^uint(0)) {
+		if err == nil {
+			ok = true
+			ui = uint(_ui)
+		}
+	}
 
 	return
 }

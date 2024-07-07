@@ -19,13 +19,13 @@ Two (2) releases are available for end-users:
 | Version | Notes |
 | :----- | :--- |
 | 1.1.6 | Legacy, custom parser |
-| >= 2.0.0 | Current, ANTLR parser |
+| >= 1.5.0 | Current, ANTLR parser |
 
 ## History of schemax
 
 The goal of schemax has always been to provide a reliable parsing subsystem for directory schema definitions that allows transformation into usable Go objects.
 
-The original design of schemax (version < 2.0.0) involved a custom-made parser. While this design performed remarkably well for years, it was not without its shortcomings. 
+The original design of schemax (version < 1.5.0) involved a custom-made parser. While this design performed remarkably well for years, it was not without its shortcomings. 
 
 The newly released build of schemax involves the import of an ANTLR4-based [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) lexer/parser solution. This is made possible using a newly released "sister" package -- [`go-antlr4512`](https://github.com/JesseCoretta/go-antlr4512) -- which handles all of the low-level ANTLR actions such as tokenization.
 
@@ -50,9 +50,9 @@ The (ANTLR) parsing subsystem imported by the aforementioned sister package is f
 
 ## File and Directory Readers
 
-The (legacy) "v1" release branches of schemax did not offer a robust file and directory parsing solution, rather it focused on the byte representations of a given definition and the tokens derived therein, leaving it to the end-user to devise a delivery method.
+The legacy release branches of schemax did not offer a robust file and directory parsing solution, rather it focused on the byte representations of a given definition and the tokens derived therein, leaving it to the end-user to devise a delivery method.
 
-The "v2" release branches introduce proper `ParseFile` and `ParseDirectory` methods that greatly simplify use of this package in the midst of an established schema "library".  For example:
+The new (>=1.5.0) release branches introduce proper  `ParseRaw`, `ParseFile` and `ParseDirectory` methods that greatly simplify use of this package in the midst of an established schema "library".  For example:
 
 ```
 func main() {
@@ -89,6 +89,8 @@ Files encountered through directory traversal shall only be read and parsed IF t
 An eligible schema file may contain one definition, or many. The effective name of an eligible schema file **is significant**, unlike directories.  Each schema file must be named in a manner that fosters the correct ordering of dependent definitions -- **_whether or not subdirectories are involved_**. To offer a real-world example, the 389DS/Netscape schema directory deployed during a typical installation is defined and governed in a similar manner.
 
 The general rule-of-thumb is suggests that if the `ls -l` Bash command _consistently_ lists the indicated schema files in correct order, and assuming those files contain properly ordered and well-formed definitions, the parsing process should work nicely.
+
+Alternatively, the `ParseRaw` method is ideal for parsing `[]byte` instances that have already been read from the filesystem in some manner, or written "in-line" such as for unit testing.
 
 ## The Schema Itself
 
@@ -144,7 +146,7 @@ Fluency does not extend to methods that are interrogative in nature, in that the
 
 ## Built-In Definitions
 
-The following table describes the contents and coverage of the so-called "built-in" schema definitions, all of which are sourced from recognized RFCs only.
+The following table describes the contents and coverage of the so-called "built-in" schema definitions, all of which are sourced from recognized RFCs only. These can be imported en masse by users, or in piece-meal fashion.
 
 | DOCUMENT | [LS](## "LDAP Syntaxes")  | [MR](## "Matching Rules")  | [AT](## "Attribute Types")  | [OC](## "Object Classes")  | [DC](## "DIT Content Rules")  | [NF](## "Name Forms")  | [DS](## "DIT Structure Rules")  |
 | -------- | :----: | :----: | :----: | :----: | :----: | :----: | :----:  |
