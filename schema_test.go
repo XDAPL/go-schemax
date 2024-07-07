@@ -3088,10 +3088,13 @@ objectclass ( 1.3.6.1.4.1.56521.101.2.5.17
 #
 # 2.6.1.  'rootArcContent'
 #
-ditcontentrule ( 1.3.6.1.4.1.56521.101.2.5.2
-	NAME 'rootArcContent'
-	DESC 'root arc entry content rule'
-	AUX ( iTUTRegistration $ iSORegistration $ jointISOITUTRegistration )
+ditcontentrule ( 1.3.6.1.4.1.56521.101.2.5.3
+	NAME 'arcContent'
+	DESC 'arc entry content rule'
+	AUX ( x660Context
+            $ x667Context
+            $ x680Context
+            $ x690Context )
 	MUST ( n $
 	       iRI $
 	       identifier $
