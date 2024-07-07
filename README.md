@@ -37,7 +37,7 @@ The (ANTLR) parsing subsystem imported by the aforementioned sister package is f
 
   - Presence of header, footer and line-terminating Bash comments surrounding a given definition is acceptable
     - Note that comments are entirely _discarded_ by ANTLR
-  - Support for (escaped!) `'` and `\` characters within quoted strings ('this isn\'t a bad example')
+  - Support for (escaped!) `'` and `\` characters within quoted strings ('this isn\\'t a bad example')
   - Support for linebreaks within definitions
   - Definition prefixing allows variations of the standard [RFC 4512](https://www.rfc-editor.org/rfc/rfc4512.txt) "labels" during file and directory parsing
     - "`attributeTypes`", "`attributeType`" and other variations are permitted for `AttributeType` definitions
