@@ -149,6 +149,7 @@ The following table describes the contents and coverage of the so-called "built-
 | DOCUMENT | [LS](## "LDAP Syntaxes")  | [MR](## "Matching Rules")  | [AT](## "Attribute Types")  | [OC](## "Object Classes")  | [DC](## "DIT Content Rules")  | [NF](## "Name Forms")  | [DS](## "DIT Structure Rules")  |
 | -------- | :----: | :----: | :----: | :----: | :----: | :----: | :----:  |
 | [![RFC 2307](https://img.shields.io/badge/RFC-2307-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2307)  |  ✅  |  ✅  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 2589](https://img.shields.io/badge/RFC-2589-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2589)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
 | [![RFC 2798](https://img.shields.io/badge/RFC-2798-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc2798)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
 | [![RFC 3045](https://img.shields.io/badge/RFC-3045-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3045)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
 | [![RFC 3671](https://img.shields.io/badge/RFC-3671-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc3671)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
@@ -159,3 +160,4 @@ The following table describes the contents and coverage of the so-called "built-
 | [![RFC 4523](https://img.shields.io/badge/RFC-4523-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4523)  |  ✅  |  ✅  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
 | [![RFC 4524](https://img.shields.io/badge/RFC-4524-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4524)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
 | [![RFC 4530](https://img.shields.io/badge/RFC-4530-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc4530)  |  ✅  |  ✅  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
+| [![RFC 5020](https://img.shields.io/badge/RFC-5020-blue?cacheSeconds=500000)](https://datatracker.ietf.org/doc/html/rfc5020)  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ✅  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |  ⁿ/ₐ  |
