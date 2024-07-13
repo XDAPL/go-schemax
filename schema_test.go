@@ -3104,11 +3104,7 @@ ditcontentrule ( 1.3.6.1.4.1.56521.101.2.5.3
 	      additionalUnicodeValue $
 	      standardizedNameForm $
 	      nameAndNumberForm )
-	NOT ( dotNotation $
-	      registrationRange $
-	      registrationStatus $
-	      supArc $
-              topArc )
+	NOT dotNotation
         X-ORIGIN 'draft-coretta-oiddir-schema; unofficial supplement'
         X-WARNING 'UNOFFICIAL' )
 #

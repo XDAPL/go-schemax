@@ -195,6 +195,7 @@ compliant per the required clauses of § 4.1.7.1 of RFC 4512:
   - "rule ID" must be specified in the form of an unsigned integer of any magnitude
   - FORM clause MUST refer to a known [NameForm] instance within the associated [Schema] instance
   - FORM clause MUST refer to a COMPLIANT [NameForm]
+  - FORM must not violate, or be violated by, a relevant [DITContentRule] within the associated [Schema] instance
 */
 func (r DITStructureRule) Compliant() bool {
 	// presence of ruleid is guaranteed via
@@ -204,8 +205,34 @@ func (r DITStructureRule) Compliant() bool {
 		return false
 	}
 
-	//form := r.Schema().NameForms().get(r.Form().NumericOID())
-	return r.Form().Compliant()
+	// obtain nameForm and verify as compliant.
+	form := r.Form()
+	if !form.Compliant() {
+		return false
+	}
+
+	// attempt to call the dITContentRule which
+	// shares the same OID as the nameForm's
+	// structural class.  If zero, we can bail
+	// right now, as the upcoming section does
+	// not apply.
+	dc := r.schema.DITContentRules().Get(form.OC().OID())
+	if dc.IsZero() {
+		return true
+	}
+
+	// We found a matching dITContentRule. We want to
+	// be sure that none of the nameForm's MUST clause
+	// members are present in the dITContentRule's NOT
+	// clause
+	clause := form.Must()
+	for i := 0; i < clause.Len(); i++ {
+		if dc.Not().Contains(clause.Index(i).OID()) {
+			return false
+		}
+	}
+
+	return true
 }
 
 /*
