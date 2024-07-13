@@ -1,4 +1,4 @@
-module github.com/JesseCoretta/go-schemax
+module github.com/XDAPL/go-schemax
 
 require (
 	github.com/JesseCoretta/go-antlr4512 v1.0.8
