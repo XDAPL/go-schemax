@@ -12,31 +12,32 @@ var (
 )
 
 var (
-	AssociatedDomain     AttributeTypeDefinition
-	AssociatedName       AttributeTypeDefinition
-	BuildingName         AttributeTypeDefinition
-	CO                   AttributeTypeDefinition
-	DocumentAuthor       AttributeTypeDefinition
-	DocumentIdentifier   AttributeTypeDefinition
-	DocumentLocation     AttributeTypeDefinition
-	DocumentPublisher    AttributeTypeDefinition
-	DocumentTitle        AttributeTypeDefinition
-	DocumentVersion      AttributeTypeDefinition
-	Drink                AttributeTypeDefinition
-	HomePhone            AttributeTypeDefinition
-	HomePostalAddress    AttributeTypeDefinition
-	Host                 AttributeTypeDefinition
-	Info                 AttributeTypeDefinition
-	Mail                 AttributeTypeDefinition
-	Manager              AttributeTypeDefinition
-	Mobile               AttributeTypeDefinition
-	OrganizationalStatus AttributeTypeDefinition
-	Pager                AttributeTypeDefinition
-	PersonalTitle        AttributeTypeDefinition
-	RoomNumber           AttributeTypeDefinition
-	Secretary            AttributeTypeDefinition
-	UniqueIdentifier     AttributeTypeDefinition
-	UserClass            AttributeTypeDefinition
+	AssociatedDomain,
+	AssociatedName,
+	BuildingName,
+	CO,
+	DocumentAuthor,
+	DocumentIdentifier,
+	DocumentLocation,
+	DocumentPublisher,
+	DocumentTitle,
+	DocumentVersion,
+	Drink,
+	HomePhone,
+	HomePostalAddress,
+	Host,
+	Info,
+	Mail,
+	Manager,
+	Mobile,
+	OrganizationalStatus,
+	Pager,
+	PersonalTitle,
+	RoomNumber,
+	Secretary,
+	UniqueIdentifier,
+	UserClass,
+	SingleLevelQuality   AttributeTypeDefinition
 )
 
 func (r AttributeTypeDefinition) String() string {
@@ -67,6 +68,7 @@ func init() {
 	PersonalTitle = AttributeTypeDefinition(`( 0.9.2342.19200300.100.1.40 NAME 'personalTitle' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{256} X-ORIGIN 'RFC4524' )`)
 	RoomNumber = AttributeTypeDefinition(`( 0.9.2342.19200300.100.1.6 NAME 'roomNumber' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{256} X-ORIGIN 'RFC4524' )`)
 	Secretary = AttributeTypeDefinition(`( 0.9.2342.19200300.100.1.21 NAME 'secretary' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'RFC4524' )`)
+	SingleLevelQuality = AttributeTypeDefinition(`( 0.9.2342.19200300.100.1.50 NAME 'singleLevelQuality' DESC 'Single Level Quality' SYNTAX 1.3.6.1.4.1.1466.115.121.1.13 SINGLE-VALUE X-ORIGIN 'RFC4524' )`)
 	UniqueIdentifier = AttributeTypeDefinition(`( 0.9.2342.19200300.100.1.44 NAME 'uniqueIdentifier' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{256} X-ORIGIN 'RFC4524' )`)
 	UserClass = AttributeTypeDefinition(`( 0.9.2342.19200300.100.1.8 NAME 'userClass' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{256} X-ORIGIN 'RFC4524' )`)
 
@@ -94,6 +96,7 @@ func init() {
 		PersonalTitle,
 		RoomNumber,
 		Secretary,
+		SingleLevelQuality,
 		UniqueIdentifier,
 		UserClass,
 	}
