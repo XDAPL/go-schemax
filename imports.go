@@ -8,7 +8,8 @@ import (
 
 	"github.com/XDAPL/go-schemax/internal/rfc2079"
 	"github.com/XDAPL/go-schemax/internal/rfc2307"
-	"github.com/XDAPL/go-schemax/internal/rfc2798"
+	"github.com/XDAPL/go-schemax/internal/rfc2589"
+  "github.com/XDAPL/go-schemax/internal/rfc2798"
 	"github.com/XDAPL/go-schemax/internal/rfc3045"
 	"github.com/XDAPL/go-schemax/internal/rfc3671"
 	"github.com/XDAPL/go-schemax/internal/rfc3672"
@@ -18,7 +19,8 @@ import (
 	"github.com/XDAPL/go-schemax/internal/rfc4523"
 	"github.com/XDAPL/go-schemax/internal/rfc4524"
 	"github.com/XDAPL/go-schemax/internal/rfc4530"
-	"github.com/XDAPL/go-schemax/internal/x501"
+	"github.com/XDAPL/go-schemax/internal/rfc5020"
+  "github.com/XDAPL/go-schemax/internal/x501"
 
 	"github.com/JesseCoretta/go-objectid"
 	"github.com/JesseCoretta/go-shifty"
@@ -153,6 +155,8 @@ var (
 	rfc4523AttributeTypes rfc4523.AttributeTypeDefinitions = rfc4523.AllAttributeTypes
 	rfc4524AttributeTypes rfc4524.AttributeTypeDefinitions = rfc4524.AllAttributeTypes
 	rfc4530AttributeTypes rfc4530.AttributeTypeDefinitions = rfc4530.AllAttributeTypes
+	rfc2589AttributeTypes rfc2589.AttributeTypeDefinitions = rfc2589.AllAttributeTypes
+	rfc5020AttributeTypes rfc5020.AttributeTypeDefinitions = rfc5020.AllAttributeTypes
 
 	rfc2079ObjectClasses rfc2079.ObjectClassDefinitions = rfc2079.AllObjectClasses
 	rfc2307ObjectClasses rfc2307.ObjectClassDefinitions = rfc2307.AllObjectClasses
