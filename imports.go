@@ -18,6 +18,7 @@ import (
 	"github.com/JesseCoretta/go-schemax/internal/rfc4523"
 	"github.com/JesseCoretta/go-schemax/internal/rfc4524"
 	"github.com/JesseCoretta/go-schemax/internal/rfc4530"
+	"github.com/JesseCoretta/go-schemax/internal/rfc5020"
 	"github.com/JesseCoretta/go-schemax/internal/x501"
 
 	"github.com/JesseCoretta/go-objectid"
@@ -153,6 +154,7 @@ var (
 	rfc4523AttributeTypes rfc4523.AttributeTypeDefinitions = rfc4523.AllAttributeTypes
 	rfc4524AttributeTypes rfc4524.AttributeTypeDefinitions = rfc4524.AllAttributeTypes
 	rfc4530AttributeTypes rfc4530.AttributeTypeDefinitions = rfc4530.AllAttributeTypes
+	rfc5020AttributeTypes rfc5020.AttributeTypeDefinitions = rfc5020.AllAttributeTypes
 
 	rfc2079ObjectClasses rfc2079.ObjectClassDefinitions = rfc2079.AllObjectClasses
 	rfc2307ObjectClasses rfc2307.ObjectClassDefinitions = rfc2307.AllObjectClasses

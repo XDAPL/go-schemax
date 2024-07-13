@@ -20,7 +20,7 @@ the user to start their activities with no fuss.
 func ExampleNewSchema() {
 	mySchema := NewSchema()
 	fmt.Printf("%d types parsed", mySchema.Counters().AT)
-	// Output: 164 types parsed
+	// Output: 165 types parsed
 }
 
 func ExampleNewBasicSchema() {
@@ -103,7 +103,7 @@ which outlines the number of [Definition] instances in categorical fashion.
 */
 func ExampleSchema_Counters() {
 	fmt.Printf("%d types present", mySchema.Counters().AT)
-	// Output: 269 types present
+	// Output: 270 types present
 }
 
 /*
@@ -146,7 +146,7 @@ func TestLoadMatchingRules(t *testing.T) {
 }
 
 func TestLoadAttributeTypes(t *testing.T) {
-	want := 267 // includes supplementals and dcodSchema
+	want := 268 // includes supplementals and dcodSchema
 	if got := mySchema.AttributeTypes().Len(); got != want {
 		t.Errorf("%s failed: want '%d' attributeTypes, got '%d'",
 			t.Name(), want, got)
