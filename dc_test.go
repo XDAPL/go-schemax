@@ -65,11 +65,7 @@ func ExampleDITContentRule_SetStringer() {
 	//         $ nameAndNumberForm
 	//         $ secondaryIdentifier
 	//         $ standardizedNameForm )
-	//     NOT ( dotNotation
-	//         $ registrationRange
-	//         $ registrationStatus
-	//         $ supArc
-	//         $ topArc )
+	//     NOT dotNotation
 	//     X-ORIGIN 'draft-coretta-oiddir-schema; unofficial supplement'
 	//     X-WARNING 'UNOFFICIAL' )
 	// Old: This useless message brought to you by a dumb stringer
@@ -309,11 +305,7 @@ func TestDITContentRule_codecov(t *testing.T) {
                     $ nameAndNumberForm
                     $ secondaryIdentifier
                     $ standardizedNameForm )
-                NOT ( dotNotation
-                    $ registrationRange
-                    $ registrationStatus
-                    $ supArc
-                    $ topArc )
+                NOT dotNotation
                 X-ORIGIN 'draft-coretta-oiddir-schema; unofficial supplement'
 		X-WARNING 'UNOFFICIAL' )`
 

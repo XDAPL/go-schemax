@@ -1,9 +1,5 @@
 package schemax
 
-import (
-//"fmt"
-)
-
 /*
 NewDITContentRules initializes a new [DITContentRules] instance.
 */
@@ -467,7 +463,7 @@ compliant per the required clauses of § 4.1.6 of RFC 4512:
   - [ObjectClass] referenced by OID must be COMPLIANT itself
   - Collective [AttributeType] instances are permitted, but not verified as they are never present in any [ObjectClass]
   - MUST, MAY and NOT clause [AttributeType] instances are limited to those present in the [ObjectClass] super chain
-  - No conflicting clause values (e.g.: cannot forbid (NOT) a required type (MUST)).
+  - No conflicting clause values (e.g.: cannot forbid (NOT) a required type (MUST)), with emphasis on related [DITStructureRule] FORM ([NameForm]) instances.
 */
 func (r DITContentRule) Compliant() bool {
 	if r.IsZero() {
@@ -475,7 +471,7 @@ func (r DITContentRule) Compliant() bool {
 	}
 
 	structural := r.StructuralClass()
-	if !structural.Compliant() {
+	if !structural.Compliant() || structural.Kind() != StructuralKind {
 		return false
 	}
 
@@ -519,8 +515,35 @@ func (r DITContentRule) Compliant() bool {
 		}
 	}
 
-	// OC MUST be STRUCTURAL
-	return structural.Kind() == StructuralKind
+	// if any dITStructureRule definitions exist,
+	// make sure they don't produce a MUST/NOT
+	// conflict.
+	return r.dsrComply(structural)
+}
+
+func (r DITContentRule) dsrComply(structural ObjectClass) bool {
+	// In the event a matching dITStructureRule exists
+	// whose FORM bears the same structural class OID
+	// as the receiver, make sure the rules do not
+	// produce a MUST/NOT conflict.
+	dsr := r.schema.DITStructureRules()
+	for i := 0; i < dsr.Len(); i++ {
+		form := dsr.Index(i).Form()
+		if form.OC().NumericOID() == structural.NumericOID() {
+			// We found a matching dITStructureRule. We want to
+			// be sure that none of its nameForm's MUST clause
+			// members are present in the receiver's NOT clause.
+			clause := form.Must()
+			for i := 0; i < clause.Len(); i++ {
+				if r.Not().Contains(clause.Index(i).OID()) {
+					return false
+				}
+			}
+			break // per X.501, only one rule applies per schema
+		}
+	}
+
+	return true
 }
 
 func (r DITContentRule) auxComply(must, may AttributeTypes) bool {
