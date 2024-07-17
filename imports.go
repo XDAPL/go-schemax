@@ -9,7 +9,7 @@ import (
 	"github.com/JesseCoretta/go-schemax/internal/rfc2079"
 	"github.com/JesseCoretta/go-schemax/internal/rfc2307"
 	"github.com/JesseCoretta/go-schemax/internal/rfc2589"
-  	"github.com/JesseCoretta/go-schemax/internal/rfc2798"
+	"github.com/JesseCoretta/go-schemax/internal/rfc2798"
 	"github.com/JesseCoretta/go-schemax/internal/rfc3045"
 	"github.com/JesseCoretta/go-schemax/internal/rfc3671"
 	"github.com/JesseCoretta/go-schemax/internal/rfc3672"
@@ -20,7 +20,7 @@ import (
 	"github.com/JesseCoretta/go-schemax/internal/rfc4524"
 	"github.com/JesseCoretta/go-schemax/internal/rfc4530"
 	"github.com/JesseCoretta/go-schemax/internal/rfc5020"
-  	"github.com/JesseCoretta/go-schemax/internal/x501"
+	"github.com/JesseCoretta/go-schemax/internal/x501"
 
 	"github.com/JesseCoretta/go-objectid"
 	"github.com/JesseCoretta/go-shifty"
