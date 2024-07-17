@@ -642,6 +642,43 @@ func (r ObjectClass) SuperClasses() (sups ObjectClasses) {
 }
 
 /*
+SubClasses returns an instance of [ObjectClasses] containing slices of
+[ObjectClass] instances that are direct subordinates to the receiver
+instance. As such, this method is essentially the inverse of the
+[ObjectClass.SuperClasses] method.
+
+The super chain is NOT traversed beyond immediate subordinate instances.
+
+Note that the relevant [Schema] instance must have been set using the
+[ObjectClass.SetSchema] method prior to invocation of this method.
+Should this requirement remain unfulfilled, the return instance will
+be a zero instance.
+*/
+func (r ObjectClass) SubClasses() (subs ObjectClasses) {
+        if !r.IsZero() {
+                subs = NewObjectClassOIDList()
+                ocs := r.schema().ObjectClasses()
+                for i := 0; i < ocs.Len(); i++ {
+                        typ := ocs.Index(i)
+			supers := typ.SuperClasses()
+			if got := supers.Get(r.NumericOID()); !got.IsZero() {
+				subs.Push(typ)
+			}
+                }
+        }
+
+        return
+}
+
+func (r ObjectClass) schema() (s Schema) {                            
+        if !r.IsZero() {                                                
+                s = r.objectClass.schema                              
+        }                                                               
+                                                                        
+        return                                                          
+} 
+
+/*
 SuperChain returns an [ObjectClasses] stack of [ObjectClass] instances
 which make up the super type chain of the receiver instance.
 */
