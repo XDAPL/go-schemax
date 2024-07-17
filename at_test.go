@@ -28,6 +28,20 @@ func ExampleAttributeType_SuperChain() {
 }
 
 /*
+This example demonstrates the means of accessing all subordinate type
+instances of the receiver instance.
+
+In essence, this method is the opposite of the [AttributeType.SuperType]
+method and may return zero (0) or more [AttributeType] instances within
+the return [AttributeTypes] instance.
+*/
+func ExampleAttribute_SubTypes() {
+	def := mySchema.AttributeTypes().Get(`name`)
+	fmt.Printf("%d subordinate types found", def.SubTypes().Len())
+	// Output: 15 subordinate types found
+}
+
+/*
 This example demonstrates a compliancy check of the "name" [AttributeType].
 
 Note: this example assumes a legitimate schema variable is defined

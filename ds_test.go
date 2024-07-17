@@ -189,9 +189,23 @@ The [DITStructureRule.NumericOID] method only exists to satisfy Go's interface
 signature requirements with regards to the [Definition] interface type.
 */
 func ExampleDITStructureRule_SuperRules() {
-	def := mySchema.DITStructureRules().Get(2)
+	def := mySchema.DITStructureRules().Get(2) // or 'dotNotArcStructure'
 	fmt.Println(def.SuperRules())
 	// Output: 0
+}
+
+/*
+This example demonstrates the means of accessing all subordinate rule
+instances of the receiver instance.
+
+In essence, this method is the opposite of the [DITStructureRule.SuperRules]
+method and may return zero (0) or more [DITStructureRule] instances within
+the return [DITStructureRules] instance.
+*/
+func ExampleDITStructureRule_SubRules() {
+        def := mySchema.DITStructureRules().Get(0)
+        fmt.Printf("%d subordinate rules found", def.SubRules().Len())
+        // Output: 2 subordinate rules found
 }
 
 /*
@@ -201,9 +215,6 @@ it resides.
 
 This method should not be confused with [DITStructureRules.Get], which
 deals with unsigned rule IDs and names of definitions -- not indices.
-
-The [DITStructureRule.NumericOID] method only exists to satisfy Go's interface
-signature requirements with regards to the [Definition] interface type.
 */
 func ExampleDITStructureRules_Index() {
 	defs := mySchema.DITStructureRules()

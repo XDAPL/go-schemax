@@ -1332,6 +1332,34 @@ func (r AttributeType) SuperType() (sup AttributeType) {
 }
 
 /*
+SubTypes returns an instance of [AttributeTypes] containing slices of
+[AttributeType] instances that are direct subordinates to the receiver
+instance. As such, this method is essentially the inverse of the
+[AttributeType.SuperType] method.
+
+The super chain is NOT traversed beyond immediate subordinate instances.
+
+Note that the relevant [Schema] instance must have been set using the
+[AttributeType.SetSchema] method prior to invocation of this method.
+Should this requirement remain unfulfilled, the return instance will
+be a zero instance.
+*/
+func (r AttributeType) SubTypes() (subs AttributeTypes) {
+	if !r.IsZero() {
+		subs = NewAttributeTypeOIDList()
+		ats := r.schema().AttributeTypes()
+		for i := 0; i < ats.Len(); i++ {
+			typ := ats.Index(i)
+			if typ.SuperType().NumericOID() == r.NumericOID() {
+				subs.Push(typ)
+			}
+		}
+	}
+
+	return
+}
+
+/*
 SuperChain returns an [AttributeTypes] stack of [AttributeType] instances
 which make up the super type chain of the receiver instance.
 */
