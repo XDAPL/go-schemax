@@ -35,7 +35,7 @@ In essence, this method is the opposite of the [AttributeType.SuperType]
 method and may return zero (0) or more [AttributeType] instances within
 the return [AttributeTypes] instance.
 */
-func ExampleAttribute_SubTypes() {
+func ExampleAttributeType_SubTypes() {
 	def := mySchema.AttributeTypes().Get(`name`)
 	fmt.Printf("%d subordinate types found", def.SubTypes().Len())
 	// Output: 15 subordinate types found

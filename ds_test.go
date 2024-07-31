@@ -203,9 +203,9 @@ method and may return zero (0) or more [DITStructureRule] instances within
 the return [DITStructureRules] instance.
 */
 func ExampleDITStructureRule_SubRules() {
-        def := mySchema.DITStructureRules().Get(0)
-        fmt.Printf("%d subordinate rules found", def.SubRules().Len())
-        // Output: 2 subordinate rules found
+	def := mySchema.DITStructureRules().Get(0)
+	fmt.Printf("%d subordinate rules found", def.SubRules().Len())
+	// Output: 2 subordinate rules found
 }
 
 /*

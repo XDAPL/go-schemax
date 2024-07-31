@@ -36,13 +36,13 @@ func (r Schema) DITStructureRules() (dss DITStructureRules) {
 	return
 }
 
-func (r DITStructureRule) schema() (s Schema) {                              
-        if !r.IsZero() {                                                
-                s = r.dITStructureRule.schema                                
-        }                                                               
-                                                                        
-        return                                                          
-} 
+func (r DITStructureRule) schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.dITStructureRule.schema
+	}
+
+	return
+}
 
 /*
 Replace overrides the receiver with x. Both must bear an identical
@@ -273,33 +273,33 @@ func (r DITStructureRule) SuperRules() (sup DITStructureRules) {
 	return
 }
 
-/*                                                                      
-SubRules returns an instance of [DITStructureRules] containing slices of  
-[DITStructureRule] instances that are direct subordinates to the receiver    
-instance. As such, this method is essentially the inverse of the        
-[DITStructureRule.SuperRules] method.                                      
-                                                                        
+/*
+SubRules returns an instance of [DITStructureRules] containing slices of
+[DITStructureRule] instances that are direct subordinates to the receiver
+instance. As such, this method is essentially the inverse of the
+[DITStructureRule.SuperRules] method.
+
 The super chain is NOT traversed beyond immediate subordinate instances.
-                                                                        
-Note that the relevant [Schema] instance must have been set using the   
-[DITStructureRule.SetSchema] method prior to invocation of this method.      
-Should this requirement remain unfulfilled, the return instance will    
-be a zero instance.                                                     
-*/                                                                      
-func (r DITStructureRule) SubRules() (subs DITStructureRules) {                
-        if !r.IsZero() {                                                
-                subs = NewDITStructureRuleIDList()                          
-                dsrs := r.schema().DITStructureRules()                       
-                for i := 0; i < dsrs.Len(); i++ {                        
-                        typ := dsrs.Index(i)                             
-                        supers := typ.SuperRules()                    
-                        if got := supers.Get(r.RuleID()); !got.IsZero() {
-                                subs.Push(typ)                          
-                        }                                               
-                }                                                       
-        }                                                               
-                                                                        
-        return                                                          
+
+Note that the relevant [Schema] instance must have been set using the
+[DITStructureRule.SetSchema] method prior to invocation of this method.
+Should this requirement remain unfulfilled, the return instance will
+be a zero instance.
+*/
+func (r DITStructureRule) SubRules() (subs DITStructureRules) {
+	if !r.IsZero() {
+		subs = NewDITStructureRuleIDList()
+		dsrs := r.schema().DITStructureRules()
+		for i := 0; i < dsrs.Len(); i++ {
+			typ := dsrs.Index(i)
+			supers := typ.SuperRules()
+			if got := supers.Get(r.RuleID()); !got.IsZero() {
+				subs.Push(typ)
+			}
+		}
+	}
+
+	return
 }
 
 /*

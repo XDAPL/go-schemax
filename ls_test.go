@@ -71,6 +71,16 @@ func ExampleLDAPSyntax_NumericOID() {
 }
 
 /*
+This example demonstrates a simple means of determining whether the
+receiver instance describes a human-readable [LDAPSyntax].
+*/
+func ExampleLDAPSyntax_HumanReadable() {
+	def := mySchema.LDAPSyntaxes().Get(`1.3.6.1.1.15.7`)
+	fmt.Printf("%s is human-readable: %t", def.Description(), def.HumanReadable())
+	// Output: X.509 Algorithm Identifier is human-readable: false
+}
+
+/*
 This example demonstrates the means for accessing the description OR
 numeric OID of the receiver instance.
 
@@ -318,6 +328,7 @@ func TestLDAPSyntax_codecov(t *testing.T) {
 	_ = def.String()
 	_ = def.SetStringer()
 	_ = def.Description()
+	_ = def.HumanReadable()
 	_ = def.Name()
 	_ = def.Names()
 	_ = def.Extensions()
@@ -363,6 +374,7 @@ func TestLDAPSyntax_codecov(t *testing.T) {
 	}
 	_ = def.macro()
 	def.setOID(`1.3.6.1.4.1.56521.999.88.5`)
+	_ = def.HumanReadable()
 
 	var def2 LDAPSyntax
 	_ = def2.Replace(def) // will fail

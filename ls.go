@@ -238,6 +238,8 @@ func (r *lDAPSyntax) setStringer(function ...Stringer) {
 }
 
 /*
+NOT YET IMPLEMENTED
+
 xOrigin returns an instance of LDAPSyntaxes containing only definitions
 which bear the X-ORIGIN value of x. Case is not significant in the matching
 process, nor is whitespace (e.g.: RFC 4517 vs. RFC4517).
@@ -257,6 +259,31 @@ func (r LDAPSyntaxes) xOrigin(x string) (lss LDAPSyntaxes) {
 	return
 }
 */
+
+/*
+HumanReadable returns a Boolean value indicative of whether the receiver
+is considered a HUMAN-READABLE (HR) syntax.
+
+To that end, the determination is made based on the presence of the
+'X-NOT-HUMAN-READABLE' [Extension] bearing a value of 'TRUE'. In this
+state, a value of false is returned, indicating the [LDAPSyntax] is NOT
+considered HUMAN-READABLE.  A value of false is also returned if the
+receiver is nil.
+
+All other states return true.
+*/
+func (r LDAPSyntax) HumanReadable() bool {
+	if r.IsZero() {
+		return false
+	}
+
+	ext, _ := r.Extensions().Get(`X-NOT-HUMAN-READABLE`)
+	if ext.IsZero() {
+		return true
+	}
+
+	return !ext.Contains(`TRUE`) // invert evaluation
+}
 
 /*
 String is a stringer method that returns the string representation

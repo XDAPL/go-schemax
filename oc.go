@@ -655,28 +655,28 @@ Should this requirement remain unfulfilled, the return instance will
 be a zero instance.
 */
 func (r ObjectClass) SubClasses() (subs ObjectClasses) {
-        if !r.IsZero() {
-                subs = NewObjectClassOIDList()
-                ocs := r.schema().ObjectClasses()
-                for i := 0; i < ocs.Len(); i++ {
-                        typ := ocs.Index(i)
+	if !r.IsZero() {
+		subs = NewObjectClassOIDList()
+		ocs := r.schema().ObjectClasses()
+		for i := 0; i < ocs.Len(); i++ {
+			typ := ocs.Index(i)
 			supers := typ.SuperClasses()
 			if got := supers.Get(r.NumericOID()); !got.IsZero() {
 				subs.Push(typ)
 			}
-                }
-        }
+		}
+	}
 
-        return
+	return
 }
 
-func (r ObjectClass) schema() (s Schema) {                            
-        if !r.IsZero() {                                                
-                s = r.objectClass.schema                              
-        }                                                               
-                                                                        
-        return                                                          
-} 
+func (r ObjectClass) schema() (s Schema) {
+	if !r.IsZero() {
+		s = r.objectClass.schema
+	}
+
+	return
+}
 
 /*
 SuperChain returns an [ObjectClasses] stack of [ObjectClass] instances

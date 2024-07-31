@@ -142,18 +142,18 @@ func ExampleObjectClass_SuperClassOf() {
 	// Output: true
 }
 
-/*                                                                      
+/*
 This example demonstrates the means of accessing all subordinate class
-instances of the receiver instance.                                     
-                                                                        
+instances of the receiver instance.
+
 In essence, this method is the opposite of the [ObjectClass.SuperClasses]
-method and may return zero (0) or more [ObjectClasses] instances within 
-the return [ObjectClasses] instance.                                   
+method and may return zero (0) or more [ObjectClasses] instances within
+the return [ObjectClasses] instance.
 */
 func ExampleObjectClass_SubClasses() {
-        def := mySchema.ObjectClasses().Get(`top`)                    
-        fmt.Printf("%d subordinate classes found", def.SubClasses().Len())  
-        // Output: 49 subordinate classes found
+	def := mySchema.ObjectClasses().Get(`top`)
+	fmt.Printf("%d subordinate classes found", def.SubClasses().Len())
+	// Output: 49 subordinate classes found
 }
 
 /*
