@@ -14,7 +14,7 @@ A few things should be reviewed before submitting a contribution to this reposit
 
  1. Read our [Code of Conduct](./CODE_OF_CONDUCT.md) to keep our community approachable and respectable.
  2. Review [RFC4512 Section 4.1](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1). This package is a direct implementation of that document section as it pertains to the parsing, validation, relationships and FIFO storage of all types of schema definitions.
- 3. Review the main [![GoDoc](https://godoc.org/github.com/JesseCoretta/go-schemax?status.svg)](https://godoc.org/github.com/JesseCoretta/go-schemax) page, which provides the entire suite of useful documentation rendered in Go's typically slick manner 😎.
+ 3. Review the main [![Go Reference](https://pkg.go.dev/github.com/JesseCoretta/go-schemax?status.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-schemax) page, which provides the entire suite of useful documentation rendered in Go's typically slick manner 😎.
  4. Review the [Collaborating with pull requests](https://docs.github.com/en/github/collaborating-with-pull-requests) document, unless you're already familiar with its concepts ...
 
 Once you've accomplished the above items, you're probably ready to start making contributions. For this, I thank you.
